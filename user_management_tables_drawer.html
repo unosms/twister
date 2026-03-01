@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>User Management - Device Control Manager</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101622",
+                    },
+                    fontFamily: {
+                        "display": ["Inter", "sans-serif"]
+                    },
+                    borderRadius: {
+                        "DEFAULT": "0.25rem",
+                        "lg": "0.5rem",
+                        "xl": "0.75rem",
+                        "full": "9999px"
+                    },
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-[#0d121b] dark:text-white min-h-screen flex flex-col font-display">
+<!-- Top Navigation Bar -->
+<header class="flex items-center justify-between whitespace-nowrap border-b border-solid border-[#e7ebf3] dark:border-gray-800 bg-white dark:bg-background-dark px-10 py-3 sticky top-0 z-30">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-4 text-[#0d121b] dark:text-white">
+<div class="size-6 text-primary">
+<svg fill="currentColor" viewbox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<path d="M44 4H30.6666V17.3334H17.3334V30.6666H4V44H44V4Z"></path>
+</svg>
+</div>
+<h2 class="text-[#0d121b] dark:text-white text-lg font-bold leading-tight tracking-[-0.015em]">Device Control Manager</h2>
+</div>
+<label class="flex flex-col min-w-40 !h-10 max-w-64">
+<div class="flex w-full flex-1 items-stretch rounded-lg h-full bg-[#e7ebf3] dark:bg-gray-800">
+<div class="text-[#4c669a] dark:text-gray-400 flex border-none items-center justify-center pl-4 rounded-l-lg" data-icon="search">
+<span class="material-symbols-outlined">search</span>
+</div>
+<input class="form-input flex w-full min-w-0 flex-1 resize-none overflow-hidden rounded-lg text-[#0d121b] dark:text-white focus:outline-0 focus:ring-0 border-none bg-transparent placeholder:text-[#4c669a] dark:placeholder:text-gray-500 px-4 rounded-l-none pl-2 text-base font-normal" placeholder="Search users..." value=""/>
+</div>
+</label>
+</div>
+<div class="flex flex-1 justify-end gap-6 items-center">
+<button class="flex min-w-[84px] max-w-[480px] cursor-pointer items-center justify-center overflow-hidden rounded-lg h-10 px-4 bg-primary text-white text-sm font-bold leading-normal tracking-[0.015em] hover:bg-primary/90 transition-colors">
+<span class="truncate">Create User</span>
+</button>
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#4c669a] dark:text-gray-400 cursor-pointer">notifications</span>
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-9 border border-gray-200 dark:border-gray-700" data-alt="User profile avatar of admin" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuC4CAebvdcetzhc5xW5kK7OGP32knVssyNUnKfSbayUUVihg_8YvUdExUXml2H-ggS2yJQ0X1OKv3p-NDl9K9pex2LJq95uSPpR9xXZj8a95i3dAV7FbtXxYhvcaX6YLwZX2UZwM5CXIdbwkEu80TlprhIuTzKcUa6LIVFS7vmgz8-QlWvjw1ZDFy6PUoLZeIf_G6nXjtK61ov7LyQ99A2-a8hO2sVHOzDeX5R443h7t5Giarsje-PRd3nsO6qw1bzouYOn7jni1A");'></div>
+</div>
+</div>
+</header>
+<div class="flex flex-1 overflow-hidden relative">
+<!-- Sidebar Navigation -->
+<aside class="w-64 border-r border-[#e7ebf3] dark:border-gray-800 bg-white dark:bg-background-dark hidden lg:flex flex-col p-4 shrink-0">
+<div class="flex flex-col gap-2">
+<div class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#4c669a] dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors">
+<span class="material-symbols-outlined">dashboard</span>
+<p class="text-sm font-medium">Dashboard</p>
+</div>
+<div class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary/10 text-primary cursor-pointer transition-colors">
+<span class="material-symbols-outlined">group</span>
+<p class="text-sm font-bold">Users</p>
+</div>
+<div class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#4c669a] dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors">
+<span class="material-symbols-outlined">devices</span>
+<p class="text-sm font-medium">Devices</p>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 overflow-y-auto bg-background-light dark:bg-background-dark relative">
+<div class="max-w-6xl mx-auto p-8">
+<!-- Page Heading -->
+<div class="flex flex-wrap justify-between items-end gap-3 mb-8">
+<div class="flex flex-col gap-1">
+<p class="text-[#0d121b] dark:text-white text-3xl font-black leading-tight tracking-[-0.033em]">User Management</p>
+<p class="text-[#4c669a] dark:text-gray-400 text-base font-normal">Manage system users, roles, and device access permissions.</p>
+</div>
+<div class="flex gap-3">
+<button class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-[#cfd7e7] dark:border-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
+<span class="material-symbols-outlined text-base">filter_list</span>
+                            Filter
+                        </button>
+<button class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-[#cfd7e7] dark:border-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors">
+<span class="material-symbols-outlined text-base">download</span>
+                            Export
+                        </button>
+</div>
+</div>
+<!-- Table Container -->
+<div class="bg-white dark:bg-gray-900 rounded-xl border border-[#cfd7e7] dark:border-gray-800 shadow-sm overflow-hidden">
+<table class="w-full text-left border-collapse">
+<thead>
+<tr class="bg-gray-50 dark:bg-gray-800/50 border-b border-[#cfd7e7] dark:border-gray-800">
+<th class="px-6 py-4 text-[#0d121b] dark:text-gray-200 text-xs font-bold uppercase tracking-wider">User</th>
+<th class="px-6 py-4 text-[#0d121b] dark:text-gray-200 text-xs font-bold uppercase tracking-wider">Email</th>
+<th class="px-6 py-4 text-[#0d121b] dark:text-gray-200 text-xs font-bold uppercase tracking-wider">Role</th>
+<th class="px-6 py-4 text-[#0d121b] dark:text-gray-200 text-xs font-bold uppercase tracking-wider">Status</th>
+<th class="px-6 py-4 text-[#0d121b] dark:text-gray-200 text-xs font-bold uppercase tracking-wider text-center">Devices</th>
+<th class="px-6 py-4 text-[#4c669a] dark:text-gray-400 text-xs font-bold uppercase tracking-wider text-right">Actions</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-[#cfd7e7] dark:divide-gray-800">
+<!-- User Row 1 -->
+<tr class="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="Alex Rivera profile picture" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuBZvSFayePrxD9UdnXX3RvBL6qiX5FQJzNSavWwSfRop9SqUeyQJs9X6o5UHNylEXfI0gUqvPqQQEhuRXbKcKpwYPeOZnr89u4U3Bo1TajrkCLHzHBrMSiQnnEoqq5id75MzTAVokTOwCJTSyjJHj6W0QWKZXx_J01j0E9ss5R121p1TFDwmoK-q4JUdraAhkMIAAb9mn1imOs1UXqUstytrnhU8oAj4O8kgraWMBnCkhgEfRR1RFIhI1aH1JzmD5uErXc0rWmYgw");'></div>
+<span class="text-[#0d121b] dark:text-white font-semibold text-sm">Alex Rivera</span>
+</div>
+</td>
+<td class="px-6 py-4 text-[#4c669a] dark:text-gray-400 text-sm">alex.r@company.com</td>
+<td class="px-6 py-4">
+<span class="inline-flex px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">Admin</span>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs font-bold">
+<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> Active
+                                    </span>
+</td>
+<td class="px-6 py-4 text-center text-[#0d121b] dark:text-white font-medium text-sm">12</td>
+<td class="px-6 py-4 text-right">
+<button class="text-primary hover:text-primary/70 font-bold text-sm">Edit</button>
+</td>
+</tr>
+<!-- User Row 2 -->
+<tr class="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="Sarah Chen profile picture" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuDk7Pxs8yv4btXLaDO2gAWstK4vhwewqqkK_4MOXJLa7_cwtjNUb_xifb9EqgzVj5qgo6InkMYOcIvzTs7z0gUBoYLIrDDd9L6s-2pl5anr-eGKR9YAvAgs8nky4NHSc3MKQ3WTBYum-o8QS-FSFSRJdsw4rOBTd-U-6ZA2pk_OM7A_9PsvUJYM9u-TLt_OwAK5b52_TGBfHOeOzJwobMxaCfH-r9j_nePz_mJdeRGRUb2Ec8xrkgiJFwgVSdnQUKWz7DpIFhvT1Q");'></div>
+<span class="text-[#0d121b] dark:text-white font-semibold text-sm">Sarah Chen</span>
+</div>
+</td>
+<td class="px-6 py-4 text-[#4c669a] dark:text-gray-400 text-sm">s.chen@company.com</td>
+<td class="px-6 py-4">
+<span class="inline-flex px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-xs font-bold">User</span>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs font-bold">
+<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> Active
+                                    </span>
+</td>
+<td class="px-6 py-4 text-center text-[#0d121b] dark:text-white font-medium text-sm">4</td>
+<td class="px-6 py-4 text-right">
+<button class="text-primary hover:text-primary/70 font-bold text-sm">Edit</button>
+</td>
+</tr>
+<!-- User Row 3 -->
+<tr class="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="Jordan Smyth profile picture" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuA-zQA7TrzisWyYj3Z7LEVM4Eze8f20ePE5EK_mzFIpfPZqwJcevbB4seHxZWEWP2bAewuDgwgCvQ2biOw7WboNFd5qfgDZZhxCs9nAPyrX17s2nsCS_tmPfV9PtjVlberoy2C7L8RrgtdQaN3aRuINSpAVIBTjEyvEa5qjEOZFPMRfrzoKd6wi67XwBVEtbL6YB8j4vMz5OssBSQQe4_R98gsy4jietnmywxHDQ4pFyMo7qYYE35lYb9dTlHxYGT_8CrC6XBqlIg");'></div>
+<span class="text-[#0d121b] dark:text-white font-semibold text-sm">Jordan Smyth</span>
+</div>
+</td>
+<td class="px-6 py-4 text-[#4c669a] dark:text-gray-400 text-sm">j.smyth@company.com</td>
+<td class="px-6 py-4">
+<span class="inline-flex px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300 text-xs font-bold">User</span>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-100 text-gray-500 dark:bg-gray-800 dark:text-gray-500 text-xs font-bold">
+<span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span> Inactive
+                                    </span>
+</td>
+<td class="px-6 py-4 text-center text-[#0d121b] dark:text-white font-medium text-sm">0</td>
+<td class="px-6 py-4 text-right">
+<button class="text-primary hover:text-primary/70 font-bold text-sm">Edit</button>
+</td>
+</tr>
+<!-- User Row 4 -->
+<tr class="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
+<td class="px-6 py-4">
+<div class="flex items-center gap-3">
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10" data-alt="Taylor Reed profile picture" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuAcNUlkAhaEoGk7ThlPLE-12IfprSV_bUzf1ig3_48HshUNhY0jW36nMvMF3bodXTfnNyWnbO5Gv-QPW5nl1MnNDGmFaOzidG-WyiF5AsUpLXFhmD7YZantx4Z2vo28FA9r7myGNZYwqxpTts7BjbMweyCjqqdfqydJfkXgM2xzD_nfceEt-05MHg5i1m8Xira_aqJIjWoDJVSUnFPcIKy50eh5WxwVOIWrrzqi05uRmVdY33HrACvM_8tcplZuyuQX47ciRPLLEQ");'></div>
+<span class="text-[#0d121b] dark:text-white font-semibold text-sm">Taylor Reed</span>
+</div>
+</td>
+<td class="px-6 py-4 text-[#4c669a] dark:text-gray-400 text-sm">t.reed@company.com</td>
+<td class="px-6 py-4">
+<span class="inline-flex px-2.5 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">Admin</span>
+</td>
+<td class="px-6 py-4">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 text-xs font-bold">
+<span class="w-1.5 h-1.5 rounded-full bg-green-500"></span> Active
+                                    </span>
+</td>
+<td class="px-6 py-4 text-center text-[#0d121b] dark:text-white font-medium text-sm">28</td>
+<td class="px-6 py-4 text-right">
+<button class="text-primary hover:text-primary/70 font-bold text-sm">Edit</button>
+</td>
+</tr>
+</tbody>
+</table>
+<div class="px-6 py-4 flex items-center justify-between border-t border-[#cfd7e7] dark:border-gray-800 bg-gray-50/50 dark:bg-gray-800/30">
+<p class="text-sm text-[#4c669a] dark:text-gray-400">Showing 1 to 4 of 48 users</p>
+<div class="flex gap-2">
+<button class="px-3 py-1 border border-[#cfd7e7] dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-sm disabled:opacity-50">Previous</button>
+<button class="px-3 py-1 border border-[#cfd7e7] dark:border-gray-700 rounded bg-white dark:bg-gray-800 text-sm">Next</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Create User Drawer Overlay -->
+<div class="fixed inset-0 bg-black/40 backdrop-blur-sm z-40"></div>
+<!-- Create User Drawer -->
+<aside class="fixed top-0 right-0 h-full w-[400px] bg-white dark:bg-gray-900 shadow-2xl z-50 transform transition-transform duration-300 ease-in-out border-l border-[#cfd7e7] dark:border-gray-800 flex flex-col">
+<div class="p-6 border-b border-[#cfd7e7] dark:border-gray-800 flex justify-between items-center">
+<h2 class="text-xl font-bold text-[#0d121b] dark:text-white">Create New User</h2>
+<button class="p-1.5 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+<span class="material-symbols-outlined text-gray-500">close</span>
+</button>
+</div>
+<div class="flex-1 overflow-y-auto p-6 space-y-6">
+<div class="flex flex-col gap-2">
+<label class="text-sm font-bold text-[#0d121b] dark:text-gray-300">Full Name</label>
+<input class="form-input rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" placeholder="e.g. John Doe" type="text"/>
+</div>
+<div class="flex flex-col gap-2">
+<label class="text-sm font-bold text-[#0d121b] dark:text-gray-300">Email Address</label>
+<input class="form-input rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" placeholder="john@company.com" type="email"/>
+</div>
+<div class="flex flex-col gap-2">
+<label class="text-sm font-bold text-[#0d121b] dark:text-gray-300">Role</label>
+<select class="form-select rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11">
+<option>Standard User</option>
+<option>System Admin</option>
+<option>Device Technician</option>
+<option>Viewer</option>
+</select>
+</div>
+<div class="pt-4 flex flex-col gap-4">
+<div class="flex items-center justify-between">
+<div class="flex flex-col">
+<span class="text-sm font-bold text-[#0d121b] dark:text-gray-300">Account Status</span>
+<span class="text-xs text-[#4c669a] dark:text-gray-500">Allow user to login immediately</span>
+</div>
+<label class="relative inline-flex items-center cursor-pointer">
+<input checked="" class="sr-only peer" type="checkbox"/>
+<div class="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary"></div>
+</label>
+</div>
+</div>
+<div class="bg-blue-50 dark:bg-primary/10 border border-primary/20 p-4 rounded-lg flex gap-3">
+<span class="material-symbols-outlined text-primary text-xl">info</span>
+<p class="text-xs text-primary/80 leading-relaxed font-medium">
+                            The user will receive an invitation email with instructions to set up their password and security preferences.
+                        </p>
+</div>
+</div>
+<div class="p-6 border-t border-[#cfd7e7] dark:border-gray-800 flex gap-3">
+<button class="flex-1 py-2.5 px-4 bg-white dark:bg-gray-800 border border-[#cfd7e7] dark:border-gray-700 rounded-lg text-sm font-bold hover:bg-gray-50 transition-colors">Cancel</button>
+<button class="flex-[1.5] py-2.5 px-4 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all">Create Account</button>
+</div>
+</aside>
+</main>
+</div>
+</body></html>

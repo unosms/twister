@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Device Assignment Wizard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101622",
+                    },
+                    fontFamily: {
+                        "display": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark text-[#0d121b] dark:text-gray-100 min-h-screen flex flex-col">
+<!-- Top Navigation Bar -->
+<header class="flex items-center justify-between whitespace-nowrap border-b border-solid border-gray-200 dark:border-gray-800 bg-white dark:bg-background-dark px-10 py-3 z-30">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-4 text-[#0d121b] dark:text-white">
+<div class="size-6 text-primary">
+<svg fill="currentColor" viewbox="0 0 48 48" xmlns="http://www.w3.org/2000/svg">
+<path d="M44 4H30.6666V17.3334H17.3334V30.6666H4V44H44V4Z"></path>
+</svg>
+</div>
+<h2 class="text-lg font-bold leading-tight tracking-[-0.015em]">Device Control Manager</h2>
+</div>
+<label class="flex flex-col min-w-40 h-10 max-w-64">
+<div class="flex w-full flex-1 items-stretch rounded-lg h-full overflow-hidden">
+<div class="text-[#4c669a] flex border-none bg-gray-100 dark:bg-gray-800 items-center justify-center pl-4">
+<span class="material-symbols-outlined text-xl">search</span>
+</div>
+<input class="form-input flex w-full min-w-0 flex-1 border-none bg-gray-100 dark:bg-gray-800 text-[#0d121b] dark:text-white focus:outline-0 focus:ring-0 h-full placeholder:text-[#4c669a] px-4 pl-2 text-sm font-normal" placeholder="Quick Search" value=""/>
+</div>
+</label>
+</div>
+<div class="flex flex-1 justify-end gap-8">
+<div class="flex items-center gap-9">
+<a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="#">Dashboard</a>
+<a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="#">Devices</a>
+<a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="#">Users</a>
+<a class="text-sm font-medium leading-normal hover:text-primary transition-colors" href="#">Reports</a>
+</div>
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border-2 border-primary/20" data-alt="User profile avatar" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuA2aEJSSjOGwTXupSwwlVO8RgOXmZofYvHJ4WEDVAF9544PfaeqxjIOlLvfGURQekNbp0jhoReDRKHPBxR4ChAbCl8KZOcLjjqxxEY8rBcWe71wgo9ipX69T74zxLpVKQFrHoJQcbgwLYmNmkSATVM23wrwtZdZ6YLq-FzDqI6_-Mc8fAgrH2MbixITrdDYALA6mybei1xqZl-rdsI_nHHBMub6J_HdCFvGxB9D6j7GvpLdIFeoUHmG8A0A03GLDo-Cdz5Gqomvcw");'></div>
+</div>
+</header>
+<main class="flex-grow flex flex-col max-w-[1400px] mx-auto w-full px-4 sm:px-10 py-6">
+<!-- Page Heading & Stepper -->
+<div class="flex flex-col md:flex-row justify-between items-end mb-8 gap-6">
+<div class="flex flex-col gap-2">
+<h1 class="text-[#0d121b] dark:text-white text-4xl font-black leading-tight tracking-[-0.033em]">Assign Devices Wizard</h1>
+<p class="text-[#4c669a] text-base font-normal">Step 1: Link hardware assets to your organization's personnel.</p>
+</div>
+<!-- Timeline / Stepper Component -->
+<div class="flex items-center gap-x-4 bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+<div class="flex items-center gap-3">
+<div class="flex items-center justify-center size-8 rounded-full bg-primary text-white">
+<span class="material-symbols-outlined text-lg">person_add</span>
+</div>
+<p class="text-primary text-sm font-bold">Selection</p>
+</div>
+<div class="w-12 h-[2px] bg-gray-200 dark:bg-gray-700"></div>
+<div class="flex items-center gap-3 opacity-50">
+<div class="flex items-center justify-center size-8 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
+<span class="material-symbols-outlined text-lg">verified</span>
+</div>
+<p class="text-sm font-medium">Review &amp; Confirm</p>
+</div>
+</div>
+</div>
+<!-- Wizard Split Panel Content -->
+<div class="flex flex-1 gap-6 min-h-[600px] mb-24">
+<!-- Left Panel: User Selection -->
+<div class="w-1/3 flex flex-col bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden shadow-sm">
+<div class="p-4 border-b border-gray-100 dark:border-gray-800">
+<h3 class="text-lg font-bold mb-3">1. Select User</h3>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">search</span>
+<input class="w-full pl-10 pr-4 py-2 bg-background-light dark:bg-gray-800 border-none rounded-lg focus:ring-2 focus:ring-primary/50 text-sm" placeholder="Search users..." type="text"/>
+</div>
+</div>
+<div class="flex-grow overflow-y-auto p-2 space-y-1">
+<!-- User Item Active -->
+<div class="flex items-center gap-3 p-3 rounded-lg bg-primary/10 border border-primary/20 cursor-pointer">
+<div class="size-10 rounded-full bg-cover bg-center border-2 border-white shadow-sm" data-alt="User portrait" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAV2jRD_xMzQk67wIIBcFnQ_q_qxqEopWbIvXcfMjJaCdZs3FwiC5Rne81qXnDsBlFxKQoEEgMaaZGNH8dFfc-poZTjKOpRLpb0hk4CQ9_nfvXdk79fQwpiIH73pkE8oOTY_wyTl76q30-OdegxenxvmndlgCY9DvNX_-CGfwrT0AHR5asBAwSJyDhmf_vBM5cXyhFRn7VOsGfkDiZzZD62IDukjoN_iw6K-7FpdtCAVL73KO33k2BsABw7VVeJ4aCCnwKOMn5Vhw')"></div>
+<div class="flex-grow">
+<p class="text-sm font-bold text-primary">Sarah Jenkins</p>
+<p class="text-xs text-[#4c669a]">sarah.j@company.com</p>
+</div>
+<span class="material-symbols-outlined text-primary">check_circle</span>
+</div>
+<!-- User Item -->
+<div class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors group">
+<div class="size-10 rounded-full bg-cover bg-center" data-alt="User portrait" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuCAIShyKFJDPxHdMcz3om5WlObYVldZ0f7HU_SXuD8BNwjFg1f4trgx6Q5_ieXF7nxomZXE2SdDusk2fe79PS9E0j8KmdoM9WbW3hd5ly251d9TXlUkv5kN6l-1zcuOgSTYbc36WSlCb75_td4JJgrYnciLJrhBozaphv7MwsUyJTVmi4tduATslQrlEKrh0W1exECJAPTqVwEjvRYlLoRpqNxZK93qYzpY9Hrfphm-YnaNL-SiGs6r8HDV-w7wn_dgceRGTdHr2w')"></div>
+<div class="flex-grow">
+<p class="text-sm font-bold">Michael Chen</p>
+<p class="text-xs text-[#4c669a]">m.chen@company.com</p>
+</div>
+<div class="opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-gray-400">chevron_right</span>
+</div>
+</div>
+<!-- User Item -->
+<div class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors group">
+<div class="size-10 rounded-full bg-cover bg-center" data-alt="User portrait" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAHvcN9um3zY3WfD300LcWqhtykd6H6ZMutpgA-P551ker6HPAnqwZaY8Azi71j-q3L5tZ_GR0WDLKr1V5khqJ9OS21Bou6tZA0vW9OaYe5SXx8rSvYiosu5zDaprbm1fMw50arsnIor2lq_yxokllz1SP4y3oIiuuZO3Hlb9s2DWgXYDWX3f0MIxxzOgvx6uE1C6Xyu32yIWl54i_nwNMI9wq1FNIHKzZli5AJv2tAEk5E8Q3zMWg4qjsA9X41nlHcJvYlO2-f0g')"></div>
+<div class="flex-grow">
+<p class="text-sm font-bold">Robert Fox</p>
+<p class="text-xs text-[#4c669a]">robert.f@company.com</p>
+</div>
+<div class="opacity-0 group-hover:opacity-100 transition-opacity">
+<span class="material-symbols-outlined text-gray-400">chevron_right</span>
+</div>
+</div>
+<!-- More users... -->
+<div class="flex items-center gap-3 p-3 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 cursor-pointer transition-colors group">
+<div class="size-10 rounded-full bg-cover bg-center" data-alt="User portrait" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuBuwn-5OdV2scjaGpQh5pVghpdrzNh76bg1-bEGlcblSS6G64mMwfZoftCZj_8CeiGMYnyOAeat6CAgYgnXxys9GJBqFGBaaF5nURKffAV1uRk7bS6yT_0J0LNqfYMcz1G6XUVadaGhho2DgoLTykXCrBM9opKg4uOFOXym1EROrktzPwE3MC6-Fk_vO9PN-qxsFXrh7W0Z_sZ2zfHbY7H7euXiFgaqMWhKoE620y2HHdHdmTyr8hBnspstd-jnB9i9BZZjdmeN6A')"></div>
+<div class="flex-grow">
+<p class="text-sm font-bold">Alicia Keys</p>
+<p class="text-xs text-[#4c669a]">alicia@company.com</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Panel: Device Grid -->
+<div class="w-2/3 flex flex-col bg-white dark:bg-gray-900 rounded-xl border border-gray-200 dark:border-gray-800 overflow-hidden shadow-sm">
+<div class="p-4 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between bg-white dark:bg-gray-900 sticky top-0 z-10">
+<div>
+<h3 class="text-lg font-bold">2. Select Devices</h3>
+<p class="text-xs text-[#4c669a]">Choose hardware to assign to Sarah Jenkins</p>
+</div>
+<div class="flex gap-2">
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">filter_list</span>
+<select class="pl-10 pr-8 py-2 bg-background-light dark:bg-gray-800 border-none rounded-lg text-sm appearance-none focus:ring-2 focus:ring-primary/50">
+<option>All Devices</option>
+<option>Laptops</option>
+<option>Tablets</option>
+<option>Phones</option>
+</select>
+</div>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">search</span>
+<input class="pl-10 pr-4 py-2 bg-background-light dark:bg-gray-800 border-none rounded-lg focus:ring-2 focus:ring-primary/50 text-sm w-48" placeholder="ID or Serial..." type="text"/>
+</div>
+</div>
+</div>
+<div class="p-6 grid grid-cols-2 lg:grid-cols-3 gap-4 overflow-y-auto flex-grow">
+<!-- Device Card Selected -->
+<div class="relative group cursor-pointer border-2 border-primary rounded-xl p-4 bg-primary/5 transition-all">
+<div class="absolute top-3 right-3">
+<div class="size-6 bg-primary rounded flex items-center justify-center text-white">
+<span class="material-symbols-outlined text-sm">check</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-primary text-3xl mb-2">laptop_mac</span>
+<p class="text-sm font-bold mb-1">MacBook Pro 14"</p>
+<p class="text-[11px] font-mono text-gray-500 uppercase">SN: 8829-XJ-01</p>
+<div class="mt-4 flex items-center gap-2">
+<span class="size-2 rounded-full bg-green-500"></span>
+<span class="text-[10px] font-bold uppercase text-green-600">Available</span>
+</div>
+</div>
+<!-- Device Card -->
+<div class="relative group cursor-pointer border border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:border-primary/50 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
+<div class="absolute top-3 right-3">
+<div class="size-6 border-2 border-gray-300 dark:border-gray-600 rounded"></div>
+</div>
+<span class="material-symbols-outlined text-gray-400 group-hover:text-primary text-3xl mb-2">laptop_windows</span>
+<p class="text-sm font-bold mb-1">Dell XPS 15</p>
+<p class="text-[11px] font-mono text-gray-500 uppercase">SN: 4410-ZZ-99</p>
+<div class="mt-4 flex items-center gap-2">
+<span class="size-2 rounded-full bg-green-500"></span>
+<span class="text-[10px] font-bold uppercase text-green-600">Available</span>
+</div>
+</div>
+<!-- Device Card Selected -->
+<div class="relative group cursor-pointer border-2 border-primary rounded-xl p-4 bg-primary/5 transition-all">
+<div class="absolute top-3 right-3">
+<div class="size-6 bg-primary rounded flex items-center justify-center text-white">
+<span class="material-symbols-outlined text-sm">check</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-primary text-3xl mb-2">tablet_android</span>
+<p class="text-sm font-bold mb-1">iPad Air (Gen 5)</p>
+<p class="text-[11px] font-mono text-gray-500 uppercase">SN: 1022-KK-12</p>
+<div class="mt-4 flex items-center gap-2">
+<span class="size-2 rounded-full bg-green-500"></span>
+<span class="text-[10px] font-bold uppercase text-green-600">Available</span>
+</div>
+</div>
+<!-- Device Card Disabled/Assigned -->
+<div class="relative border border-gray-100 dark:border-gray-800 rounded-xl p-4 bg-gray-50 dark:bg-gray-900 opacity-60 cursor-not-allowed">
+<div class="absolute top-3 right-3">
+<span class="material-symbols-outlined text-gray-400 text-lg">lock</span>
+</div>
+<span class="material-symbols-outlined text-gray-300 text-3xl mb-2">smartphone</span>
+<p class="text-sm font-bold mb-1">iPhone 15 Pro</p>
+<p class="text-[11px] font-mono text-gray-400 uppercase">SN: 9922-PH-00</p>
+<div class="mt-4 flex items-center gap-2">
+<span class="size-2 rounded-full bg-red-500"></span>
+<span class="text-[10px] font-bold uppercase text-red-600">Assigned</span>
+</div>
+</div>
+<!-- Device Card -->
+<div class="relative group cursor-pointer border border-gray-200 dark:border-gray-700 rounded-xl p-4 hover:border-primary/50 hover:bg-gray-50 dark:hover:bg-gray-800 transition-all">
+<div class="absolute top-3 right-3">
+<div class="size-6 border-2 border-gray-300 dark:border-gray-600 rounded"></div>
+</div>
+<span class="material-symbols-outlined text-gray-400 group-hover:text-primary text-3xl mb-2">monitor</span>
+<p class="text-sm font-bold mb-1">LG UltraWide 34"</p>
+<p class="text-[11px] font-mono text-gray-500 uppercase">SN: 0021-MM-44</p>
+<div class="mt-4 flex items-center gap-2">
+<span class="size-2 rounded-full bg-green-500"></span>
+<span class="text-[10px] font-bold uppercase text-green-600">Available</span>
+</div>
+</div>
+<!-- Device Card Selected -->
+<div class="relative group cursor-pointer border-2 border-primary rounded-xl p-4 bg-primary/5 transition-all">
+<div class="absolute top-3 right-3">
+<div class="size-6 bg-primary rounded flex items-center justify-center text-white">
+<span class="material-symbols-outlined text-sm">check</span>
+</div>
+</div>
+<span class="material-symbols-outlined text-primary text-3xl mb-2">keyboard</span>
+<p class="text-sm font-bold mb-1">Magic Keyboard</p>
+<p class="text-[11px] font-mono text-gray-500 uppercase">SN: 7721-KB-02</p>
+<div class="mt-4 flex items-center gap-2">
+<span class="size-2 rounded-full bg-green-500"></span>
+<span class="text-[10px] font-bold uppercase text-green-600">Available</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+<!-- Selection Footer Bar -->
+<footer class="fixed bottom-0 left-0 right-0 bg-white dark:bg-background-dark border-t border-gray-200 dark:border-gray-800 px-10 py-5 z-40 shadow-2xl">
+<div class="max-w-[1400px] mx-auto flex items-center justify-between">
+<div class="flex items-center gap-8">
+<div class="flex flex-col">
+<span class="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Active Selection</span>
+<div class="flex items-center gap-4 mt-1">
+<div class="flex items-center gap-2">
+<span class="text-sm font-bold text-[#0d121b] dark:text-white">1</span>
+<span class="text-sm text-[#4c669a]">User</span>
+</div>
+<div class="w-[1px] h-4 bg-gray-200 dark:bg-gray-700"></div>
+<div class="flex items-center gap-2">
+<span class="text-sm font-bold text-primary">3</span>
+<span class="text-sm text-[#4c669a]">Devices Selected</span>
+</div>
+</div>
+</div>
+<div class="hidden lg:flex items-center gap-2 bg-gray-50 dark:bg-gray-800/50 p-2 rounded-lg border border-gray-100 dark:border-gray-700">
+<div class="flex -space-x-2">
+<div class="size-6 rounded-full bg-primary/20 flex items-center justify-center border border-white dark:border-gray-900">
+<span class="material-symbols-outlined text-[12px] text-primary">laptop</span>
+</div>
+<div class="size-6 rounded-full bg-primary/20 flex items-center justify-center border border-white dark:border-gray-900">
+<span class="material-symbols-outlined text-[12px] text-primary">tablet</span>
+</div>
+<div class="size-6 rounded-full bg-primary/20 flex items-center justify-center border border-white dark:border-gray-900">
+<span class="material-symbols-outlined text-[12px] text-primary">keyboard</span>
+</div>
+</div>
+<span class="text-xs text-[#4c669a] font-medium pr-2">Asset queue ready</span>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="px-6 py-2.5 rounded-lg text-sm font-bold text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors">
+                    Cancel
+                </button>
+<button class="bg-primary hover:bg-primary/90 text-white px-10 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 shadow-lg shadow-primary/25 transition-all">
+                    Next: Review &amp; Confirm
+                    <span class="material-symbols-outlined text-lg">arrow_forward</span>
+</button>
+</div>
+</div>
+</footer>
+</body></html>

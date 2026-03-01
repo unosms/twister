@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Device Control Manager - Admin Dashboard</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101622",
+                    },
+                    fontFamily: {
+                        "display": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-slate-900 dark:text-slate-100 min-h-screen">
+<div class="flex h-screen overflow-hidden">
+<!-- Sidebar Navigation -->
+<aside class="w-64 flex-shrink-0 border-r border-slate-200 dark:border-slate-800 bg-white dark:bg-background-dark/50 flex flex-col justify-between">
+<div class="flex flex-col p-4 gap-6">
+<!-- Brand -->
+<div class="flex items-center gap-3 px-2">
+<div class="h-10 w-10 rounded-lg bg-primary flex items-center justify-center text-white">
+<span class="material-symbols-outlined">settings_remote</span>
+</div>
+<div class="flex flex-col">
+<h1 class="text-sm font-bold leading-none">Device Control</h1>
+<p class="text-[10px] text-slate-500 uppercase tracking-widest mt-1">Admin Portal</p>
+</div>
+</div>
+<!-- Nav Items -->
+<nav class="flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary text-white font-medium transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">dashboard</span>
+<span class="text-sm">Dashboard</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">group</span>
+<span class="text-sm">Users</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">devices</span>
+<span class="text-sm">Devices</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">assignment</span>
+<span class="text-sm">Assignments</span>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 font-medium transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">terminal</span>
+<span class="text-sm">Commands</span>
+</a>
+</nav>
+</div>
+<div class="flex flex-col p-4 gap-1 border-t border-slate-200 dark:border-slate-800">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 font-medium transition-colors" href="#">
+<span class="material-symbols-outlined text-[20px]">logout</span>
+<span class="text-sm">Logout</span>
+</a>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 flex flex-col overflow-y-auto">
+<!-- Top Header -->
+<header class="h-16 flex-shrink-0 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md px-8 flex items-center justify-between sticky top-0 z-10">
+<div class="w-96">
+<div class="relative flex items-center">
+<span class="material-symbols-outlined absolute left-3 text-slate-400 text-[20px]">search</span>
+<input class="w-full bg-slate-100 dark:bg-slate-800 border-none rounded-lg py-2 pl-10 pr-4 text-sm focus:ring-2 focus:ring-primary/50 placeholder:text-slate-500" placeholder="Search devices, users or logs..." type="text"/>
+</div>
+</div>
+<div class="flex items-center gap-4">
+<button class="relative h-10 w-10 flex items-center justify-center rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
+<span class="material-symbols-outlined text-slate-600 dark:text-slate-400">notifications</span>
+<span class="absolute top-2 right-2 h-2 w-2 bg-red-500 border-2 border-white dark:border-background-dark rounded-full"></span>
+</button>
+<div class="h-8 w-[1px] bg-slate-200 dark:border-slate-800 mx-1"></div>
+<div class="flex items-center gap-3">
+<div class="text-right hidden sm:block">
+<p class="text-xs font-bold leading-none">Alex Rivera</p>
+<p class="text-[10px] text-slate-500 mt-1">Super Admin</p>
+</div>
+<div class="h-10 w-10 rounded-full bg-center bg-cover border-2 border-primary/20" data-alt="Profile picture of an administrator" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAvfO67O67l_DBdWQHQprq2tGQS4_-3LZi3TgZWvSmOQ0ddG3G5_sPWZAvpVHb9buoAdrf5Ei98s_38HwjyFQAVmYM0UNTjO6Lj6Sq3liR0Qudxl-LZC7Z9jKpCHRxLwhAO59LpHL--q61-gW6nqn-38R3yzXckfDDk9VayClvL1Wnip0ee1yD3Ll1LperuPspjHuo3CnTu-M5j_Q9pHYY6UxFMB8q9yOaZi9HUaMEFuaI1koEmvp2a0vL5wG-nz2-fllDBMspbvQ')"></div>
+</div>
+</div>
+</header>
+<!-- Dashboard Content -->
+<div class="p-8 space-y-8">
+<!-- Page Heading & Quick Actions -->
+<div class="flex flex-col md:flex-row md:items-center justify-between gap-4">
+<div>
+<h2 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Dashboard Overview</h2>
+<p class="text-slate-500 text-sm mt-1">Real-time status of your device ecosystem.</p>
+</div>
+<div class="flex items-center gap-3">
+<button class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-sm font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-50 transition-colors">
+<span class="material-symbols-outlined text-[18px]">person_add</span>
+                            Add User
+                        </button>
+<button class="flex items-center gap-2 px-4 py-2 bg-primary rounded-lg text-sm font-bold text-white shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all">
+<span class="material-symbols-outlined text-[18px]">add</span>
+                            Add Device
+                        </button>
+</div>
+</div>
+<!-- Stats Grid -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+<div class="bg-white dark:bg-slate-800/50 p-6 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col gap-2">
+<div class="flex items-center justify-between">
+<span class="text-slate-500 text-xs font-bold uppercase tracking-wider">Total Users</span>
+<div class="h-8 w-8 rounded-lg bg-blue-50 dark:bg-blue-900/20 text-blue-600 flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">person</span>
+</div>
+</div>
+<div class="flex items-baseline gap-2">
+<p class="text-3xl font-black text-slate-900 dark:text-white">1,284</p>
+<span class="text-xs font-bold text-green-500">+12%</span>
+</div>
+</div>
+<div class="bg-white dark:bg-slate-800/50 p-6 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col gap-2">
+<div class="flex items-center justify-between">
+<span class="text-slate-500 text-xs font-bold uppercase tracking-wider">Total Devices</span>
+<div class="h-8 w-8 rounded-lg bg-purple-50 dark:bg-purple-900/20 text-purple-600 flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">devices</span>
+</div>
+</div>
+<div class="flex items-baseline gap-2">
+<p class="text-3xl font-black text-slate-900 dark:text-white">5,420</p>
+<span class="text-xs font-bold text-green-500">+5%</span>
+</div>
+</div>
+<div class="bg-white dark:bg-slate-800/50 p-6 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col gap-2">
+<div class="flex items-center justify-between">
+<span class="text-slate-500 text-xs font-bold uppercase tracking-wider">Online Now</span>
+<div class="h-8 w-8 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-600 flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">lan</span>
+</div>
+</div>
+<div class="flex items-baseline gap-2">
+<p class="text-3xl font-black text-slate-900 dark:text-white">5,102</p>
+<span class="text-xs font-bold text-red-500">-2%</span>
+</div>
+</div>
+<div class="bg-white dark:bg-slate-800/50 p-6 rounded-xl border border-slate-200 dark:border-slate-800 flex flex-col gap-2">
+<div class="flex items-center justify-between">
+<span class="text-slate-500 text-xs font-bold uppercase tracking-wider">Active Alerts</span>
+<div class="h-8 w-8 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 flex items-center justify-center">
+<span class="material-symbols-outlined text-[20px]">warning</span>
+</div>
+</div>
+<div class="flex items-baseline gap-2">
+<p class="text-3xl font-black text-slate-900 dark:text-white">12</p>
+<span class="text-xs font-bold text-red-500">+15%</span>
+</div>
+</div>
+</div>
+<!-- Main Content Split View -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+<!-- Recent Activity Feed -->
+<div class="lg:col-span-2 bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden">
+<div class="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+<h3 class="font-bold text-slate-900 dark:text-white">Recent Activity</h3>
+<button class="text-primary text-xs font-bold hover:underline">View All</button>
+</div>
+<div class="divide-y divide-slate-100 dark:divide-slate-800">
+<!-- Activity Item 1 -->
+<div class="p-4 flex items-start gap-4 hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors">
+<div class="h-10 w-10 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center flex-shrink-0">
+<span class="material-symbols-outlined text-slate-600 dark:text-slate-400 text-[20px]">assignment_turned_in</span>
+</div>
+<div class="flex-1 min-w-0">
+<p class="text-sm text-slate-900 dark:text-slate-200">
+<span class="font-bold">System</span> assigned <span class="font-bold">Edge-Router-04</span> to <span class="font-bold">London Data Center</span>.
+                                    </p>
+<p class="text-xs text-slate-500 mt-1">2 minutes ago</p>
+</div>
+</div>
+<!-- Activity Item 2 -->
+<div class="p-4 flex items-start gap-4 hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors">
+<div class="h-10 w-10 rounded-full bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center flex-shrink-0 text-blue-600">
+<span class="material-symbols-outlined text-[20px]">person</span>
+</div>
+<div class="flex-1 min-w-0">
+<p class="text-sm text-slate-900 dark:text-slate-200">
+<span class="font-bold">Sarah Jenkins</span> updated configuration for 12 devices.
+                                    </p>
+<p class="text-xs text-slate-500 mt-1">15 minutes ago</p>
+</div>
+</div>
+<!-- Activity Item 3 -->
+<div class="p-4 flex items-start gap-4 hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors">
+<div class="h-10 w-10 rounded-full bg-orange-50 dark:bg-orange-900/20 flex items-center justify-center flex-shrink-0 text-orange-600">
+<span class="material-symbols-outlined text-[20px]">terminal</span>
+</div>
+<div class="flex-1 min-w-0">
+<p class="text-sm text-slate-900 dark:text-slate-200">
+<span class="font-bold">Command Executed:</span> Re-synced firmware on cluster Alpha-9.
+                                    </p>
+<p class="text-xs text-slate-500 mt-1">45 minutes ago</p>
+</div>
+</div>
+<!-- Activity Item 4 -->
+<div class="p-4 flex items-start gap-4 hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-colors">
+<div class="h-10 w-10 rounded-full bg-slate-100 dark:bg-slate-700 flex items-center justify-center flex-shrink-0 text-slate-600">
+<span class="material-symbols-outlined text-[20px]">history</span>
+</div>
+<div class="flex-1 min-w-0">
+<p class="text-sm text-slate-900 dark:text-slate-200">
+                                        Weekly health report generated for <span class="font-bold">Main Office</span> branch.
+                                    </p>
+<p class="text-xs text-slate-500 mt-1">1 hour ago</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Offline Devices / Alerts Panel -->
+<div class="bg-white dark:bg-slate-800/50 rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden flex flex-col">
+<div class="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-red-50/50 dark:bg-red-950/10">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-red-500 text-[20px]">error</span>
+<h3 class="font-bold text-slate-900 dark:text-white">Critical Alerts</h3>
+</div>
+<span class="px-2 py-0.5 rounded text-[10px] font-black bg-red-500 text-white uppercase tracking-tighter">12 Active</span>
+</div>
+<div class="flex-1 overflow-y-auto">
+<div class="divide-y divide-slate-100 dark:divide-slate-800">
+<!-- Alert 1 -->
+<div class="p-4">
+<div class="flex justify-between items-start">
+<div>
+<p class="text-sm font-bold text-slate-900 dark:text-white">POS-Terminal-B92</p>
+<p class="text-xs text-slate-500 mt-0.5">Offline since 08:42 AM</p>
+</div>
+<span class="px-2 py-1 rounded bg-red-100 dark:bg-red-900/40 text-[10px] font-bold text-red-600 dark:text-red-400">OFFLINE</span>
+</div>
+<div class="mt-3 flex gap-2">
+<button class="flex-1 py-1.5 text-xs font-bold rounded bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 transition-colors">Ping</button>
+<button class="flex-1 py-1.5 text-xs font-bold rounded bg-primary text-white hover:bg-primary/90 transition-colors">Remote</button>
+</div>
+</div>
+<!-- Alert 2 -->
+<div class="p-4">
+<div class="flex justify-between items-start">
+<div>
+<p class="text-sm font-bold text-slate-900 dark:text-white">Smart-HVAC-01</p>
+<p class="text-xs text-slate-500 mt-0.5">High Temperature Threshold</p>
+</div>
+<span class="px-2 py-1 rounded bg-orange-100 dark:bg-orange-900/40 text-[10px] font-bold text-orange-600 dark:text-orange-400">WARNING</span>
+</div>
+<div class="mt-3 flex gap-2">
+<button class="flex-1 py-1.5 text-xs font-bold rounded bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 transition-colors">Check Log</button>
+<button class="flex-1 py-1.5 text-xs font-bold rounded border border-primary text-primary hover:bg-primary/5 transition-colors">Reset</button>
+</div>
+</div>
+<!-- Alert 3 -->
+<div class="p-4">
+<div class="flex justify-between items-start">
+<div>
+<p class="text-sm font-bold text-slate-900 dark:text-white">Cam-Entry-Main</p>
+<p class="text-xs text-slate-500 mt-0.5">Firmware Update Failed</p>
+</div>
+<span class="px-2 py-1 rounded bg-red-100 dark:bg-red-900/40 text-[10px] font-bold text-red-600 dark:text-red-400">ERROR</span>
+</div>
+<div class="mt-3 flex gap-2">
+<button class="w-full py-1.5 text-xs font-bold rounded bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 transition-colors">Retry Update</button>
+</div>
+</div>
+<!-- Empty state for demo filler -->
+<div class="p-8 text-center border-t border-slate-100 dark:border-slate-800">
+<p class="text-xs text-slate-400">Showing top 3 of 12 active issues.</p>
+<button class="mt-2 text-primary font-bold text-xs">View Investigation Queue</button>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+</body></html>

@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+
+<html class="light" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Notifications &amp; Real-time Alerts | Device Control Manager</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "primary": "#135bec",
+                        "background-light": "#f6f6f8",
+                        "background-dark": "#101622",
+                    },
+                    fontFamily: {
+                        "display": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .filled-icon {
+            font-variation-settings: 'FILL' 1;
+        }
+    </style>
+</head>
+<body class="bg-background-light dark:bg-background-dark font-display text-[#0d121b] dark:text-white min-h-screen">
+<!-- Top Navigation Bar -->
+<header class="flex items-center justify-between whitespace-nowrap border-b border-solid border-[#e7ebf3] dark:border-[#2a3447] bg-white dark:bg-[#1a2130] px-6 py-3 sticky top-0 z-50">
+<div class="flex items-center gap-8">
+<div class="flex items-center gap-4 text-primary">
+<div class="size-8 bg-primary/10 rounded-lg flex items-center justify-center">
+<span class="material-symbols-outlined text-primary">developer_board</span>
+</div>
+<h2 class="text-[#0d121b] dark:text-white text-lg font-bold leading-tight tracking-[-0.015em]">Device Control Manager</h2>
+</div>
+<label class="flex flex-col min-w-40 !h-10 max-w-64">
+<div class="flex w-full flex-1 items-stretch rounded-lg h-full">
+<div class="text-[#4c669a] flex border-none bg-[#f0f2f7] dark:bg-[#2a3447] items-center justify-center pl-4 rounded-l-lg" data-icon="MagnifyingGlass">
+<span class="material-symbols-outlined text-xl">search</span>
+</div>
+<input class="form-input flex w-full min-w-0 flex-1 border-none bg-[#f0f2f7] dark:bg-[#2a3447] text-[#0d121b] dark:text-white focus:ring-0 h-full placeholder:text-[#4c669a] px-4 rounded-r-lg pl-2 text-base font-normal" placeholder="Search notifications..." value=""/>
+</div>
+</label>
+</div>
+<div class="flex flex-1 justify-end gap-4 items-center">
+<div class="flex gap-2">
+<button class="flex items-center justify-center rounded-lg h-10 w-10 bg-[#f0f2f7] dark:bg-[#2a3447] text-[#0d121b] dark:text-white">
+<span class="material-symbols-outlined">help</span>
+</button>
+<button class="relative flex items-center justify-center rounded-lg h-10 w-10 bg-primary/10 text-primary">
+<span class="material-symbols-outlined filled-icon">notifications</span>
+<span class="absolute top-2 right-2 flex h-2 w-2 rounded-full bg-red-500"></span>
+</button>
+</div>
+<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-10 border-2 border-primary/20" data-alt="User profile avatar" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuD9Jv_cQEgI2oWMXX9Ig71pILSVx0g7dSG4ayHCAUP_q6wX1FWt3PGaZkqqOWYpF8e0CyiGKtBEITdRG26pIhHXuK7yMfJmPgPDEeEDBdQBOvkLKEIFn2h93TNri67Zn3j4woYqrN-mG30WUzwxq9U5wk7BIrttwajTfX6qDwrp8nCelGno4Qx7DZ4mP14ptyT3N0YEg5T1sUzV4nmAMJDViqTiuo-3Rz5WADOFXh8wdFZrwPZdbdlhB-3bZGIpHnfG60TddYDxYA");'></div>
+</div>
+</header>
+<div class="flex min-h-[calc(100vh-64px)]">
+<!-- Sidebar Navigation -->
+<aside class="w-72 bg-white dark:bg-[#1a2130] border-r border-[#e7ebf3] dark:border-[#2a3447] p-6 flex flex-col gap-8">
+<div class="flex flex-col gap-4">
+<h3 class="text-xs font-bold uppercase tracking-wider text-[#4c669a]">Main Menu</h3>
+<nav class="flex flex-col gap-1">
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#4c669a] hover:bg-[#f0f2f7] dark:hover:bg-[#2a3447] transition-colors" href="#">
+<span class="material-symbols-outlined">dashboard</span>
+<p class="text-sm font-semibold">Dashboard</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-[#4c669a] hover:bg-[#f0f2f7] dark:hover:bg-[#2a3447] transition-colors" href="#">
+<span class="material-symbols-outlined">router</span>
+<p class="text-sm font-semibold">Devices</p>
+</a>
+<a class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-primary/10 text-primary" href="#">
+<span class="material-symbols-outlined filled-icon">notifications</span>
+<p class="text-sm font-bold">Notifications</p>
+</a>
+</nav>
+</div>
+<div class="flex flex-col gap-4">
+<h3 class="text-xs font-bold uppercase tracking-wider text-[#4c669a]">Severity</h3>
+<div class="flex flex-col gap-1">
+<button class="flex items-center justify-between px-3 py-2 rounded-lg bg-[#f0f2f7] dark:bg-[#2a3447] text-[#0d121b] dark:text-white">
+<div class="flex items-center gap-3">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<span class="text-sm font-medium">All</span>
+</div>
+<span class="text-xs font-bold bg-white/50 dark:bg-black/20 px-2 py-0.5 rounded">60</span>
+</button>
+<button class="flex items-center justify-between px-3 py-2 rounded-lg text-[#4c669a] hover:bg-[#f0f2f7] dark:hover:bg-[#2a3447]">
+<div class="flex items-center gap-3">
+<span class="w-2 h-2 rounded-full bg-red-500"></span>
+<span class="text-sm font-medium">Critical</span>
+</div>
+<span class="text-xs font-bold">3</span>
+</button>
+<button class="flex items-center justify-between px-3 py-2 rounded-lg text-[#4c669a] hover:bg-[#f0f2f7] dark:hover:bg-[#2a3447]">
+<div class="flex items-center gap-3">
+<span class="w-2 h-2 rounded-full bg-amber-500"></span>
+<span class="text-sm font-medium">Warning</span>
+</div>
+<span class="text-xs font-bold">12</span>
+</button>
+<button class="flex items-center justify-between px-3 py-2 rounded-lg text-[#4c669a] hover:bg-[#f0f2f7] dark:hover:bg-[#2a3447]">
+<div class="flex items-center gap-3">
+<span class="w-2 h-2 rounded-full bg-blue-400"></span>
+<span class="text-sm font-medium">Info</span>
+</div>
+<span class="text-xs font-bold">45</span>
+</button>
+</div>
+</div>
+<div class="flex flex-col gap-4">
+<h3 class="text-xs font-bold uppercase tracking-wider text-[#4c669a]">Devices</h3>
+<div class="flex flex-col gap-2">
+<label class="flex items-center gap-2 px-3">
+<input checked="" class="rounded border-[#cfd7e7] text-primary focus:ring-primary h-4 w-4" type="checkbox"/>
+<span class="text-sm text-[#0d121b] dark:text-white">Server-01</span>
+</label>
+<label class="flex items-center gap-2 px-3">
+<input class="rounded border-[#cfd7e7] text-primary focus:ring-primary h-4 w-4" type="checkbox"/>
+<span class="text-sm text-[#0d121b] dark:text-white">IoT-Hub-North</span>
+</label>
+<label class="flex items-center gap-2 px-3">
+<input class="rounded border-[#cfd7e7] text-primary focus:ring-primary h-4 w-4" type="checkbox"/>
+<span class="text-sm text-[#0d121b] dark:text-white">Gateway-Alpha</span>
+</label>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="flex-1 overflow-y-auto">
+<div class="max-w-[1200px] mx-auto p-8">
+<!-- Breadcrumbs -->
+<nav class="flex items-center gap-2 mb-4">
+<a class="text-[#4c669a] text-sm font-medium hover:text-primary" href="#">Portal</a>
+<span class="material-symbols-outlined text-[#4c669a] text-sm">chevron_right</span>
+<span class="text-[#0d121b] dark:text-white text-sm font-medium">Notifications</span>
+</nav>
+<!-- Page Header -->
+<div class="flex items-center justify-between mb-8">
+<div>
+<h1 class="text-4xl font-black text-[#0d121b] dark:text-white tracking-tight">Notifications</h1>
+<p class="text-[#4c669a] mt-1">Manage and monitor real-time system alerts</p>
+</div>
+<div class="flex gap-3">
+<button class="flex items-center gap-2 bg-[#f0f2f7] dark:bg-[#2a3447] text-[#0d121b] dark:text-white px-4 py-2 rounded-lg font-bold text-sm hover:brightness-95 transition-all">
+<span class="material-symbols-outlined text-lg">check_circle</span>
+                            Mark all as read
+                        </button>
+<button class="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-primary/90 transition-all shadow-lg shadow-primary/20">
+<span class="material-symbols-outlined text-lg">filter_list</span>
+                            Filter Settings
+                        </button>
+</div>
+</div>
+<!-- Tabs -->
+<div class="mb-6">
+<div class="flex border-b border-[#cfd7e7] dark:border-[#2a3447] gap-8">
+<a class="flex flex-col items-center justify-center border-b-[3px] border-primary text-[#0d121b] dark:text-white pb-3" href="#">
+<p class="text-sm font-bold tracking-[0.015em]">All Notifications</p>
+</a>
+<a class="flex flex-col items-center justify-center border-b-[3px] border-transparent text-[#4c669a] pb-3" href="#">
+<p class="text-sm font-bold tracking-[0.015em]">Archived</p>
+</a>
+<a class="flex flex-col items-center justify-center border-b-[3px] border-transparent text-[#4c669a] pb-3" href="#">
+<p class="text-sm font-bold tracking-[0.015em]">System Updates</p>
+</a>
+</div>
+</div>
+<!-- Notification List -->
+<div class="flex flex-col gap-4">
+<!-- Critical Alert Item (Unread) -->
+<div class="group flex items-center gap-4 bg-white dark:bg-[#1a2130] p-5 rounded-xl border-l-4 border-red-500 shadow-sm hover:shadow-md transition-all cursor-pointer">
+<div class="flex-shrink-0 size-12 rounded-full bg-red-100 dark:bg-red-500/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-red-600 filled-icon">error</span>
+</div>
+<div class="flex-grow">
+<div class="flex items-center gap-2">
+<h4 class="font-bold text-[#0d121b] dark:text-white">High CPU Usage detected on Server-01</h4>
+<span class="px-2 py-0.5 rounded bg-red-100 dark:bg-red-500/20 text-red-600 text-[10px] font-bold uppercase tracking-wider">Critical</span>
+</div>
+<p class="text-sm text-[#4c669a] mt-0.5">Device Server-01 (IP: 192.168.1.10) reached 98% utilization for over 5 minutes.</p>
+</div>
+<div class="text-right flex-shrink-0 flex flex-col items-end gap-2">
+<span class="text-xs font-medium text-[#4c669a]">2 mins ago</span>
+<div class="h-2.5 w-2.5 bg-primary rounded-full"></div>
+</div>
+</div>
+<!-- Warning Alert Item -->
+<div class="group flex items-center gap-4 bg-white dark:bg-[#1a2130] p-5 rounded-xl border-l-4 border-amber-500 shadow-sm hover:shadow-md transition-all cursor-pointer">
+<div class="flex-shrink-0 size-12 rounded-full bg-amber-100 dark:bg-amber-500/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-amber-600 filled-icon">warning</span>
+</div>
+<div class="flex-grow">
+<div class="flex items-center gap-2">
+<h4 class="font-bold text-[#0d121b] dark:text-white">Connection intermittent on Gateway-Alpha</h4>
+<span class="px-2 py-0.5 rounded bg-amber-100 dark:bg-amber-500/20 text-amber-600 text-[10px] font-bold uppercase tracking-wider">Warning</span>
+</div>
+<p class="text-sm text-[#4c669a] mt-0.5">Multiple packet losses detected. Network stability is below threshold.</p>
+</div>
+<div class="text-right flex-shrink-0 flex flex-col items-end gap-2">
+<span class="text-xs font-medium text-[#4c669a]">15 mins ago</span>
+</div>
+</div>
+<!-- Info Alert Item -->
+<div class="group flex items-center gap-4 bg-white dark:bg-[#1a2130] p-5 rounded-xl border-l-4 border-primary shadow-sm hover:shadow-md transition-all cursor-pointer opacity-80">
+<div class="flex-shrink-0 size-12 rounded-full bg-blue-100 dark:bg-primary/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary filled-icon">info</span>
+</div>
+<div class="flex-grow">
+<div class="flex items-center gap-2">
+<h4 class="font-bold text-[#0d121b] dark:text-white">Firmware update available for IoT-Hub-North</h4>
+<span class="px-2 py-0.5 rounded bg-blue-100 dark:bg-primary/20 text-primary text-[10px] font-bold uppercase tracking-wider">Info</span>
+</div>
+<p class="text-sm text-[#4c669a] mt-0.5">Version 2.4.0 is now available. Click to view release notes and schedule update.</p>
+</div>
+<div class="text-right flex-shrink-0 flex flex-col items-end gap-2">
+<span class="text-xs font-medium text-[#4c669a]">2 hours ago</span>
+</div>
+</div>
+<!-- Info Alert Item -->
+<div class="group flex items-center gap-4 bg-white dark:bg-[#1a2130] p-5 rounded-xl border-l-4 border-primary shadow-sm hover:shadow-md transition-all cursor-pointer opacity-80">
+<div class="flex-shrink-0 size-12 rounded-full bg-blue-100 dark:bg-primary/20 flex items-center justify-center">
+<span class="material-symbols-outlined text-primary filled-icon">info</span>
+</div>
+<div class="flex-grow">
+<div class="flex items-center gap-2">
+<h4 class="font-bold text-[#0d121b] dark:text-white">Scheduled backup completed</h4>
+<span class="px-2 py-0.5 rounded bg-blue-100 dark:bg-primary/20 text-primary text-[10px] font-bold uppercase tracking-wider">Info</span>
+</div>
+<p class="text-sm text-[#4c669a] mt-0.5">Daily configuration backup for all devices was successful.</p>
+</div>
+<div class="text-right flex-shrink-0 flex flex-col items-end gap-2">
+<span class="text-xs font-medium text-[#4c669a]">5 hours ago</span>
+</div>
+</div>
+</div>
+</div>
+</main>
+</div>
+<!-- Toast Notification (Real-time event) -->
+<div class="fixed bottom-8 right-8 z-[100] w-96 animate-in slide-in-from-right duration-500">
+<div class="bg-[#1a2130] dark:bg-[#0d121b] border-l-4 border-red-500 text-white p-4 rounded-lg shadow-2xl flex gap-4 ring-1 ring-white/10">
+<div class="flex-shrink-0 mt-1">
+<span class="material-symbols-outlined text-red-500 filled-icon animate-pulse">error</span>
+</div>
+<div class="flex-grow">
+<div class="flex justify-between items-start">
+<h5 class="text-sm font-bold uppercase tracking-wider text-red-500">Live Alert</h5>
+<button class="text-white/40 hover:text-white">
+<span class="material-symbols-outlined text-lg">close</span>
+</button>
+</div>
+<p class="text-sm font-semibold mt-1">Sensor Failure detected on Node-9</p>
+<p class="text-xs text-white/60 mt-0.5">Check status immediately. System failsafe triggered.</p>
+<div class="mt-3 flex gap-2">
+<button class="text-xs font-bold bg-red-500 text-white px-3 py-1.5 rounded">Investigate</button>
+<button class="text-xs font-bold bg-white/10 text-white px-3 py-1.5 rounded">Dismiss</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Overlay Background (subtle gradient) -->
+<div class="fixed inset-0 pointer-events-none bg-gradient-to-tr from-primary/5 via-transparent to-transparent -z-10"></div>
+</body></html>

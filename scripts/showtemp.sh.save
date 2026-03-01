@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+IP="${SWITCH_IP:-}"
+PASS="${SWITCH_PASS:-}"
+ENA="${SWITCH_ENA:-}"
+NAME="${SWITCH_NAME:-}"
+
+[[ -n "$IP" ]] || { echo "Missing SWITCH_IP" >&2; exit 2; }
+
+/usr/bin/expect <<'EOF' | awk 'BEGIN{found=0} /^[[:space:]]*[0-9]+[[:space:]]+air[[:space:]]+(inlet|outlet)/ {gsub(/\r/,""); print; found=1} END{ if (found==0) print "No temperature data"; }'
+set timeout 20
+
+spawn telnet $env(SWITCH_IP)
+expect "Password:"
+send "$env(SWITCH_PASS)\r"
+expect ">"
+send "enable\r"
+expect "Password:"
+send "$env(SWITCH_ENA)\r"
+expect "#"
+
+send "terminal length 0\r"
+expect "#"
+
+send "show environment temperature\r"
+expect "#"
+
+send "exit\r"
+expect eof
+EOF

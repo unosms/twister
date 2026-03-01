@@ -1,0 +1,12 @@
+$allowed = [
+    'showlog'       => '/etc/scripts/showlognexus.sh',
+    'clearlog'      => '/etc/scripts/clearlognexus.sh',   // ← NEW
+    'showmac'       => '/etc/scripts/showmacnexus.sh',
+    'showint'       => '/etc/scripts/showintnexus.sh',
+    'showintstatus' => '/etc/scripts/showintstatusnexus.sh',
+    'restartint'    => '/etc/scripts/restartintnexus.sh',
+    'disableint'    => '/etc/scripts/disableintnexus.sh',
+    'enableint'     => '/etc/scripts/enableintnexus.sh',
+    'shspantree'    => '/etc/scripts/shspantreenexus.sh',
+    'shru'          => '/etc/scripts/shrunexus.sh',
+];
