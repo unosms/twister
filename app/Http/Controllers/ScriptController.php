@@ -1254,15 +1254,6 @@ class ScriptController extends Controller
             return $this->plainError('Forbidden: command is not allowed.', 403);
         }
 
-        $commandAssigned = DB::table('command_template_user')
-            ->where('command_template_id', $templateId)
-            ->where('user_id', $userId)
-            ->exists();
-
-        if (!$commandAssigned) {
-            return $this->plainError('Forbidden: command is not assigned.', 403);
-        }
-
         $permissionColumns = ['allowed_ports'];
         if (DevicePermission::supportsAllowedCommandTemplateIds()) {
             $permissionColumns[] = 'allowed_command_template_ids';
@@ -1291,6 +1282,17 @@ class ScriptController extends Controller
 
         if (!empty($allowedCommandTemplateIds) && !in_array((int) $templateId, $allowedCommandTemplateIds, true)) {
             return $this->plainError('Forbidden: command is not permitted for this device.', 403);
+        }
+
+        if (empty($allowedCommandTemplateIds)) {
+            $commandAssigned = DB::table('command_template_user')
+                ->where('command_template_id', $templateId)
+                ->where('user_id', $userId)
+                ->exists();
+
+            if (!$commandAssigned) {
+                return $this->plainError('Forbidden: command is not assigned.', 403);
+            }
         }
 
         $allowedPorts = trim((string) ($permissionRow->allowed_ports ?? ''));

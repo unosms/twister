@@ -24,18 +24,6 @@ class ActionController extends Controller
                 ], 403);
             }
 
-            $assigned = DB::table('command_template_user')
-                ->where('command_template_id', $template->id)
-                ->where('user_id', $userId)
-                ->exists();
-
-            if (!$assigned) {
-                return response()->json([
-                    'status' => 'forbidden',
-                    'reason' => 'Command not assigned.',
-                ], 403);
-            }
-
             if ($request->filled('device_id')) {
                 $permissionColumns = ['device_id'];
                 if (DevicePermission::supportsAllowedCommandTemplateIds()) {
@@ -81,6 +69,27 @@ class ActionController extends Controller
                         'reason' => 'Command not permitted for this device.',
                     ], 403);
                 }
+
+                if (!empty($allowedCommandTemplateIds)) {
+                    return response()->json([
+                        'status' => 'ok',
+                        'action' => $action,
+                        'source' => $request->input('source'),
+                        'received_at' => now()->toISOString(),
+                    ]);
+                }
+            }
+
+            $assigned = DB::table('command_template_user')
+                ->where('command_template_id', $template->id)
+                ->where('user_id', $userId)
+                ->exists();
+
+            if (!$assigned) {
+                return response()->json([
+                    'status' => 'forbidden',
+                    'reason' => 'Command not assigned.',
+                ], 403);
             }
         }
 

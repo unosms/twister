@@ -522,7 +522,7 @@ $hasDevicePermission = in_array($deviceId, $selectedPermissionDeviceIds, true);
 <div class="<?php if(!$hasDevicePermission): echo 'hidden'; endif; ?> rounded-lg border border-slate-200 dark:border-gray-700 p-3" data-device-command-item data-device-id="<?php echo e($deviceId); ?>">
 <div class="flex items-center justify-between gap-3 mb-2">
 <div class="text-xs font-semibold text-slate-500"><?php echo e($device->name); ?> <?php if($device->serial_number): ?>(<?php echo e($device->serial_number); ?>)<?php endif; ?></div>
-<span class="text-[11px] text-gray-400">Leave all unchecked to allow all approved commands.</span>
+<span class="text-[11px] text-gray-400">Leave all unchecked to inherit the global command list.</span>
 </div>
 <?php if($commandTemplates->isNotEmpty()): ?>
 <input type="hidden" name="device_permission_command_template_ids[<?php echo e($deviceId); ?>][]" value=""/>
@@ -541,7 +541,7 @@ $hasDevicePermission = in_array($deviceId, $selectedPermissionDeviceIds, true);
 <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
 <p class="text-xs text-gray-400 <?php if(!empty($selectedPermissionDeviceIds)): echo 'hidden'; endif; ?>" data-device-command-empty>Select one or more command devices to scope commands on each device.</p>
 </div>
-<p class="text-xs text-gray-400">This only limits commands on the devices selected above. The global command list in section 3 still decides which commands the user can use at all.</p>
+<p class="text-xs text-gray-400">When you select commands here, this device uses that list. Leave everything unchecked to inherit the global command list from section 3.</p>
 <?php else: ?>
 <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300">
 Run <code>php artisan migrate --force</code> to enable per-device command restrictions on this server.

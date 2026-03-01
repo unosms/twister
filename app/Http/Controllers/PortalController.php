@@ -28,6 +28,10 @@ class PortalController extends Controller
                 ->orderBy('name')
                 ->get();
         } elseif ($userId) {
+            $allActiveCommandTemplates = CommandTemplate::where('active', true)
+                ->orderBy('name')
+                ->get();
+
             $assignmentDeviceIds = DeviceAssignment::where('user_id', $userId)
                 ->whereNull('unassigned_at')
                 ->pluck('device_id')
@@ -71,7 +75,7 @@ class PortalController extends Controller
                     ->values();
             }
 
-            $globalCommandTemplatesById = $commandTemplates->keyBy(static fn ($template) => (int) $template->id);
+            $allActiveCommandTemplatesById = $allActiveCommandTemplates->keyBy(static fn ($template) => (int) $template->id);
             $restrictedCommandMap = $permissionRows->mapWithKeys(static function ($row) {
                 return [(int) $row->device_id => DevicePermission::decodeAllowedCommandTemplateIds($row->allowed_command_template_ids ?? null)];
             });
@@ -86,7 +90,7 @@ class PortalController extends Controller
                 }
 
                 $commandTemplatesByDevice[$deviceId] = collect($restrictedIds)
-                    ->map(static fn ($id) => $globalCommandTemplatesById->get((int) $id))
+                    ->map(static fn ($id) => $allActiveCommandTemplatesById->get((int) $id))
                     ->filter()
                     ->values();
             }
