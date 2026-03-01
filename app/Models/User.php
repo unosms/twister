@@ -9,11 +9,14 @@ use Illuminate\Notifications\Notifiable;
 use App\Models\CommandTemplate;
 use App\Models\Device;
 use Illuminate\Support\Str;
+use Illuminate\Support\Facades\Schema;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable;
+
+    protected static ?bool $avatarStorageSupported = null;
 
     /**
      * The attributes that are mass assignable.
@@ -107,8 +110,28 @@ class User extends Authenticatable
         return in_array($name, $identifiers, true) || in_array($email, $identifiers, true);
     }
 
+    public static function supportsAvatarStorage(): bool
+    {
+        if (static::$avatarStorageSupported !== null) {
+            return static::$avatarStorageSupported;
+        }
+
+        try {
+            static::$avatarStorageSupported = Schema::hasTable('users')
+                && Schema::hasColumn('users', 'avatar_path');
+        } catch (\Throwable) {
+            static::$avatarStorageSupported = false;
+        }
+
+        return static::$avatarStorageSupported;
+    }
+
     public function profileAvatarUrl(): ?string
     {
+        if (!static::supportsAvatarStorage()) {
+            return null;
+        }
+
         $path = trim((string) ($this->avatar_path ?? ''));
         if ($path === '') {
             return null;

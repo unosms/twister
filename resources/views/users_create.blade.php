@@ -130,6 +130,7 @@ Back to Users
 </div>
 <div class="md:col-span-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-950/40" data-avatar-upload>
 <div class="flex flex-col gap-4 md:flex-row md:items-center">
+@if ($avatarStorageReady ?? false)
 <label class="group relative cursor-pointer self-start" for="avatar" title="Upload profile picture">
 <span class="block" data-avatar-preview data-preview-class="h-16 w-16 rounded-full border border-slate-200 object-cover shadow-sm dark:border-slate-700">
 @include('partials.user_avatar', ['user' => null, 'name' => old('username', 'New User'), 'sizeClass' => 'h-16 w-16', 'textClass' => 'text-lg', 'class' => 'shadow-sm'])
@@ -151,6 +152,14 @@ Upload Picture
 <p class="text-xs text-slate-400">Click the picture or the button to choose a profile image.</p>
 <p class="text-xs font-medium text-slate-500" data-avatar-file-name data-default-text="No file selected yet.">No file selected yet.</p>
 </div>
+@else
+@include('partials.user_avatar', ['user' => null, 'name' => old('username', 'New User'), 'sizeClass' => 'h-16 w-16', 'textClass' => 'text-lg', 'class' => 'shadow-sm'])
+<div class="min-w-0 flex-1 flex flex-col gap-2">
+<label class="text-sm font-semibold text-slate-700 dark:text-slate-200">Profile Picture</label>
+<p class="text-sm text-amber-700 dark:text-amber-300">Profile uploads are disabled on this server until the latest users migration is applied.</p>
+<p class="text-xs text-slate-400">Run <code>php artisan migrate --force</code> to add the required <code>avatar_path</code> column.</p>
+</div>
+@endif
 </div>
 </div>
 </div>

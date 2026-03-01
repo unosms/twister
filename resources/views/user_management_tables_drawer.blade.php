@@ -384,6 +384,7 @@ $telegramEnabled = (bool) old('telegram_enabled', (bool) ($user->telegram_enable
 <div class="flex flex-col gap-3 lg:col-span-12" data-avatar-upload>
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Profile Picture</label>
 <div class="flex flex-col gap-4 rounded-lg border border-[#cfd7e7] bg-white p-4 dark:border-gray-700 dark:bg-gray-800/40 md:flex-row md:items-center">
+<?php if($avatarStorageReady ?? false): ?>
 <label class="group relative cursor-pointer self-start" for="avatar_<?php echo e($user->id); ?>" title="Upload profile picture">
 <span class="block" data-avatar-preview data-preview-class="h-16 w-16 rounded-full border border-slate-200 object-cover shadow-sm dark:border-slate-700">
 <?php echo $__env->make('partials.user_avatar', ['user' => $user, 'name' => $user->name, 'sizeClass' => 'h-16 w-16', 'textClass' => 'text-lg', 'class' => 'shadow-sm'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
@@ -409,6 +410,13 @@ Upload Picture
 <p class="text-xs text-gray-400">Click the picture or the button to choose a new profile image. Supported formats: PNG, JPG, WEBP, GIF up to 2 MB.</p>
 <p class="text-xs font-medium text-gray-500" data-avatar-file-name data-default-text="<?php echo e(!empty($user->avatar_path) ? 'Current profile picture will stay until you upload a new one.' : 'No file selected yet.'); ?>"><?php echo e(!empty($user->avatar_path) ? 'Current profile picture will stay until you upload a new one.' : 'No file selected yet.'); ?></p>
 </div>
+<?php else: ?>
+<?php echo $__env->make('partials.user_avatar', ['user' => $user, 'name' => $user->name, 'sizeClass' => 'h-16 w-16', 'textClass' => 'text-lg', 'class' => 'shadow-sm'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<div class="min-w-0 flex-1 space-y-2">
+<p class="text-sm font-semibold text-amber-700 dark:text-amber-300">Profile uploads are disabled on this server until the latest users migration is applied.</p>
+<p class="text-xs text-gray-400">Run <code>php artisan migrate --force</code> to add the required <code>avatar_path</code> column.</p>
+</div>
+<?php endif; ?>
 </div>
 </div>
 <div class="lg:col-span-12 pt-1">

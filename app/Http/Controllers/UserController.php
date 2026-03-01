@@ -266,6 +266,7 @@ class UserController extends Controller
         return [
             'devices' => $devices,
             'commandTemplates' => $commandTemplates,
+            'avatarStorageReady' => User::supportsAvatarStorage(),
             'telegramSeverityOptions' => self::TELEGRAM_SEVERITIES,
             'telegramEventTypeOptions' => self::TELEGRAM_EVENT_TYPES,
         ];
@@ -476,20 +477,22 @@ class UserController extends Controller
 
         $telegramTemplate = trim((string) ($data['telegram_template'] ?? ''));
         $telegramTemplate = $telegramTemplate !== '' ? $telegramTemplate : null;
-        $avatarPath = $user->avatar_path;
+        $avatarStorageReady = User::supportsAvatarStorage();
+        $avatarPath = $avatarStorageReady ? ($user->avatar_path ?? null) : null;
 
-        if ($request->hasFile('avatar')) {
-            $avatarPath = $this->storeAvatarFile($request->file('avatar'), $avatarPath);
-        } elseif ($request->boolean('remove_avatar')) {
-            $this->deleteAvatarFile($avatarPath);
-            $avatarPath = null;
+        if ($avatarStorageReady) {
+            if ($request->hasFile('avatar')) {
+                $avatarPath = $this->storeAvatarFile($request->file('avatar'), $avatarPath);
+            } elseif ($request->boolean('remove_avatar')) {
+                $this->deleteAvatarFile($avatarPath);
+                $avatarPath = null;
+            }
         }
 
         $updates = [
             'name' => $data['username'],
             'email' => $data['username'],
             'role' => $data['role'],
-            'avatar_path' => $avatarPath,
             'telegram_enabled' => $telegramEnabled,
             'telegram_chat_id' => $telegramChatId,
             'telegram_bot_token' => $telegramBotToken,
@@ -498,6 +501,10 @@ class UserController extends Controller
             'telegram_event_types' => $telegramEventTypes,
             'telegram_template' => $telegramTemplate,
         ];
+
+        if ($avatarStorageReady) {
+            $updates['avatar_path'] = $avatarPath;
+        }
 
         if ($isNew) {
             $updates['status'] = 'active';
