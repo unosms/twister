@@ -81,7 +81,7 @@
 </button>
 <?php echo $__env->make('partials.notifications_menu', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 </div>
-<div class="bg-center bg-no-repeat aspect-square bg-cover rounded-full size-9 border border-gray-200 dark:border-gray-700" data-alt="User profile avatar of admin" style='background-image: url("https://lh3.googleusercontent.com/aida-public/AB6AXuC4CAebvdcetzhc5xW5kK7OGP32knVssyNUnKfSbayUUVihg_8YvUdExUXml2H-ggS2yJQ0X1OKv3p-NDl9K9pex2LJq95uSPpR9xXZj8a95i3dAV7FbtXxYhvcaX6YLwZX2UZwM5CXIdbwkEu80TlprhIuTzKcUa6LIVFS7vmgz8-QlWvjw1ZDFy6PUoLZeIf_G6nXjtK61ov7LyQ99A2-a8hO2sVHOzDeX5R443h7t5Giarsje-PRd3nsO6qw1bzouYOn7jni1A");'></div>
+<?php echo $__env->make('partials.user_avatar', ['user' => $authUser ?? null, 'name' => $authUser->name ?? 'Admin', 'sizeClass' => 'h-9 w-9', 'textClass' => 'text-xs'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 </div>
 </div>
 </header>
@@ -170,7 +170,6 @@ Export
 <tbody class="divide-y divide-[#cfd7e7] dark:divide-gray-800">
 <?php $__empty_1 = true; $__currentLoopData = $users; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $user): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); $__empty_1 = false; ?>
 <?php
-$initials = strtoupper(substr($user->name, 0, 2));
 $role = $user->role ?? 'user';
 $currentAuthUserId = session('auth.user_id');
 $isCurrentAuthUser = is_numeric($currentAuthUserId) && (int) $currentAuthUserId === (int) $user->id;
@@ -186,10 +185,7 @@ $roleLabel = $isSuperAdmin ? 'Super Admin' : ucfirst($role);
 <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors" data-user-table-row>
 <td class="px-6 py-4">
 <div class="flex items-center gap-3">
-<div class="w-10 h-10 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center text-xs font-bold">
-<?php echo e($initials); ?>
-
-</div>
+<?php echo $__env->make('partials.user_avatar', ['user' => $user, 'name' => $user->name, 'sizeClass' => 'h-10 w-10', 'textClass' => 'text-xs'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 <span class="text-[#0d121b] dark:text-white font-semibold text-sm"><?php echo e($user->name); ?></span>
 </div>
 </td>
@@ -250,7 +246,7 @@ $statusClass = $isActive
 <?php if(!$isSuperAdmin || $canEditProtectedSelf): ?>
 <tr class="hidden bg-gray-50/60 dark:bg-gray-900/40" data-user-edit-row="<?php echo e($user->id); ?>">
 <td class="px-6 py-4" colspan="6">
-<form class="space-y-6" method="POST" action="<?php echo e(route('users.update', $user)); ?>">
+<form class="space-y-6" method="POST" action="<?php echo e(route('users.update', $user)); ?>" enctype="multipart/form-data">
 <?php echo csrf_field(); ?>
 <?php
 $assignedDeviceIds = $devices->where('assigned_user_id', $user->id)->pluck('id')->map(static fn ($id) => (int) $id)->all();
@@ -384,6 +380,22 @@ $telegramEnabled = (bool) old('telegram_enabled', (bool) ($user->telegram_enable
 <input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 bg-slate-50 dark:bg-gray-800/60 dark:text-white text-slate-500 h-11 cursor-not-allowed" placeholder="Only super admin can change password" type="password" disabled/>
 <p class="text-xs text-gray-400">Password changes are restricted to super admin.</p>
 <?php endif; ?>
+</div>
+<div class="flex flex-col gap-3 lg:col-span-12">
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Profile Picture</label>
+<div class="flex flex-col gap-4 rounded-lg border border-[#cfd7e7] bg-white p-4 dark:border-gray-700 dark:bg-gray-800/40 md:flex-row md:items-center">
+<?php echo $__env->make('partials.user_avatar', ['user' => $user, 'name' => $user->name, 'sizeClass' => 'h-16 w-16', 'textClass' => 'text-lg'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<div class="min-w-0 flex-1 space-y-2">
+<input class="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-primary file:px-4 file:py-2 file:font-semibold file:text-white hover:file:bg-primary/90 dark:text-slate-300" type="file" name="avatar" accept="image/png,image/jpeg,image/webp,image/gif"/>
+<p class="text-xs text-gray-400">Upload a PNG, JPG, WEBP, or GIF up to 2 MB. A new upload replaces the current photo.</p>
+<?php if(!empty($user->avatar_path)): ?>
+<label class="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
+<input class="rounded border-gray-300 text-primary focus:ring-primary" type="checkbox" name="remove_avatar" value="1"/>
+<span>Remove current profile picture</span>
+</label>
+<?php endif; ?>
+</div>
+</div>
 </div>
 <div class="lg:col-span-12 pt-1">
 <p class="text-xs font-bold uppercase tracking-wider text-gray-500">2) Device Scope</p>

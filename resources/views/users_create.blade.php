@@ -104,7 +104,7 @@ Back to Users
 </div>
 @endif
 
-<form class="space-y-6" method="POST" action="{{ route('users.store') }}">
+<form class="space-y-6" method="POST" action="{{ route('users.store') }}" enctype="multipart/form-data">
 @csrf
 <div class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm dark:bg-slate-900 dark:border-slate-800">
 <div class="mb-4">
@@ -127,6 +127,16 @@ Back to Users
 <label class="text-sm font-semibold text-slate-700 dark:text-slate-200" for="password">Password</label>
 <input id="password" class="h-11 rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:border-primary focus:ring-primary" name="password" type="password" placeholder="Minimum 6 characters" required/>
 <p class="text-xs text-slate-400">The account is created as active. Use the users page if you need to deactivate it later.</p>
+</div>
+<div class="md:col-span-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-950/40">
+<div class="flex flex-col gap-4 md:flex-row md:items-center">
+@include('partials.user_avatar', ['user' => null, 'name' => old('username', 'New User'), 'sizeClass' => 'h-16 w-16', 'textClass' => 'text-lg'])
+<div class="min-w-0 flex-1 flex flex-col gap-2">
+<label class="text-sm font-semibold text-slate-700 dark:text-slate-200" for="avatar">Profile Picture</label>
+<input id="avatar" class="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-primary file:px-4 file:py-2 file:font-semibold file:text-white hover:file:bg-primary/90 dark:text-slate-300" name="avatar" type="file" accept="image/png,image/jpeg,image/webp,image/gif"/>
+<p class="text-xs text-slate-400">Optional. Upload a PNG, JPG, WEBP, or GIF up to 2 MB.</p>
+</div>
+</div>
 </div>
 </div>
 </div>

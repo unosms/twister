@@ -25,6 +25,7 @@ class User extends Authenticatable
         'email',
         'role',
         'status',
+        'avatar_path',
         'password',
 'telegram_enabled',
 'telegram_chat_id',
@@ -104,6 +105,42 @@ class User extends Authenticatable
         $email = Str::lower(trim((string) ($this->email ?? '')));
 
         return in_array($name, $identifiers, true) || in_array($email, $identifiers, true);
+    }
+
+    public function profileAvatarUrl(): ?string
+    {
+        $path = trim((string) ($this->avatar_path ?? ''));
+        if ($path === '') {
+            return null;
+        }
+
+        if (Str::startsWith($path, ['http://', 'https://', '//'])) {
+            return $path;
+        }
+
+        return asset(ltrim(str_replace('\\', '/', $path), '/'));
+    }
+
+    public function profileInitials(): string
+    {
+        $name = trim((string) ($this->name ?? ''));
+        if ($name === '') {
+            return 'U';
+        }
+
+        $parts = preg_split('/\s+/', $name) ?: [];
+        $parts = array_values(array_filter($parts, static fn ($part): bool => $part !== ''));
+        $initials = '';
+
+        foreach (array_slice($parts, 0, 2) as $part) {
+            $initials .= Str::upper(Str::substr($part, 0, 1));
+        }
+
+        if ($initials === '') {
+            $initials = Str::upper(Str::substr($name, 0, 1));
+        }
+
+        return $initials !== '' ? $initials : 'U';
     }
 }
 

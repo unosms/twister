@@ -7,6 +7,7 @@ use App\Models\Device;
 use App\Models\DeviceAssignment;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -74,7 +75,10 @@ class UserController extends Controller
 
         return view('users_create', array_merge(
             $this->buildUserFormViewData(),
-            ['canManageUserIdentity' => true]
+            [
+                'authUser' => $this->resolveCurrentUser($request),
+                'canManageUserIdentity' => true,
+            ]
         ));
     }
 
@@ -92,6 +96,7 @@ class UserController extends Controller
         return view('user_management_tables_drawer', array_merge([
             'users' => $users,
             'filters' => $filters,
+            'authUser' => $this->resolveCurrentUser($request),
             'canManageUserIdentity' => $this->currentUserIsSuperAdmin($request),
         ], $this->buildUserFormViewData()));
     }
@@ -184,6 +189,7 @@ class UserController extends Controller
         $user->permittedDevices()->detach();
 
         $userName = $user->name;
+        $this->deleteAvatarFile($user->avatar_path);
         $user->delete();
 
         return back()->with('status', "User {$userName} deleted.");
@@ -384,6 +390,8 @@ class UserController extends Controller
             'username' => $usernameRules,
             'role' => ['required', 'string', Rule::in(['admin', 'user'])],
             'password' => $passwordRules,
+            'avatar' => ['nullable', 'image', 'mimes:jpg,jpeg,png,webp,gif', 'max:2048'],
+            'remove_avatar' => ['nullable', 'boolean'],
 
             'device_ids' => ['nullable', 'array'],
             'device_ids.*' => ['integer', 'exists:devices,id'],
@@ -468,11 +476,20 @@ class UserController extends Controller
 
         $telegramTemplate = trim((string) ($data['telegram_template'] ?? ''));
         $telegramTemplate = $telegramTemplate !== '' ? $telegramTemplate : null;
+        $avatarPath = $user->avatar_path;
+
+        if ($request->hasFile('avatar')) {
+            $avatarPath = $this->storeAvatarFile($request->file('avatar'), $avatarPath);
+        } elseif ($request->boolean('remove_avatar')) {
+            $this->deleteAvatarFile($avatarPath);
+            $avatarPath = null;
+        }
 
         $updates = [
             'name' => $data['username'],
             'email' => $data['username'],
             'role' => $data['role'],
+            'avatar_path' => $avatarPath,
             'telegram_enabled' => $telegramEnabled,
             'telegram_chat_id' => $telegramChatId,
             'telegram_bot_token' => $telegramBotToken,
@@ -838,6 +855,35 @@ class UserController extends Controller
             );
         }
 
+    }
+
+    private function storeAvatarFile(UploadedFile $file, ?string $currentPath = null): string
+    {
+        $directory = public_path('uploads/avatars');
+        if (!is_dir($directory)) {
+            mkdir($directory, 0755, true);
+        }
+
+        $this->deleteAvatarFile($currentPath);
+
+        $extension = strtolower((string) ($file->getClientOriginalExtension() ?: $file->extension() ?: 'jpg'));
+        $filename = (string) Str::uuid() . '.' . $extension;
+        $file->move($directory, $filename);
+
+        return 'uploads/avatars/' . $filename;
+    }
+
+    private function deleteAvatarFile(?string $path): void
+    {
+        $normalized = ltrim(str_replace('\\', '/', (string) $path), '/');
+        if ($normalized === '' || !Str::startsWith($normalized, 'uploads/avatars/')) {
+            return;
+        }
+
+        $fullPath = public_path($normalized);
+        if (is_file($fullPath)) {
+            @unlink($fullPath);
+        }
     }
 
     private function grantAdminFullAccess(User $user, int $grantedByUserId = 0): void

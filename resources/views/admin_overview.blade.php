@@ -71,7 +71,7 @@
 <p class="text-xs font-bold leading-none">{{ $profileName }}</p>
 <p class="text-[10px] text-slate-500 mt-1">{{ $profileRole }}</p>
 </div>
-<div class="h-10 w-10 rounded-full bg-center bg-cover border-2 border-primary/20" data-alt="Profile picture of an administrator" style="background-image: url('https://lh3.googleusercontent.com/aida-public/AB6AXuAvfO67O67l_DBdWQHQprq2tGQS4_-3LZi3TgZWvSmOQ0ddG3G5_sPWZAvpVHb9buoAdrf5Ei98s_38HwjyFQAVmYM0UNTjO6Lj6Sq3liR0Qudxl-LZC7Z9jKpCHRxLwhAO59LpHL--q61-gW6nqn-38R3yzXckfDDk9VayClvL1Wnip0ee1yD3Ll1LperuPspjHuo3CnTu-M5j_Q9pHYY6UxFMB8q9yOaZi9HUaMEFuaI1koEmvp2a0vL5wG-nz2-fllDBMspbvQ')"></div>
+@include('partials.user_avatar', ['user' => $authUser ?? null, 'name' => $profileName, 'sizeClass' => 'h-10 w-10'])
 </div>
 </div>
 </header>
