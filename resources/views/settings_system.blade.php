@@ -137,8 +137,14 @@ logs, and future data formatting across the admin interface.
 </div>
 </div>
 </div>
-<select class="h-[420px] w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" id="timezone" name="timezone" size="16" data-selected-timezone="{{ $selectedTimezone }}">
+<div>
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-200" for="timezone">Time Zone</label>
+<div class="relative mt-2">
+<select class="h-11 w-full appearance-none rounded-2xl border border-slate-300 bg-white px-4 pr-11 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" id="timezone" name="timezone" data-selected-timezone="{{ $selectedTimezone }}">
 </select>
+<span class="material-symbols-outlined pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">expand_more</span>
+</div>
+</div>
 <p class="text-xs text-slate-500" id="timezone-filter-summary">Showing all time zones.</p>
 </div>
 <div class="space-y-4">
@@ -387,7 +393,6 @@ document.addEventListener('DOMContentLoaded', function () {
     timezoneSearch.addEventListener('input', function () {
         syncCountryFilterFromSearch();
         renderTimezoneOptions();
-        timezoneSelect.focus();
     });
 
     renderTimezoneOptions();
