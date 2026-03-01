@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\CommandTemplate;
 use App\Models\Device;
+use App\Models\DevicePermission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\File;
@@ -1262,10 +1263,15 @@ class ScriptController extends Controller
             return $this->plainError('Forbidden: command is not assigned.', 403);
         }
 
+        $permissionColumns = ['allowed_ports'];
+        if (DevicePermission::supportsAllowedCommandTemplateIds()) {
+            $permissionColumns[] = 'allowed_command_template_ids';
+        }
+
         $permissionRow = DB::table('device_permissions')
             ->where('device_id', $device->id)
             ->where('user_id', $userId)
-            ->first(['allowed_ports']);
+            ->first($permissionColumns);
 
         $deviceAssigned = ((int) ($device->assigned_user_id ?? 0) === $userId)
             || DB::table('device_assignments')
@@ -1277,6 +1283,14 @@ class ScriptController extends Controller
 
         if (!$deviceAssigned) {
             return $this->plainError('Forbidden: device is not assigned.', 403);
+        }
+
+        $allowedCommandTemplateIds = DevicePermission::supportsAllowedCommandTemplateIds()
+            ? DevicePermission::decodeAllowedCommandTemplateIds($permissionRow?->allowed_command_template_ids ?? null)
+            : [];
+
+        if (!empty($allowedCommandTemplateIds) && !in_array((int) $templateId, $allowedCommandTemplateIds, true)) {
+            return $this->plainError('Forbidden: command is not permitted for this device.', 403);
         }
 
         $allowedPorts = trim((string) ($permissionRow->allowed_ports ?? ''));

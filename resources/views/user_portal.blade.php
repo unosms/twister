@@ -445,20 +445,23 @@ $lastSeenText = $device->last_seen_at ? $device->last_seen_at->diffForHumans() :
 </div>
 <div class="rounded-2xl bg-slate-50 px-3 py-3 dark:bg-slate-900">
 <p class="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">Command Access</p>
-<p class="mt-2 font-semibold text-slate-800 dark:text-slate-100">{{ $commandTemplateCount ?? 0 }} available</p>
+@php
+    $deviceCommandTemplates = collect($commandTemplatesByDevice[$device->id] ?? $commandTemplates ?? collect())->values();
+@endphp
+<p class="mt-2 font-semibold text-slate-800 dark:text-slate-100">{{ $deviceCommandTemplates->count() }} available</p>
 </div>
 </div>
 
 <div class="mt-5">
 <label class="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">Launch Approved Command</label>
 <select class="mt-2 h-11 w-full rounded-2xl border-slate-200 bg-white text-sm font-medium text-slate-800 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" data-command-select data-device-id="{{ $device->id }}">
-@if ($commandTemplates->isNotEmpty())
+@if ($deviceCommandTemplates->isNotEmpty())
 <option value="" disabled selected>Select a command</option>
-@foreach ($commandTemplates as $template)
+@foreach ($deviceCommandTemplates as $template)
 <option value="{{ $template->action_key }}">{{ $template->name }}</option>
 @endforeach
 @else
-<option value="" disabled selected>No command permissions assigned</option>
+<option value="" disabled selected>No commands approved for this device</option>
 @endif
 </select>
 </div>

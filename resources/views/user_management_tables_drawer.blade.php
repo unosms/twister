@@ -264,6 +264,22 @@ foreach ($user->permittedDevices as $permittedDevice) {
     $permissionPortMap[(int) $permittedDevice->id] = trim((string) ($permittedDevice->pivot->allowed_ports ?? ''));
 }
 
+$permissionCommandTemplateMap = [];
+if (($deviceCommandRestrictionsReady ?? false) && \App\Models\DevicePermission::supportsAllowedCommandTemplateIds()) {
+    $storedPermissionCommandTemplateMap = \Illuminate\Support\Facades\DB::table('device_permissions')
+        ->where('user_id', $user->id)
+        ->pluck('allowed_command_template_ids', 'device_id')
+        ->all();
+
+    foreach ($storedPermissionCommandTemplateMap as $deviceId => $value) {
+        if (!is_numeric($deviceId)) {
+            continue;
+        }
+
+        $permissionCommandTemplateMap[(int) $deviceId] = \App\Models\DevicePermission::decodeAllowedCommandTemplateIds($value);
+    }
+}
+
 $oldPermissionPortMap = old('device_permission_ports');
 if (is_array($oldPermissionPortMap)) {
     foreach ($oldPermissionPortMap as $deviceId => $value) {
@@ -271,6 +287,20 @@ if (is_array($oldPermissionPortMap)) {
             continue;
         }
         $permissionPortMap[(int) $deviceId] = trim((string) $value);
+    }
+}
+
+$oldPermissionCommandTemplateMap = old('device_permission_command_template_ids');
+if (is_array($oldPermissionCommandTemplateMap)) {
+    foreach ($oldPermissionCommandTemplateMap as $deviceId => $templateIds) {
+        if (!is_numeric($deviceId) || !is_array($templateIds)) {
+            continue;
+        }
+
+        $permissionCommandTemplateMap[(int) $deviceId] = array_values(array_unique(array_map(
+            'intval',
+            array_filter($templateIds, static fn ($id): bool => is_numeric($id))
+        )));
     }
 }
 
@@ -478,6 +508,45 @@ $hasDevicePermission = in_array($deviceId, $selectedPermissionDeviceIds, true);
 <p class="text-xs text-gray-400 <?php if(!empty($selectedPermissionDeviceIds)): echo 'hidden'; endif; ?>" data-device-port-empty>Select one or more command devices to set port-level access.</p>
 </div>
 <p class="text-xs text-gray-400">Leave blank to allow all ports on that device. Use comma-separated patterns, for example: <code>Gi1/0/1,Gi1/0/2,Gi1/0/*</code>.</p>
+</div>
+<div class="flex flex-col gap-2 lg:col-span-12" data-device-command-permissions>
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Command Scope Per Device (optional)</label>
+<?php if($deviceCommandRestrictionsReady ?? false): ?>
+<div class="border border-[#cfd7e7] dark:border-gray-700 rounded-lg p-3 space-y-3 bg-white dark:bg-gray-800">
+<?php $__currentLoopData = $devices; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $device): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+<?php
+$deviceId = (int) $device->id;
+$selectedDeviceCommandTemplateIds = $permissionCommandTemplateMap[$deviceId] ?? [];
+$hasDevicePermission = in_array($deviceId, $selectedPermissionDeviceIds, true);
+?>
+<div class="<?php if(!$hasDevicePermission): echo 'hidden'; endif; ?> rounded-lg border border-slate-200 dark:border-gray-700 p-3" data-device-command-item data-device-id="<?php echo e($deviceId); ?>">
+<div class="flex items-center justify-between gap-3 mb-2">
+<div class="text-xs font-semibold text-slate-500"><?php echo e($device->name); ?> <?php if($device->serial_number): ?>(<?php echo e($device->serial_number); ?>)<?php endif; ?></div>
+<span class="text-[11px] text-gray-400">Leave all unchecked to allow all approved commands.</span>
+</div>
+<?php if($commandTemplates->isNotEmpty()): ?>
+<input type="hidden" name="device_permission_command_template_ids[<?php echo e($deviceId); ?>][]" value=""/>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-44 overflow-y-auto">
+<?php $__currentLoopData = $commandTemplates; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $template): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+<label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+<input class="rounded border-gray-300 text-primary focus:ring-primary" type="checkbox" name="device_permission_command_template_ids[<?php echo e($deviceId); ?>][]" value="<?php echo e($template->id); ?>" <?php if(in_array((int) $template->id, $selectedDeviceCommandTemplateIds, true)): echo 'checked'; endif; ?>/>
+<span><?php echo e($template->name); ?></span>
+</label>
+<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+</div>
+<?php else: ?>
+<p class="text-xs text-gray-400">Create or enable command permissions below before scoping them per device.</p>
+<?php endif; ?>
+</div>
+<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+<p class="text-xs text-gray-400 <?php if(!empty($selectedPermissionDeviceIds)): echo 'hidden'; endif; ?>" data-device-command-empty>Select one or more command devices to scope commands on each device.</p>
+</div>
+<p class="text-xs text-gray-400">This only limits commands on the devices selected above. The global command list in section 3 still decides which commands the user can use at all.</p>
+<?php else: ?>
+<div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300">
+Run <code>php artisan migrate --force</code> to enable per-device command restrictions on this server.
+</div>
+<?php endif; ?>
 </div>
 <div class="lg:col-span-12 pt-1">
 <p class="text-xs font-bold uppercase tracking-wider text-gray-500">3) Command Permissions</p>

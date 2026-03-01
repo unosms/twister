@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\CommandTemplate;
+use App\Models\DevicePermission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
@@ -36,6 +37,16 @@ class ActionController extends Controller
             }
 
             if ($request->filled('device_id')) {
+                $permissionColumns = ['device_id'];
+                if (DevicePermission::supportsAllowedCommandTemplateIds()) {
+                    $permissionColumns[] = 'allowed_command_template_ids';
+                }
+
+                $permissionRow = DB::table('device_permissions')
+                    ->where('device_id', $request->input('device_id'))
+                    ->where('user_id', $userId)
+                    ->first($permissionColumns);
+
                 $deviceAssigned = DB::table('device_assignments')
                     ->where('device_id', $request->input('device_id'))
                     ->where('user_id', $userId)
@@ -50,16 +61,24 @@ class ActionController extends Controller
                 }
 
                 if (!$deviceAssigned) {
-                    $deviceAssigned = DB::table('device_permissions')
-                        ->where('device_id', $request->input('device_id'))
-                        ->where('user_id', $userId)
-                        ->exists();
+                    $deviceAssigned = $permissionRow !== null;
                 }
 
                 if (!$deviceAssigned) {
                     return response()->json([
                         'status' => 'forbidden',
                         'reason' => 'Device not assigned.',
+                    ], 403);
+                }
+
+                $allowedCommandTemplateIds = DevicePermission::supportsAllowedCommandTemplateIds()
+                    ? DevicePermission::decodeAllowedCommandTemplateIds($permissionRow?->allowed_command_template_ids ?? null)
+                    : [];
+
+                if (!empty($allowedCommandTemplateIds) && !in_array((int) $template->id, $allowedCommandTemplateIds, true)) {
+                    return response()->json([
+                        'status' => 'forbidden',
+                        'reason' => 'Command not permitted for this device.',
                     ], 403);
                 }
             }

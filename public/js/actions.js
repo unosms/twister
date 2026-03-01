@@ -1484,6 +1484,51 @@
     });
   };
 
+  const setupDevicePermissionCommandInputs = () => {
+    const containers = Array.from(document.querySelectorAll('[data-device-command-permissions]'));
+    if (!containers.length) {
+      return;
+    }
+
+    containers.forEach((container) => {
+      const form = container.closest('form');
+      const select = form ? form.querySelector('select[name="device_permission_ids[]"]') : null;
+      if (!select) {
+        return;
+      }
+
+      const items = Array.from(container.querySelectorAll('[data-device-command-item][data-device-id]'));
+      if (!items.length) {
+        return;
+      }
+
+      const empty = container.querySelector('[data-device-command-empty]');
+
+      const updateVisibility = () => {
+        const selectedIds = new Set(
+          Array.from(select.selectedOptions || []).map((option) => String(option.value || ''))
+        );
+
+        let visibleCount = 0;
+        items.forEach((item) => {
+          const deviceId = String(item.dataset.deviceId || '');
+          const visible = selectedIds.has(deviceId);
+          item.classList.toggle('hidden', !visible);
+          if (visible) {
+            visibleCount += 1;
+          }
+        });
+
+        if (empty) {
+          empty.classList.toggle('hidden', visibleCount > 0);
+        }
+      };
+
+      select.addEventListener('change', updateVisibility);
+      updateVisibility();
+    });
+  };
+
   const setupMultiSelectShortcuts = () => {
     const groups = Array.from(document.querySelectorAll('[data-multi-select]'));
     if (!groups.length) {
@@ -2703,6 +2748,7 @@
     setupCheckboxShortcuts();
     setupCustomCommandPermissions();
     setupDevicePermissionPortInputs();
+    setupDevicePermissionCommandInputs();
     setupDeviceEditToggles();
     setupDeviceEditTypeFields();
     setupDeviceRowLinks();

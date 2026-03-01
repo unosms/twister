@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CommandTemplate;
 use App\Models\Device;
 use App\Models\DeviceAssignment;
+use App\Models\DevicePermission;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\UploadedFile;
@@ -267,6 +268,7 @@ class UserController extends Controller
             'devices' => $devices,
             'commandTemplates' => $commandTemplates,
             'avatarStorageReady' => User::supportsAvatarStorage(),
+            'deviceCommandRestrictionsReady' => DevicePermission::supportsAllowedCommandTemplateIds(),
             'telegramSeverityOptions' => self::TELEGRAM_SEVERITIES,
             'telegramEventTypeOptions' => self::TELEGRAM_EVENT_TYPES,
         ];
@@ -410,6 +412,9 @@ class UserController extends Controller
                     }
                 },
             ],
+            'device_permission_command_template_ids' => ['nullable', 'array'],
+            'device_permission_command_template_ids.*' => ['nullable', 'array'],
+            'device_permission_command_template_ids.*.*' => ['nullable', 'integer', 'exists:command_templates,id'],
 
             'command_template_ids' => ['nullable', 'array'],
             'command_template_ids.*' => ['integer', 'exists:command_templates,id'],
@@ -625,10 +630,41 @@ class UserController extends Controller
             $permissionPorts[$deviceId] = $this->normalizeInterfaceExpression(is_string($expressionRaw) ? $expressionRaw : null);
         }
 
-        $existingPermissionMeta = DB::table('device_permissions')
+        $permissionCommandTemplateIdsRaw = $data['device_permission_command_template_ids'] ?? [];
+        if (!is_array($permissionCommandTemplateIdsRaw)) {
+            $permissionCommandTemplateIdsRaw = [];
+        }
+
+        $permissionCommandTemplateIds = [];
+        foreach ($permissionCommandTemplateIdsRaw as $deviceIdRaw => $templateIdsRaw) {
+            if (!is_numeric($deviceIdRaw)) {
+                continue;
+            }
+
+            $deviceId = (int) $deviceIdRaw;
+            if (!in_array($deviceId, $permissionIds, true)) {
+                continue;
+            }
+
+            $templateIds = is_array($templateIdsRaw) ? $templateIdsRaw : [];
+            $permissionCommandTemplateIds[$deviceId] = array_values(array_unique(array_map(
+                static fn ($id): int => (int) $id,
+                array_filter($templateIds, static fn ($id): bool => is_numeric($id) && (int) $id > 0)
+            )));
+        }
+
+        $existingPermissionMetaQuery = DB::table('device_permissions')
             ->where('user_id', $user->id)
-            ->whereIn('device_id', $permissionIds)
-            ->get(['device_id', 'granted_by', 'granted_at'])
+            ->whereIn('device_id', $permissionIds);
+
+        $existingPermissionColumns = ['device_id', 'granted_by', 'granted_at'];
+        $supportsDeviceCommandRestrictions = DevicePermission::supportsAllowedCommandTemplateIds();
+        if ($supportsDeviceCommandRestrictions) {
+            $existingPermissionColumns[] = 'allowed_command_template_ids';
+        }
+
+        $existingPermissionMeta = $existingPermissionMetaQuery
+            ->get($existingPermissionColumns)
             ->keyBy(static fn ($row): int => (int) $row->device_id);
 
         $permissionPayload = [];
@@ -639,6 +675,13 @@ class UserController extends Controller
                 'granted_at' => $existing?->granted_at ?? now(),
                 'allowed_ports' => $permissionPorts[$deviceId] ?? null,
             ];
+
+            if ($supportsDeviceCommandRestrictions) {
+                $selectedTemplateIds = $permissionCommandTemplateIds[$deviceId] ?? null;
+                $permissionPayload[$deviceId]['allowed_command_template_ids'] = is_array($selectedTemplateIds)
+                    ? DevicePermission::encodeAllowedCommandTemplateIds($selectedTemplateIds)
+                    : ($existing?->allowed_command_template_ids ?? null);
+            }
         }
 
         if (!empty($permissionPayload)) {
@@ -916,10 +959,15 @@ class UserController extends Controller
             return;
         }
 
+        $existingPermissionColumns = ['device_id', 'granted_by', 'granted_at'];
+        if (DevicePermission::supportsAllowedCommandTemplateIds()) {
+            $existingPermissionColumns[] = 'allowed_command_template_ids';
+        }
+
         $existingPermissionMeta = DB::table('device_permissions')
             ->where('user_id', $user->id)
             ->whereIn('device_id', $allDeviceIds)
-            ->get(['device_id', 'granted_by', 'granted_at'])
+            ->get($existingPermissionColumns)
             ->keyBy(static fn ($row): int => (int) $row->device_id);
 
         $grantedBy = $grantedByUserId > 0 ? $grantedByUserId : null;
@@ -931,6 +979,10 @@ class UserController extends Controller
                 'granted_at' => $existing?->granted_at ?? now(),
                 'allowed_ports' => null,
             ];
+
+            if (DevicePermission::supportsAllowedCommandTemplateIds()) {
+                $payload[$deviceId]['allowed_command_template_ids'] = null;
+            }
         }
 
         $user->permittedDevices()->sync($payload);

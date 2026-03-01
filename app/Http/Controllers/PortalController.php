@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Device;
 use App\Models\DeviceAssignment;
 use App\Models\CommandTemplate;
+use App\Models\DevicePermission;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,7 @@ class PortalController extends Controller
         $devices = collect();
         $allDevices = collect();
         $commandTemplates = collect();
+        $commandTemplatesByDevice = [];
         if ($role === 'admin') {
             $allDevices = Device::orderByDesc('created_at')->get();
             $devices = Device::orderByDesc('created_at')->paginate(12)->withQueryString();
@@ -31,9 +33,18 @@ class PortalController extends Controller
                 ->pluck('device_id')
                 ->all();
 
-            $permissionDeviceIds = DB::table('device_permissions')
+            $permissionColumns = ['device_id'];
+            if (DevicePermission::supportsAllowedCommandTemplateIds()) {
+                $permissionColumns[] = 'allowed_command_template_ids';
+            }
+
+            $permissionRows = DB::table('device_permissions')
                 ->where('user_id', $userId)
+                ->get($permissionColumns);
+
+            $permissionDeviceIds = $permissionRows
                 ->pluck('device_id')
+                ->map(static fn ($id): int => (int) $id)
                 ->all();
 
             $deviceQuery = Device::query()
@@ -57,6 +68,26 @@ class PortalController extends Controller
             if ($user) {
                 $commandTemplates = $user->commandTemplates
                     ->where('active', true)
+                    ->values();
+            }
+
+            $globalCommandTemplatesById = $commandTemplates->keyBy(static fn ($template) => (int) $template->id);
+            $restrictedCommandMap = $permissionRows->mapWithKeys(static function ($row) {
+                return [(int) $row->device_id => DevicePermission::decodeAllowedCommandTemplateIds($row->allowed_command_template_ids ?? null)];
+            });
+
+            foreach ($allDevices as $device) {
+                $deviceId = (int) $device->id;
+                $restrictedIds = $restrictedCommandMap->get($deviceId, []);
+
+                if (empty($restrictedIds)) {
+                    $commandTemplatesByDevice[$deviceId] = $commandTemplates->values();
+                    continue;
+                }
+
+                $commandTemplatesByDevice[$deviceId] = collect($restrictedIds)
+                    ->map(static fn ($id) => $globalCommandTemplatesById->get((int) $id))
+                    ->filter()
                     ->values();
             }
         }
@@ -148,6 +179,7 @@ class PortalController extends Controller
             'portalNotificationCount' => $portalNotificationCount,
             'commandTemplateCount' => $commandTemplateCount,
             'commandTemplates' => $commandTemplates,
+            'commandTemplatesByDevice' => $commandTemplatesByDevice,
             'healthPercent' => $healthPercent,
             'accessibleScopeLabel' => $accessibleScopeLabel,
             'deviceTypeBreakdown' => $deviceTypeBreakdown,
