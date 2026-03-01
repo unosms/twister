@@ -66,16 +66,17 @@
         <span class="text-sm" data-sidebar-label>Notifications</span>
     </a>
 
-    <div class="flex flex-col gap-1">
-        <div class="flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors {{ $diagnosticsActive ? 'bg-primary/10 text-primary' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" data-sidebar-item>
+    <details class="sidebar-collapsible-group flex flex-col gap-1" {{ $diagnosticsActive ? 'open' : '' }}>
+        <summary class="flex cursor-pointer list-none items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors {{ $diagnosticsActive ? 'bg-primary/10 text-primary' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" data-sidebar-item>
             <span class="material-symbols-outlined text-[20px]">construction</span>
             <span class="text-sm" data-sidebar-label>Diagnostics</span>
-        </div>
+            <span class="material-symbols-outlined ml-auto text-[18px] sidebar-collapsible-icon">expand_more</span>
+        </summary>
         <div class="sidebar-subnav ml-10 flex flex-col gap-1">
             <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $supportConsoleActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('support.index') }}">Support Console</a>
             <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $logsActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('telemetry.index') }}">Logs</a>
         </div>
-    </div>
+    </details>
 
     <a class="flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors {{ $settingsActive ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('settings.index') }}" data-sidebar-item>
         <span class="material-symbols-outlined text-[20px]">tune</span>
