@@ -311,7 +311,6 @@ class DeviceController extends Controller
             'server_password' => ['nullable', 'string', 'max:255'],
             'server_service' => ['nullable', 'array', 'min:1'],
             'server_service.*' => ['string', 'max:100', Rule::in(self::SERVER_SERVICE_OPTIONS)],
-            'server_root_password' => ['nullable', 'string', 'max:255'],
             'server_web_address_port' => ['nullable', 'string', 'max:500'],
             'server_web_username' => ['nullable', 'string', 'max:255'],
             'server_web_password' => ['nullable', 'string', 'max:255'],
@@ -481,11 +480,6 @@ class DeviceController extends Controller
                 $serverMeta['rack_uid'] = $this->normalizeOptionalString($data['server_rack_uid'] ?? null);
             }
 
-            if (!empty($data['server_root_password'])) {
-                $serverMeta['root_password'] = encrypt($data['server_root_password']);
-            } elseif ($serverPassword !== null) {
-                $serverMeta['root_password'] = encrypt($serverPassword);
-            }
             if (!empty($data['server_web_password'])) {
                 $serverMeta['web_password'] = encrypt($data['server_web_password']);
             }
@@ -610,7 +604,6 @@ class DeviceController extends Controller
             'server_name' => ['nullable', 'string', 'max:255', 'required_if:type,SERVER'],
             'server_service' => ['nullable', 'array', 'required_if:type,SERVER', 'min:1'],
             'server_service.*' => ['string', 'max:100', Rule::in(self::SERVER_SERVICE_OPTIONS)],
-            'server_root_password' => ['nullable', 'string', 'max:255'],
             'server_web_address_port' => ['nullable', 'string', 'max:500', 'required_if:type,SERVER'],
             'server_web_username' => ['nullable', 'string', 'max:255'],
             'server_web_password' => ['nullable', 'string', 'max:255'],
@@ -746,9 +739,6 @@ class DeviceController extends Controller
                 $server['rack_uid'] = $this->normalizeOptionalString($data['server_rack_uid'] ?? null);
             } else {
                 unset($server['cabinet_id'], $server['rack_uid']);
-            }
-            if (!empty($data['server_root_password'])) {
-                $server['root_password'] = encrypt($data['server_root_password']);
             }
             if (!empty($data['server_web_password'])) {
                 $server['web_password'] = encrypt($data['server_web_password']);

@@ -492,10 +492,6 @@ $oldServerServices = array_values(array_filter(array_map(
 <input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_vnc_password" placeholder="********" type="password" data-server-vnc-required disabled/>
 </div>
 <div class="flex flex-col gap-2">
-<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server Root Password *</label>
-<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_root_password" placeholder="********" type="password" data-server-required disabled/>
-</div>
-<div class="flex flex-col gap-2">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server Web Address and Port *</label>
 <input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_web_address_port" placeholder="e.g., https://example.com:8080" type="text" data-server-required disabled/>
 </div>
@@ -851,10 +847,6 @@ $selectedServerServices = array_values(array_filter(array_map(
 <div class="flex flex-col gap-2 hidden" data-device-edit-server-vnc-field>
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">VNC Password</label>
 <input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_vnc_password" type="password" placeholder="Leave blank to keep"/>
-</div>
-<div class="flex flex-col gap-2">
-<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server Root Password</label>
-<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_root_password" type="password" placeholder="Leave blank to keep"/>
 </div>
 <div class="flex flex-col gap-2">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server Web Address and Port</label>
