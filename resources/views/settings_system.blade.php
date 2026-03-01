@@ -119,22 +119,11 @@ logs, and future data formatting across the admin interface.
 @csrf
 <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
 <div class="space-y-4">
-<div class="grid gap-4 lg:grid-cols-[220px_minmax(0,1fr)]">
-<div>
-<label class="block text-sm font-semibold text-slate-700 dark:text-slate-200" for="timezone-country-filter">Filter by Country</label>
-<select class="mt-2 h-11 w-full rounded-2xl border border-slate-300 bg-white px-4 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" id="timezone-country-filter">
-<option value="all">All Countries</option>
-@foreach ($countryOptions as $countryOption)
-<option value="{{ $countryOption }}">{{ $countryOption }}</option>
-@endforeach
-</select>
-</div>
 <div>
 <label class="block text-sm font-semibold text-slate-700 dark:text-slate-200" for="timezone-search">Search Time Zone or Country</label>
 <div class="relative mt-2">
 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-[20px]">search</span>
 <input class="h-11 w-full rounded-2xl border border-slate-300 bg-white pl-10 pr-4 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" id="timezone-search" type="text" placeholder="e.g. Jordan, Amman"/>
-</div>
 </div>
 </div>
 <div>
@@ -185,16 +174,10 @@ Save Time Zone
 document.addEventListener('DOMContentLoaded', function () {
     var localPreviewClock = document.getElementById('local-preview-clock');
     var timezoneSelect = document.getElementById('timezone');
-    var countryFilter = document.getElementById('timezone-country-filter');
     var timezoneSearch = document.getElementById('timezone-search');
     var summary = document.getElementById('timezone-filter-summary');
     var selectedTimezone = timezoneSelect ? timezoneSelect.dataset.selectedTimezone || '' : '';
     var timezoneEntries = @json($timezoneEntries);
-    var countryOptions = Array.from(countryFilter ? countryFilter.options : []).map(function (option) {
-        return option.value;
-    }).filter(function (value) {
-        return value && value !== 'all';
-    });
 
     function formatPreviewTime(date, timezone) {
         var formatter = new Intl.DateTimeFormat('en-GB', {
@@ -235,7 +218,7 @@ document.addEventListener('DOMContentLoaded', function () {
         window.setInterval(updateLocalPreviewClock, 1000);
     }
 
-    if (!timezoneSelect || !countryFilter || !timezoneSearch) {
+    if (!timezoneSelect || !timezoneSearch) {
         return;
     }
 
@@ -245,33 +228,6 @@ document.addEventListener('DOMContentLoaded', function () {
             .replace(/[_/,-]+/g, ' ')
             .replace(/\s+/g, ' ')
             .trim();
-    }
-
-    function findCountryMatch(searchValue) {
-        var normalizedSearch = normalizeText(searchValue);
-
-        if (normalizedSearch === '') {
-            return null;
-        }
-
-        var exact = countryOptions.find(function (country) {
-            return normalizeText(country) === normalizedSearch;
-        });
-        if (exact) {
-            return exact;
-        }
-
-        var startsWith = countryOptions.find(function (country) {
-            return normalizeText(country).indexOf(normalizedSearch) === 0;
-        });
-        if (startsWith) {
-            return startsWith;
-        }
-
-        return countryOptions.find(function (country) {
-            return normalizedSearch.indexOf(normalizeText(country)) !== -1
-                || normalizeText(country).indexOf(normalizedSearch) !== -1;
-        }) || null;
     }
 
     function findBestTimezoneMatch(entries, searchValue) {
@@ -310,31 +266,12 @@ document.addEventListener('DOMContentLoaded', function () {
         return bestEntry || entries[0] || null;
     }
 
-    function syncCountryFilterFromSearch() {
-        var matchedCountry = findCountryMatch(timezoneSearch.value || '');
-
-        if (matchedCountry) {
-            countryFilter.value = matchedCountry;
-            return;
-        }
-
-        if ((timezoneSearch.value || '').trim() === '') {
-            countryFilter.value = 'all';
-        }
-    }
-
     function renderTimezoneOptions() {
-        var countryValue = countryFilter.value || 'all';
         var searchValue = (timezoneSearch.value || '').trim().toLowerCase();
 
         timezoneSelect.innerHTML = '';
 
         var filtered = timezoneEntries.filter(function (entry) {
-            var matchesCountry = countryValue === 'all' || entry.country_name === countryValue;
-            if (!matchesCountry) {
-                return false;
-            }
-
             if (searchValue === '') {
                 return true;
             }
@@ -369,7 +306,7 @@ document.addEventListener('DOMContentLoaded', function () {
         if (timezoneSelect.options.length === 0) {
             var emptyOption = document.createElement('option');
             emptyOption.value = '';
-            emptyOption.textContent = 'No time zones match this country filter.';
+            emptyOption.textContent = 'No time zones match this search.';
             emptyOption.disabled = true;
             emptyOption.selected = true;
             timezoneSelect.appendChild(emptyOption);
@@ -380,18 +317,14 @@ document.addEventListener('DOMContentLoaded', function () {
             timezoneSelect.selectedIndex = Math.max(timezoneSelect.selectedIndex, 0);
         }
 
-        summary.textContent = countryValue === 'all'
-            ? 'Showing ' + filtered.length + ' matching time zones.'
-            : 'Showing ' + filtered.length + ' time zones for ' + countryValue + '.';
+        summary.textContent = 'Showing ' + filtered.length + ' matching time zones.';
     }
 
     timezoneSelect.addEventListener('change', function () {
         selectedTimezone = timezoneSelect.value;
     });
 
-    countryFilter.addEventListener('change', renderTimezoneOptions);
     timezoneSearch.addEventListener('input', function () {
-        syncCountryFilterFromSearch();
         renderTimezoneOptions();
     });
 
