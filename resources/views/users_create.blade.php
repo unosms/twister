@@ -128,13 +128,28 @@ Back to Users
 <input id="password" class="h-11 rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:border-primary focus:ring-primary" name="password" type="password" placeholder="Minimum 6 characters" required/>
 <p class="text-xs text-slate-400">The account is created as active. Use the users page if you need to deactivate it later.</p>
 </div>
-<div class="md:col-span-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-950/40">
+<div class="md:col-span-3 rounded-xl border border-slate-200 bg-slate-50/80 p-4 dark:border-slate-800 dark:bg-slate-950/40" data-avatar-upload>
 <div class="flex flex-col gap-4 md:flex-row md:items-center">
-@include('partials.user_avatar', ['user' => null, 'name' => old('username', 'New User'), 'sizeClass' => 'h-16 w-16', 'textClass' => 'text-lg'])
+<label class="group relative cursor-pointer self-start" for="avatar" title="Upload profile picture">
+<span class="block" data-avatar-preview data-preview-class="h-16 w-16 rounded-full border border-slate-200 object-cover shadow-sm dark:border-slate-700">
+@include('partials.user_avatar', ['user' => null, 'name' => old('username', 'New User'), 'sizeClass' => 'h-16 w-16', 'textClass' => 'text-lg', 'class' => 'shadow-sm'])
+</span>
+<span class="absolute -bottom-1 -right-1 inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary text-white shadow-sm transition group-hover:bg-primary/90">
+<span class="material-symbols-outlined text-[16px]">edit</span>
+</span>
+</label>
 <div class="min-w-0 flex-1 flex flex-col gap-2">
 <label class="text-sm font-semibold text-slate-700 dark:text-slate-200" for="avatar">Profile Picture</label>
-<input id="avatar" class="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-primary file:px-4 file:py-2 file:font-semibold file:text-white hover:file:bg-primary/90 dark:text-slate-300" name="avatar" type="file" accept="image/png,image/jpeg,image/webp,image/gif"/>
-<p class="text-xs text-slate-400">Optional. Upload a PNG, JPG, WEBP, or GIF up to 2 MB.</p>
+<div class="flex flex-wrap items-center gap-3">
+<label class="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary/90" for="avatar">
+<span class="material-symbols-outlined text-[18px]">upload</span>
+Upload Picture
+</label>
+<span class="text-xs text-slate-500">PNG, JPG, WEBP, or GIF up to 2 MB.</span>
+</div>
+<input id="avatar" class="sr-only" name="avatar" type="file" accept="image/png,image/jpeg,image/webp,image/gif" data-avatar-input/>
+<p class="text-xs text-slate-400">Click the picture or the button to choose a profile image.</p>
+<p class="text-xs font-medium text-slate-500" data-avatar-file-name data-default-text="No file selected yet.">No file selected yet.</p>
 </div>
 </div>
 </div>
@@ -336,5 +351,50 @@ $hasDevicePermission = in_array($deviceId, $selectedPermissionDeviceIds, true);
 </div>
 </main>
 </div>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('[data-avatar-upload]').forEach(function (section) {
+        var input = section.querySelector('[data-avatar-input]');
+        var preview = section.querySelector('[data-avatar-preview]');
+        var fileName = section.querySelector('[data-avatar-file-name]');
+
+        if (!input || !preview) {
+            return;
+        }
+
+        var previewClass = preview.dataset.previewClass || 'h-16 w-16 rounded-full object-cover';
+        var defaultText = fileName ? (fileName.dataset.defaultText || fileName.textContent) : '';
+        var currentObjectUrl = null;
+
+        input.addEventListener('change', function () {
+            var file = input.files && input.files[0] ? input.files[0] : null;
+
+            if (!file) {
+                if (fileName) {
+                    fileName.textContent = defaultText;
+                }
+                return;
+            }
+
+            if (currentObjectUrl) {
+                URL.revokeObjectURL(currentObjectUrl);
+            }
+
+            currentObjectUrl = URL.createObjectURL(file);
+            preview.innerHTML = '';
+
+            var image = document.createElement('img');
+            image.src = currentObjectUrl;
+            image.alt = 'Profile picture preview';
+            image.className = previewClass;
+            preview.appendChild(image);
+
+            if (fileName) {
+                fileName.textContent = file.name;
+            }
+        });
+    });
+});
+</script>
 </body>
 </html>

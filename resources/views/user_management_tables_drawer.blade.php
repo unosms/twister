@@ -381,19 +381,33 @@ $telegramEnabled = (bool) old('telegram_enabled', (bool) ($user->telegram_enable
 <p class="text-xs text-gray-400">Password changes are restricted to super admin.</p>
 <?php endif; ?>
 </div>
-<div class="flex flex-col gap-3 lg:col-span-12">
+<div class="flex flex-col gap-3 lg:col-span-12" data-avatar-upload>
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Profile Picture</label>
 <div class="flex flex-col gap-4 rounded-lg border border-[#cfd7e7] bg-white p-4 dark:border-gray-700 dark:bg-gray-800/40 md:flex-row md:items-center">
-<?php echo $__env->make('partials.user_avatar', ['user' => $user, 'name' => $user->name, 'sizeClass' => 'h-16 w-16', 'textClass' => 'text-lg'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<label class="group relative cursor-pointer self-start" for="avatar_<?php echo e($user->id); ?>" title="Upload profile picture">
+<span class="block" data-avatar-preview data-preview-class="h-16 w-16 rounded-full border border-slate-200 object-cover shadow-sm dark:border-slate-700">
+<?php echo $__env->make('partials.user_avatar', ['user' => $user, 'name' => $user->name, 'sizeClass' => 'h-16 w-16', 'textClass' => 'text-lg', 'class' => 'shadow-sm'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+</span>
+<span class="absolute -bottom-1 -right-1 inline-flex h-7 w-7 items-center justify-center rounded-full bg-primary text-white shadow-sm transition group-hover:bg-primary/90">
+<span class="material-symbols-outlined text-[16px]">edit</span>
+</span>
+</label>
 <div class="min-w-0 flex-1 space-y-2">
-<input class="block w-full text-sm text-slate-600 file:mr-4 file:rounded-lg file:border-0 file:bg-primary file:px-4 file:py-2 file:font-semibold file:text-white hover:file:bg-primary/90 dark:text-slate-300" type="file" name="avatar" accept="image/png,image/jpeg,image/webp,image/gif"/>
-<p class="text-xs text-gray-400">Upload a PNG, JPG, WEBP, or GIF up to 2 MB. A new upload replaces the current photo.</p>
+<div class="flex flex-wrap items-center gap-3">
+<label class="inline-flex cursor-pointer items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary/90" for="avatar_<?php echo e($user->id); ?>">
+<span class="material-symbols-outlined text-[18px]">upload</span>
+Upload Picture
+</label>
 <?php if(!empty($user->avatar_path)): ?>
 <label class="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
-<input class="rounded border-gray-300 text-primary focus:ring-primary" type="checkbox" name="remove_avatar" value="1"/>
+<input class="rounded border-gray-300 text-primary focus:ring-primary" type="checkbox" name="remove_avatar" value="1" data-avatar-remove/>
 <span>Remove current profile picture</span>
 </label>
 <?php endif; ?>
+</div>
+<input class="sr-only" id="avatar_<?php echo e($user->id); ?>" type="file" name="avatar" accept="image/png,image/jpeg,image/webp,image/gif" data-avatar-input/>
+<p class="text-xs text-gray-400">Click the picture or the button to choose a new profile image. Supported formats: PNG, JPG, WEBP, GIF up to 2 MB.</p>
+<p class="text-xs font-medium text-gray-500" data-avatar-file-name data-default-text="<?php echo e(!empty($user->avatar_path) ? 'Current profile picture will stay until you upload a new one.' : 'No file selected yet.'); ?>"><?php echo e(!empty($user->avatar_path) ? 'Current profile picture will stay until you upload a new one.' : 'No file selected yet.'); ?></p>
 </div>
 </div>
 </div>
@@ -649,6 +663,69 @@ document.addEventListener('DOMContentLoaded', function () {
     var filterForm = document.getElementById('user-filters');
     var exportForm = document.getElementById('user-export-form');
 
+    function setupAvatarUploads() {
+        document.querySelectorAll('[data-avatar-upload]').forEach(function (section) {
+            var input = section.querySelector('[data-avatar-input]');
+            var preview = section.querySelector('[data-avatar-preview]');
+            var fileName = section.querySelector('[data-avatar-file-name]');
+            var removeInput = section.querySelector('[data-avatar-remove]');
+
+            if (!input || !preview) {
+                return;
+            }
+
+            var previewClass = preview.dataset.previewClass || 'h-16 w-16 rounded-full object-cover';
+            var defaultText = fileName ? (fileName.dataset.defaultText || fileName.textContent) : '';
+            var currentObjectUrl = null;
+
+            input.addEventListener('change', function () {
+                var file = input.files && input.files[0] ? input.files[0] : null;
+
+                if (!file) {
+                    if (fileName) {
+                        fileName.textContent = removeInput && removeInput.checked
+                            ? 'Current picture will be removed on save.'
+                            : defaultText;
+                    }
+                    return;
+                }
+
+                if (currentObjectUrl) {
+                    URL.revokeObjectURL(currentObjectUrl);
+                }
+
+                currentObjectUrl = URL.createObjectURL(file);
+                preview.innerHTML = '';
+
+                var image = document.createElement('img');
+                image.src = currentObjectUrl;
+                image.alt = 'Profile picture preview';
+                image.className = previewClass;
+                preview.appendChild(image);
+
+                if (fileName) {
+                    fileName.textContent = file.name;
+                }
+
+                if (removeInput) {
+                    removeInput.checked = false;
+                }
+            });
+
+            if (removeInput) {
+                removeInput.addEventListener('change', function () {
+                    if (!fileName || (input.files && input.files.length > 0)) {
+                        return;
+                    }
+
+                    fileName.textContent = removeInput.checked
+                        ? 'Current picture will be removed on save.'
+                        : defaultText;
+                });
+            }
+        });
+    }
+
     function syncExportFilters() {
         if (!filterForm || !exportForm) {
             return;
@@ -669,6 +746,8 @@ document.addEventListener('DOMContentLoaded', function () {
     if (exportForm) {
         exportForm.addEventListener('submit', syncExportFilters);
     }
+
+    setupAvatarUploads();
 });
 </script>
 </body></html>
