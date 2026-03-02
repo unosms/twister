@@ -998,6 +998,7 @@ class ScriptController extends Controller
             data_get($cisco, 'folder_location'),
             data_get($device->metadata ?? [], 'folder_location')
         );
+        $backupSnapshot = $this->snapshotBackupFiles($device);
         $usedFallbackLocation = false;
 
         if (!$location) {
@@ -1046,7 +1047,7 @@ class ScriptController extends Controller
 
             $command = ['bash', $scriptPath, $ip, $username, $password, $location];
 
-            return $this->runProcess($command, [], $traceContext + [
+            $result = $this->runProcess($command, [], $traceContext + [
                 'label' => 'backup trace',
                 'line_prefix' => 'backup trace',
                 'script_name' => $scriptName,
@@ -1057,6 +1058,16 @@ class ScriptController extends Controller
                 'location' => $location,
                 'command' => $this->redactBackupCommand($command, true),
                 'secret_values' => array_values(array_filter([$password])),
+            ]);
+
+            return $this->verifyBackupArtifact($device, $result, $backupSnapshot, $traceContext + [
+                'script_name' => $scriptName,
+                'script_path' => $scriptPath,
+                'switch_model' => $switchModel !== '' ? $switchModel : null,
+                'is_nexus' => true,
+                'is_3560' => false,
+                'switch_ip' => $ip,
+                'location' => $location,
             ]);
         }
 
@@ -1077,7 +1088,7 @@ class ScriptController extends Controller
                 $command[] = $username;
             }
 
-            return $this->runProcess($command, [], $traceContext + [
+            $result = $this->runProcess($command, [], $traceContext + [
                 'label' => 'backup trace',
                 'line_prefix' => 'backup trace',
                 'script_name' => $scriptName,
@@ -1090,11 +1101,21 @@ class ScriptController extends Controller
                 'command' => $this->redactBackupCommand($command, false),
                 'secret_values' => array_values(array_filter([$password, $enablePassword])),
             ]);
+
+            return $this->verifyBackupArtifact($device, $result, $backupSnapshot, $traceContext + [
+                'script_name' => $scriptName,
+                'script_path' => $scriptPath,
+                'switch_model' => $switchModel !== '' ? $switchModel : null,
+                'is_nexus' => false,
+                'is_3560' => true,
+                'switch_ip' => $ip,
+                'location' => $location,
+            ]);
         }
 
         $command = ['bash', $scriptPath, $ip, $password, $enablePassword, $location];
 
-        return $this->runProcess($command, [], $traceContext + [
+        $result = $this->runProcess($command, [], $traceContext + [
             'label' => 'backup trace',
             'line_prefix' => 'backup trace',
             'script_name' => $scriptName,
@@ -1106,6 +1127,16 @@ class ScriptController extends Controller
             'location' => $location,
             'command' => $this->redactBackupCommand($command, false),
             'secret_values' => array_values(array_filter([$password, $enablePassword])),
+        ]);
+
+        return $this->verifyBackupArtifact($device, $result, $backupSnapshot, $traceContext + [
+            'script_name' => $scriptName,
+            'script_path' => $scriptPath,
+            'switch_model' => $switchModel !== '' ? $switchModel : null,
+            'is_nexus' => false,
+            'is_3560' => false,
+            'switch_ip' => $ip,
+            'location' => $location,
         ]);
     }
 
@@ -1133,6 +1164,98 @@ class ScriptController extends Controller
             'status' => $traceResult['ok'] ? 200 : 500,
             'message' => $traceResult['ok'] ? 'Process completed.' : 'Script execution failed.',
             'output' => $traceResult['output'],
+        ];
+    }
+
+    private function snapshotBackupFiles(Device $device): array
+    {
+        $resolved = $this->resolveBackupDirectory($device);
+        if (!$resolved) {
+            return [
+                'resolved' => null,
+                'files' => [],
+            ];
+        }
+
+        return [
+            'resolved' => $resolved,
+            'files' => $this->backupFileMap($resolved['absolute']),
+        ];
+    }
+
+    private function backupFileMap(string $absolutePath): array
+    {
+        if (!is_dir($absolutePath)) {
+            return [];
+        }
+
+        $files = [];
+        foreach (File::files($absolutePath) as $file) {
+            if (!$file->isFile()) {
+                continue;
+            }
+
+            $files[$file->getFilename()] = $file->getMTime();
+        }
+
+        return $files;
+    }
+
+    private function verifyBackupArtifact(Device $device, array $processResult, array $snapshot, array $traceContext): array
+    {
+        if (!($processResult['ok'] ?? false)) {
+            return $processResult;
+        }
+
+        $resolved = $snapshot['resolved'] ?? $this->resolveBackupDirectory($device);
+        if (!$resolved) {
+            ProvisioningTrace::log('backup trace: verification failed - backup folder could not be resolved', $traceContext);
+
+            return [
+                'ok' => false,
+                'status' => 500,
+                'message' => 'Backup folder could not be resolved after the script finished.',
+                'output' => trim(($processResult['output'] ?? '') . "\nBackup verification failed: backup folder could not be resolved."),
+            ];
+        }
+
+        $beforeFiles = $snapshot['files'] ?? [];
+        $afterFiles = $this->backupFileMap($resolved['absolute']);
+        $createdFile = null;
+        $createdMtime = null;
+
+        foreach ($afterFiles as $name => $mtime) {
+            $previousMtime = $beforeFiles[$name] ?? null;
+            if ($previousMtime === null || $mtime > $previousMtime) {
+                if ($createdMtime === null || $mtime > $createdMtime) {
+                    $createdFile = $name;
+                    $createdMtime = $mtime;
+                }
+            }
+        }
+
+        if ($createdFile !== null) {
+            ProvisioningTrace::log('backup trace: verification succeeded - backup file detected', $traceContext + [
+                'backup_file' => $createdFile,
+                'backup_modified_at' => date('Y-m-d H:i:s', $createdMtime),
+                'backup_folder' => $resolved['relative'],
+            ]);
+
+            return $processResult;
+        }
+
+        ProvisioningTrace::log('backup trace: verification failed - no new backup file detected', $traceContext + [
+            'backup_folder' => $resolved['relative'],
+            'backup_path' => $resolved['absolute'],
+            'existing_file_count_before' => count($beforeFiles),
+            'existing_file_count_after' => count($afterFiles),
+        ]);
+
+        return [
+            'ok' => false,
+            'status' => 500,
+            'message' => 'Backup script finished, but no new backup file was created.',
+            'output' => trim(($processResult['output'] ?? '') . "\nBackup verification failed: no new backup file was created in {$resolved['relative']}."),
         ];
     }
 

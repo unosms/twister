@@ -99,18 +99,22 @@ expect {
     eof { fail_step "Connection closed during write memory" 10 }
 }
 
-send -- "copy running-config tftp://$TFTP_SERVER/$LOCATION/$RENAMED_FILE\r"
+send -- "copy running-config tftp:\r"
 expect {
     -re {(A|a)ddress or name of remote host.*} {
+        send -- "$TFTP_SERVER\r"
+        exp_continue
+    }
+    -re {(S|s)ource filename.*} {
         send -- "\r"
         exp_continue
     }
     -re {(D|d)estination filename.*} {
-        send -- "\r"
+        send -- "$LOCATION/$RENAMED_FILE\r"
         exp_continue
     }
     -re {(O|o)verwrite.*} {
-        send -- "\r"
+        send -- "y\r"
         exp_continue
     }
     -re {(bytes copied|copied in|Copy complete|copied successfully)} {

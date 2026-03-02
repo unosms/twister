@@ -5,6 +5,7 @@ namespace App\Console\Commands;
 use App\Models\Device;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\File;
 use Symfony\Component\Process\Process;
 
 class RunDeviceBackups extends Command
@@ -104,7 +105,11 @@ class RunDeviceBackups extends Command
             ];
         }
 
-        $switchModel = strtoupper((string) ($cisco['switch_model'] ?? ($meta['subtype'] ?? $device->model ?? '')));
+        $switchModel = strtoupper((string) $this->firstNonEmpty(
+            $cisco['switch_model'] ?? null,
+            $meta['subtype'] ?? null,
+            $device->model
+        ));
         $isNexus = str_contains($switchModel, 'NEXUS');
         $is3560 = str_contains($switchModel, '3560');
 
@@ -113,6 +118,7 @@ class RunDeviceBackups extends Command
         $username = $this->firstNonEmpty($cisco['username'] ?? null, $cisco['user'] ?? null);
         $enablePassword = $this->decryptValue($cisco['enable_password'] ?? null);
         $location = $this->resolveFolderLocation($device, $cisco);
+        $backupSnapshot = $this->snapshotBackupFiles($device);
 
         $this->writeProvisioningLog('backup trace: scheduled backup inputs resolved', $traceContext + [
             'switch_model' => $switchModel !== '' ? $switchModel : null,
@@ -184,6 +190,16 @@ class RunDeviceBackups extends Command
             'secret_values' => array_values(array_filter($isNexus ? [$password] : [$password, $enablePassword])),
         ]);
 
+        $result = $this->verifyBackupArtifact($device, $result, $backupSnapshot, $traceContext + [
+            'switch_model' => $switchModel !== '' ? $switchModel : null,
+            'is_nexus' => $isNexus,
+            'is_3560' => $is3560,
+            'switch_ip' => $ip,
+            'location' => $location,
+            'script_name' => $script,
+            'script_path' => $scriptPath,
+        ]);
+
         if (!$result['ok']) {
             return [
                 'status' => 'failed',
@@ -212,6 +228,79 @@ class RunDeviceBackups extends Command
         $slug = preg_replace('/\s+/', '_', trim((string) $baseName));
 
         return 'uno/' . ($slug !== '' ? $slug : 'device');
+    }
+
+    private function snapshotBackupFiles(Device $device): array
+    {
+        $relative = trim(str_replace('\\', '/', $this->resolveFolderLocation($device, $this->normalizeMetadata($device->metadata)['cisco'] ?? [])), '/');
+        $absolute = '/srv/tftp/' . str_replace('/', DIRECTORY_SEPARATOR, $relative);
+
+        return [
+            'relative' => $relative,
+            'absolute' => $absolute,
+            'files' => $this->backupFileMap($absolute),
+        ];
+    }
+
+    private function backupFileMap(string $absolutePath): array
+    {
+        if (!is_dir($absolutePath)) {
+            return [];
+        }
+
+        $files = [];
+        foreach (File::files($absolutePath) as $file) {
+            if (!$file->isFile()) {
+                continue;
+            }
+
+            $files[$file->getFilename()] = $file->getMTime();
+        }
+
+        return $files;
+    }
+
+    private function verifyBackupArtifact(Device $device, array $processResult, array $snapshot, array $traceContext): array
+    {
+        if (!($processResult['ok'] ?? false)) {
+            return $processResult;
+        }
+
+        $afterFiles = $this->backupFileMap($snapshot['absolute']);
+        $createdFile = null;
+        $createdMtime = null;
+
+        foreach ($afterFiles as $name => $mtime) {
+            $previousMtime = $snapshot['files'][$name] ?? null;
+            if ($previousMtime === null || $mtime > $previousMtime) {
+                if ($createdMtime === null || $mtime > $createdMtime) {
+                    $createdFile = $name;
+                    $createdMtime = $mtime;
+                }
+            }
+        }
+
+        if ($createdFile !== null) {
+            $this->writeProvisioningLog('backup trace: verification succeeded - backup file detected', $this->withoutProvisioningSecrets($traceContext) + [
+                'backup_file' => $createdFile,
+                'backup_modified_at' => date('Y-m-d H:i:s', $createdMtime),
+                'backup_folder' => $snapshot['relative'],
+            ]);
+
+            return $processResult;
+        }
+
+        $this->writeProvisioningLog('backup trace: verification failed - no new backup file detected', $this->withoutProvisioningSecrets($traceContext) + [
+            'backup_folder' => $snapshot['relative'],
+            'backup_path' => $snapshot['absolute'],
+            'existing_file_count_before' => count($snapshot['files']),
+            'existing_file_count_after' => count($afterFiles),
+        ]);
+
+        return [
+            'ok' => false,
+            'output' => trim(($processResult['output'] ?? '') . "\nBackup verification failed: no new backup file was created in {$snapshot['relative']}."),
+        ];
     }
 
     private function normalizeMetadata($value): array
