@@ -53,6 +53,9 @@ send_user "$step_prefix opening Telnet session to $switch_ip\n"
 spawn telnet $switch_ip
 expect {
     -re {(?i)(login|username)[: ]*$} {}
+    -re {(?i)(user access verification|escape character is.*)} {
+        exp_continue
+    }
     -re {(?i)(refused|unreachable|unknown host|no route to host|closed by foreign host)} {
         fail_step "telnet session failed before login prompt" 30
     }
@@ -63,7 +66,13 @@ send_user "$step_prefix login prompt received; sending username\n"
 send -- "$username\r"
 
 expect {
-    -re {(?i)password:\s*$} {}
+    -re {(?i)password:} {}
+    -re {(?i)(user access verification|escape character is.*)} {
+        exp_continue
+    }
+    -re {(?i)(login|username)[: ]*$} {
+        fail_step "switch returned to the Nexus login prompt after username submission" 33
+    }
     -re {(?i)(login invalid|login incorrect|authentication failed|denied|failed)} {
         fail_step "switch rejected the Nexus username" 33
     }
@@ -77,6 +86,15 @@ set prompt ""
 expect {
     -re {# ?$} { set prompt "#" }
     -re {> ?$} { set prompt ">" }
+    -re {(?i)(last login|user access verification|warning.*|notice.*)} {
+        exp_continue
+    }
+    -re {(?i)(login|username)[: ]*$} {
+        fail_step "switch returned to the Nexus login prompt after password submission" 35
+    }
+    -re {(?i)password:} {
+        fail_step "switch rejected the Nexus password" 35
+    }
     -re {(?i)(login invalid|login incorrect|authentication failed|denied|failed)} {
         fail_step "switch rejected the Nexus password" 35
     }
