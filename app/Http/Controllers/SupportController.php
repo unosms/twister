@@ -6,6 +6,7 @@ use App\Models\Alert;
 use App\Models\Device;
 use App\Models\TelemetryLog;
 use App\Models\User;
+use App\Support\ProvisioningLogFeed;
 use App\Support\ProvisioningTrace;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
@@ -18,6 +19,7 @@ class SupportController extends Controller
         $authUser = User::find($request->session()->get('auth.user_id'));
         $provisioningLogPath = storage_path('logs/provisioning.log');
         $provisioningLogEnabled = (bool) Cache::get('provisioning_log_enabled', false);
+        $provisioningLogLines = ProvisioningLogFeed::readLines($provisioningLogPath, 120);
 
         $totalDevices = Device::count();
         $onlineDevices = Device::where('status', 'online')->count();
@@ -30,7 +32,8 @@ class SupportController extends Controller
             'provisioningLogEnabled' => $provisioningLogEnabled,
             'provisioningLogPath' => $provisioningLogPath,
             'provisioningLogExists' => file_exists($provisioningLogPath),
-            'provisioningLogLines' => $this->readProvisioningLogLines($provisioningLogPath, 120),
+            'provisioningLogLines' => $provisioningLogLines,
+            'provisioningProgress' => ProvisioningLogFeed::summarize($provisioningLogLines),
             'totalDevices' => $totalDevices,
             'onlineDevices' => $onlineDevices,
             'offlineDevices' => max(0, $totalDevices - $onlineDevices),
@@ -143,27 +146,6 @@ class SupportController extends Controller
                 'warning_count' => $summary['warning_count'],
                 'error_count' => $summary['error_count'],
             ]);
-    }
-
-    private function readProvisioningLogLines(string $path, int $limit): array
-    {
-        if (!file_exists($path)) {
-            return [];
-        }
-
-        $maxBytes = 200000;
-        $size = filesize($path);
-        $offset = max(0, $size - $maxBytes);
-        $data = file_get_contents($path, false, null, $offset);
-        $lines = preg_split('/\r\n|\r|\n/', trim((string) $data));
-
-        if ($offset > 0 && count($lines) > 1) {
-            array_shift($lines);
-        }
-
-        $lines = array_values(array_filter($lines, static fn ($line): bool => trim((string) $line) !== ''));
-
-        return array_slice($lines, -$limit);
     }
 
     private function runProbeSnapshot(array $deviceIds): array

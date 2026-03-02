@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Support\ProvisioningLogFeed;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -54,20 +55,13 @@ class DebugController extends Controller
             ]);
         }
 
-        $maxBytes = 200000;
-        $size = filesize($path);
-        $offset = max(0, $size - $maxBytes);
-        $data = file_get_contents($path, false, null, $offset);
-        $lines = preg_split('/\r\n|\r|\n/', trim((string) $data));
-        if ($offset > 0 && count($lines) > 1) {
-            array_shift($lines);
-        }
-        $lines = array_slice($lines, -$limit);
+        $lines = ProvisioningLogFeed::readLines($path, $limit);
         $lines = array_map([$this, 'sanitizeLogLine'], $lines);
 
         return $this->jsonResponse([
             'enabled' => Cache::get('provisioning_log_enabled', false),
             'lines' => $lines,
+            'progress' => ProvisioningLogFeed::summarize($lines),
         ]);
     }
 

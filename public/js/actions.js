@@ -2537,6 +2537,13 @@
     const statusLabel = document.querySelector('[data-provisioning-status]');
     const summaryLabel = document.querySelector('[data-provisioning-summary]');
     const fileStatusLabel = document.querySelector('[data-provisioning-file-status]');
+    const progressTitle = document.querySelector('[data-provisioning-progress-title]');
+    const progressState = document.querySelector('[data-provisioning-progress-state]');
+    const progressTrace = document.querySelector('[data-provisioning-progress-trace]');
+    const progressDevice = document.querySelector('[data-provisioning-progress-device]');
+    const progressScript = document.querySelector('[data-provisioning-progress-script]');
+    const progressStep = document.querySelector('[data-provisioning-progress-step]');
+    const progressUpdated = document.querySelector('[data-provisioning-progress-updated]');
     const token = document.querySelector('meta[name="csrf-token"]')?.content;
     let pollTimer = null;
     let isFetching = false;
@@ -2581,6 +2588,75 @@
         fileStatusLabel.classList.toggle('text-slate-600', !hasLines);
         fileStatusLabel.classList.toggle('dark:bg-slate-800', !hasLines);
         fileStatusLabel.classList.toggle('dark:text-slate-300', !hasLines);
+      }
+    };
+
+    const setProgressStateClasses = (element, state) => {
+      if (!element) {
+        return;
+      }
+
+      element.classList.remove(
+        'bg-amber-100',
+        'text-amber-700',
+        'dark:bg-amber-900/30',
+        'dark:text-amber-300',
+        'bg-emerald-100',
+        'text-emerald-700',
+        'dark:bg-emerald-900/30',
+        'dark:text-emerald-300',
+        'bg-rose-100',
+        'text-rose-700',
+        'dark:bg-rose-900/30',
+        'dark:text-rose-300',
+        'bg-slate-100',
+        'text-slate-600',
+        'dark:bg-slate-800',
+        'dark:text-slate-300'
+      );
+
+      const classMap = {
+        running: ['bg-amber-100', 'text-amber-700', 'dark:bg-amber-900/30', 'dark:text-amber-300'],
+        completed: ['bg-emerald-100', 'text-emerald-700', 'dark:bg-emerald-900/30', 'dark:text-emerald-300'],
+        failed: ['bg-rose-100', 'text-rose-700', 'dark:bg-rose-900/30', 'dark:text-rose-300'],
+        idle: ['bg-slate-100', 'text-slate-600', 'dark:bg-slate-800', 'dark:text-slate-300'],
+      };
+
+      (classMap[state] || classMap.idle).forEach((className) => element.classList.add(className));
+    };
+
+    const renderProgress = (progress = null) => {
+      const state = progress && progress.state ? progress.state : 'idle';
+      const title = progress && progress.title ? progress.title : 'No active script execution';
+      const trace = progress && progress.trace ? progress.trace : 'N/A';
+      const device = progress && progress.device ? progress.device : 'N/A';
+      const script = progress && progress.script ? progress.script : 'N/A';
+      const step = progress && progress.step ? progress.step : 'Waiting for provisioning activity.';
+      const updated = progress && progress.updated_at
+        ? `Updated ${progress.updated_at}`
+        : 'No provisioning activity captured yet.';
+
+      if (progressTitle) {
+        progressTitle.textContent = title;
+      }
+      if (progressState) {
+        progressState.textContent = state.charAt(0).toUpperCase() + state.slice(1);
+        setProgressStateClasses(progressState, state);
+      }
+      if (progressTrace) {
+        progressTrace.textContent = trace;
+      }
+      if (progressDevice) {
+        progressDevice.textContent = device;
+      }
+      if (progressScript) {
+        progressScript.textContent = script;
+      }
+      if (progressStep) {
+        progressStep.textContent = step;
+      }
+      if (progressUpdated) {
+        progressUpdated.textContent = updated;
       }
     };
 
@@ -2676,6 +2752,7 @@
           : toggles[0].dataset.provisioningEnabled === '1';
         renderLines(lines);
         applyState(enabled, lines.length > 0);
+        renderProgress(payload.progress || null);
         setTailMeta(`Live tail refresh ${new Date().toLocaleTimeString()}`);
       } catch (error) {
         setTailBadge('error');

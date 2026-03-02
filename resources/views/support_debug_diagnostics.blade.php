@@ -261,6 +261,42 @@ Open raw log
 </button>
 </div>
 
+<div class="space-y-5">
+<div class="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950/40">
+<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+<div>
+<p class="text-[11px] font-bold uppercase tracking-[0.28em] text-slate-500">Live Execution</p>
+<h4 class="mt-2 text-lg font-black text-slate-900 dark:text-white" data-provisioning-progress-title>{{ $provisioningProgress['title'] ?? 'No active script execution' }}</h4>
+<p class="mt-2 text-sm text-slate-500 dark:text-slate-400" data-provisioning-progress-step>{{ $provisioningProgress['step'] ?? 'Waiting for provisioning activity.' }}</p>
+</div>
+<span class="inline-flex rounded-full px-3 py-1 text-xs font-bold
+{{ ($provisioningProgress['state'] ?? 'idle') === 'running' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : '' }}
+{{ ($provisioningProgress['state'] ?? 'idle') === 'completed' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : '' }}
+{{ ($provisioningProgress['state'] ?? 'idle') === 'failed' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300' : '' }}
+{{ ($provisioningProgress['state'] ?? 'idle') === 'idle' ? 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' : '' }}"
+data-provisioning-progress-state>
+{{ ucfirst($provisioningProgress['state'] ?? 'idle') }}
+</span>
+</div>
+<div class="mt-4 grid gap-3 sm:grid-cols-3">
+<div class="rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-900/60">
+<p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Trace</p>
+<p class="mt-2 text-sm font-semibold text-slate-900 dark:text-white" data-provisioning-progress-trace>{{ $provisioningProgress['trace'] ?? 'N/A' }}</p>
+</div>
+<div class="rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-900/60">
+<p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Device</p>
+<p class="mt-2 text-sm font-semibold text-slate-900 dark:text-white" data-provisioning-progress-device>{{ $provisioningProgress['device'] ?? 'N/A' }}</p>
+</div>
+<div class="rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-900/60">
+<p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Script</p>
+<p class="mt-2 text-sm font-semibold text-slate-900 dark:text-white" data-provisioning-progress-script>{{ $provisioningProgress['script'] ?? 'N/A' }}</p>
+</div>
+</div>
+<p class="mt-4 text-xs text-slate-500 dark:text-slate-400" data-provisioning-progress-updated>
+{{ ($provisioningProgress['updated_at'] ?? null) ? 'Updated ' . $provisioningProgress['updated_at'] : 'No provisioning activity captured yet.' }}
+</p>
+</div>
+
 <div class="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/40">
 <div class="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-800">
 <div>
@@ -283,6 +319,7 @@ data-provisioning-log-empty="No provisioning log lines available yet."
 </div>
 <div class="border-t border-slate-200 px-5 py-3 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400" data-provisioning-tail-meta>
 Last updated {{ now()->format('H:i:s') }}
+</div>
 </div>
 </div>
 </div>
