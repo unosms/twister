@@ -4,11 +4,11 @@ namespace App\Console\Commands;
 
 use App\Models\Device;
 use App\Models\TelemetryLog;
+use App\Support\ProvisioningTrace;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Cache;
 use Symfony\Component\Process\Process;
-use Symfony\Component\Process\Exception\ProcessTimedOutException;
 
 class PollDeviceStatus extends Command
 {
@@ -278,9 +278,19 @@ class PollDeviceStatus extends Command
 
         $process = new Process($command);
         $process->setTimeout(5);
-        $process->run();
+        $result = ProvisioningTrace::runProcess($process, [
+            'label' => 'status poll trace',
+            'line_prefix' => 'status poll trace',
+            'log_output' => false,
+            'context' => [
+                'trace' => 'status polling',
+                'probe_step' => 'ping',
+                'device_ip' => $ip,
+                'command' => $command,
+            ],
+        ]);
 
-        return $process->isSuccessful();
+        return $result['ok'];
     }
 
     private function fetchSnmpData(Device $device, string $ip): array
@@ -383,30 +393,55 @@ class PollDeviceStatus extends Command
             'SWITCH_USER' => $username,
         ], static fn ($value) => $value !== null && $value !== '');
 
+        $this->logProvisioning('device poll: uptime helper candidates resolved', $this->pollTraceContext($device, [
+            'probe_step' => 'fetch_uptime',
+            'device_ip' => $ip,
+            'model_known' => $modelKnown,
+            'is_nexus' => $isNexus,
+            'candidates' => $candidates,
+        ]));
+
         foreach ($candidates as $script) {
             $scriptPath = base_path('scripts/' . $script);
             if (!is_file($scriptPath)) {
+                $this->logProvisioning('device poll: uptime helper script missing', $this->pollTraceContext($device, [
+                    'probe_step' => 'fetch_uptime',
+                    'script_name' => $script,
+                    'script_path' => $scriptPath,
+                ]));
                 continue;
             }
             $timeout = $script === 'showuptime_nexus.sh' ? 90 : 40;
             $process = new Process(['bash', $scriptPath], base_path());
             $process->setTimeout($timeout);
             $process->setEnv(array_merge($_ENV, $_SERVER, $env));
-            try {
-                $process->run();
-            } catch (ProcessTimedOutException $e) {
-                continue;
-            } catch (\Throwable $e) {
-                continue;
-            }
-            if (!$process->isSuccessful()) {
+            $result = ProvisioningTrace::runProcess($process, [
+                'label' => 'status poll trace',
+                'line_prefix' => 'status poll trace',
+                'context' => $this->pollTraceContext($device, [
+                    'probe_step' => 'fetch_uptime',
+                    'script_name' => $script,
+                    'script_path' => $scriptPath,
+                    'device_ip' => $ip,
+                    'command' => ['bash', $scriptPath],
+                ]),
+                'secret_values' => array_values(array_filter([$password, $enable])),
+                'env_keys' => array_values(array_keys($env)),
+            ]);
+            if (!$result['ok']) {
                 continue;
             }
 
-            $output = $this->sanitizeUtf8(trim($process->getOutput()));
+            $output = $this->sanitizeUtf8(trim((string) ($result['stdout'] !== '' ? $result['stdout'] : $result['output'])));
             if ($output === '' || $output === 'N/A') {
                 continue;
             }
+
+            $this->logProvisioning('device poll: uptime helper returned value', $this->pollTraceContext($device, [
+                'probe_step' => 'fetch_uptime',
+                'script_name' => $script,
+                'output_present' => true,
+            ]));
 
             return $output;
         }
@@ -457,30 +492,56 @@ class PollDeviceStatus extends Command
             'SWITCH_NAME' => $name,
         ], static fn ($value) => $value !== null && $value !== '');
 
+        $this->logProvisioning('device poll: temperature helper candidates resolved', $this->pollTraceContext($device, [
+            'probe_step' => 'fetch_temperature',
+            'device_ip' => $ip,
+            'model_known' => $modelKnown,
+            'is_nexus' => $isNexus,
+            'is_3560' => $is3560,
+            'candidates' => $candidates,
+        ]));
+
         foreach ($candidates as $script) {
             $scriptPath = base_path('scripts/' . $script);
             if (!is_file($scriptPath)) {
+                $this->logProvisioning('device poll: temperature helper script missing', $this->pollTraceContext($device, [
+                    'probe_step' => 'fetch_temperature',
+                    'script_name' => $script,
+                    'script_path' => $scriptPath,
+                ]));
                 continue;
             }
             $timeout = $script === 'showtemp_nexus.sh' ? 90 : 40;
             $process = new Process(['bash', $scriptPath], base_path());
             $process->setTimeout($timeout);
             $process->setEnv(array_merge($_ENV, $_SERVER, $env));
-            try {
-                $process->run();
-            } catch (ProcessTimedOutException $e) {
-                continue;
-            } catch (\Throwable $e) {
-                continue;
-            }
-            if (!$process->isSuccessful()) {
+            $result = ProvisioningTrace::runProcess($process, [
+                'label' => 'status poll trace',
+                'line_prefix' => 'status poll trace',
+                'context' => $this->pollTraceContext($device, [
+                    'probe_step' => 'fetch_temperature',
+                    'script_name' => $script,
+                    'script_path' => $scriptPath,
+                    'device_ip' => $ip,
+                    'command' => ['bash', $scriptPath],
+                ]),
+                'secret_values' => array_values(array_filter([$password, $enable])),
+                'env_keys' => array_values(array_keys($env)),
+            ]);
+            if (!$result['ok']) {
                 continue;
             }
 
-            $output = $this->sanitizeUtf8(trim($process->getOutput()));
+            $output = $this->sanitizeUtf8(trim((string) ($result['stdout'] !== '' ? $result['stdout'] : $result['output'])));
             if ($output === '' || $output === 'N/A') {
                 continue;
             }
+
+            $this->logProvisioning('device poll: temperature helper returned value', $this->pollTraceContext($device, [
+                'probe_step' => 'fetch_temperature',
+                'script_name' => $script,
+                'output_present' => true,
+            ]));
 
             return $output;
         }
@@ -604,6 +665,16 @@ class PollDeviceStatus extends Command
         }
 
         return preg_replace('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $value) ?? '';
+    }
+
+    private function pollTraceContext(Device $device, array $context = []): array
+    {
+        return $context + [
+            'trace' => 'status polling',
+            'device_id' => $device->id,
+            'device_name' => $device->name,
+            'device_type' => $device->type,
+        ];
     }
 
     private function decryptValue(?string $value): ?string

@@ -6,6 +6,7 @@ use App\Models\Alert;
 use App\Models\Device;
 use App\Models\TelemetryLog;
 use App\Models\User;
+use App\Support\ProvisioningTrace;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -44,6 +45,12 @@ class SupportController extends Controller
     public function autoDebug(Request $request)
     {
         Cache::forever('provisioning_log_enabled', true);
+        ProvisioningTrace::log('support trace: auto debug started', [
+            'trace' => 'support diagnostics',
+            'trigger' => $request->route()?->getName() ?: 'support.auto-debug',
+            'request_ip' => $request->ip(),
+            'actor_id' => $request->session()->get('auth.user_id'),
+        ]);
 
         $targetIds = array_values(array_unique(array_merge(
             Device::query()
@@ -69,6 +76,16 @@ class SupportController extends Controller
         }
 
         $summary = $this->runProbeSnapshot($targetIds);
+        ProvisioningTrace::log('support trace: auto debug completed', [
+            'trace' => 'support diagnostics',
+            'trigger' => $request->route()?->getName() ?: 'support.auto-debug',
+            'target_count' => count($targetIds),
+            'probed_count' => $summary['probed_count'],
+            'online_count' => $summary['online_count'],
+            'offline_count' => $summary['offline_count'],
+            'warning_count' => $summary['warning_count'],
+            'error_count' => $summary['error_count'],
+        ]);
 
         return redirect()
             ->route('support.index')
@@ -88,6 +105,12 @@ class SupportController extends Controller
 
     public function runDiagnostic(Request $request)
     {
+        ProvisioningTrace::log('support trace: fleet diagnostic started', [
+            'trace' => 'support diagnostics',
+            'trigger' => $request->route()?->getName() ?: 'support.run-diagnostic',
+            'request_ip' => $request->ip(),
+            'actor_id' => $request->session()->get('auth.user_id'),
+        ]);
         $targetIds = Device::query()
             ->orderBy('id')
             ->pluck('id')
@@ -95,6 +118,16 @@ class SupportController extends Controller
             ->all();
 
         $summary = $this->runProbeSnapshot($targetIds);
+        ProvisioningTrace::log('support trace: fleet diagnostic completed', [
+            'trace' => 'support diagnostics',
+            'trigger' => $request->route()?->getName() ?: 'support.run-diagnostic',
+            'target_count' => count($targetIds),
+            'probed_count' => $summary['probed_count'],
+            'online_count' => $summary['online_count'],
+            'offline_count' => $summary['offline_count'],
+            'warning_count' => $summary['warning_count'],
+            'error_count' => $summary['error_count'],
+        ]);
 
         return redirect()
             ->route('support.index')
@@ -135,6 +168,13 @@ class SupportController extends Controller
 
     private function runProbeSnapshot(array $deviceIds): array
     {
+        ProvisioningTrace::log('support trace: probe snapshot dispatching', [
+            'trace' => 'support diagnostics',
+            'probe_count' => count($deviceIds),
+            'device_ids' => array_slice($deviceIds, 0, 50),
+            'device_ids_truncated' => count($deviceIds) > 50,
+        ]);
+
         if (!$deviceIds) {
             return [
                 'probed_count' => 0,
@@ -155,6 +195,11 @@ class SupportController extends Controller
             $response = app(DeviceController::class)->statusSnapshot($snapshotRequest);
             $payload = $response->getData(true);
             $devices = collect($payload['devices'] ?? []);
+            ProvisioningTrace::log('support trace: probe snapshot completed', [
+                'trace' => 'support diagnostics',
+                'probe_count' => count($deviceIds),
+                'result_count' => $devices->count(),
+            ]);
 
             return [
                 'probed_count' => $devices->count(),
@@ -167,6 +212,11 @@ class SupportController extends Controller
             Log::warning('Support diagnostic probe failed.', [
                 'device_ids' => $deviceIds,
                 'message' => $exception->getMessage(),
+            ]);
+            ProvisioningTrace::log('support trace: probe snapshot failed', [
+                'trace' => 'support diagnostics',
+                'probe_count' => count($deviceIds),
+                'error' => $exception->getMessage(),
             ]);
 
             return [

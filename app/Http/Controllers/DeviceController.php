@@ -6,6 +6,7 @@ use App\Models\Device;
 use App\Models\DeviceAssignment;
 use App\Models\TelemetryLog;
 use App\Models\User;
+use App\Support\ProvisioningTrace;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -259,12 +260,27 @@ class DeviceController extends Controller
 
         $shouldWrite = $request->isMethod('post');
         $probe = $shouldWrite || $request->boolean('probe');
+        if ($probe) {
+            ProvisioningTrace::log('device snapshot trace: probe requested', [
+                'trace' => 'device snapshot',
+                'trigger' => $request->route()?->getName() ?: 'devices.statusSnapshot',
+                'request_method' => $request->getMethod(),
+                'request_path' => $request->path(),
+                'request_ip' => $request->ip(),
+                'device_ids' => $ids,
+                'device_count' => count($ids),
+            ]);
+        }
 
         $payload = [];
         foreach ($devices as $device) {
             if ($probe) {
                 $probeKey = 'status_snapshot_probe:' . $device->id;
                 if (Cache::add($probeKey, true, now()->addSeconds(self::STATUS_SNAPSHOT_PROBE_TTL_SECONDS))) {
+                    ProvisioningTrace::log('device snapshot trace: probing device', $this->deviceProvisioningContext($device, [
+                        'trace' => 'device snapshot',
+                        'trigger' => $request->route()?->getName() ?: 'devices.statusSnapshot',
+                    ]));
                     $this->probeDeviceStatus($device);
                     $device->refresh();
                 }
@@ -285,12 +301,24 @@ class DeviceController extends Controller
             ];
         }
 
+        if ($probe) {
+            ProvisioningTrace::log('device snapshot trace: probe completed', [
+                'trace' => 'device snapshot',
+                'trigger' => $request->route()?->getName() ?: 'devices.statusSnapshot',
+                'device_count' => count($payload),
+            ]);
+        }
+
         return response()->json(['devices' => $payload])
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     }
 
     public function probeDevice(Device $device)
     {
+        ProvisioningTrace::log('device probe trace: probe requested', $this->deviceProvisioningContext($device, [
+            'trace' => 'device probe',
+            'trigger' => 'devices.probe',
+        ]));
         $this->probeDeviceStatus($device);
         $device->refresh();
         $meta = $this->normalizeMetadata($device->metadata);
@@ -927,6 +955,13 @@ class DeviceController extends Controller
 
     public function refreshStatus(Request $request, Device $device)
     {
+        ProvisioningTrace::log('device refresh trace: manual refresh requested', $this->deviceProvisioningContext($device, [
+            'trace' => 'device refresh',
+            'trigger' => $request->route()?->getName() ?: 'devices.refresh',
+            'request_method' => $request->getMethod(),
+            'request_path' => $request->path(),
+            'request_ip' => $request->ip(),
+        ]));
         $this->kickoffPoll($device);
         $this->writeTelemetryLog(
             $device,
@@ -939,6 +974,11 @@ class DeviceController extends Controller
 
     public function activate(Request $request, Device $device)
     {
+        ProvisioningTrace::log('device activation trace: activation requested', $this->deviceProvisioningContext($device, [
+            'trace' => 'device activation',
+            'trigger' => $request->route()?->getName() ?: 'devices.activate',
+            'request_ip' => $request->ip(),
+        ]));
         $meta = $this->normalizeMetadata($device->metadata);
         if (array_key_exists('monitoring_disabled', $meta)) {
             unset($meta['monitoring_disabled']);
@@ -973,11 +1013,21 @@ class DeviceController extends Controller
             ['action' => 'device.activate']
         );
 
+        ProvisioningTrace::log('device activation trace: activation completed', $this->deviceProvisioningContext($device, [
+            'trace' => 'device activation',
+            'trigger' => $request->route()?->getName() ?: 'devices.activate',
+        ]));
+
         return back()->with('status', "Device {$device->name} activated.");
     }
 
     public function deactivate(Request $request, Device $device)
     {
+        ProvisioningTrace::log('device deactivation trace: deactivation requested', $this->deviceProvisioningContext($device, [
+            'trace' => 'device deactivation',
+            'trigger' => $request->route()?->getName() ?: 'devices.deactivate',
+            'request_ip' => $request->ip(),
+        ]));
         $meta = $this->normalizeMetadata($device->metadata);
         $meta['monitoring_disabled'] = true;
         $meta['temperature'] = null;
@@ -1012,6 +1062,11 @@ class DeviceController extends Controller
             'Device deactivated. Monitoring paused and status set offline.',
             ['action' => 'device.deactivate']
         );
+
+        ProvisioningTrace::log('device deactivation trace: deactivation completed', $this->deviceProvisioningContext($device, [
+            'trace' => 'device deactivation',
+            'trigger' => $request->route()?->getName() ?: 'devices.deactivate',
+        ]));
 
         return back()->with('status', "Device {$device->name} deactivated.");
     }
@@ -1076,12 +1131,27 @@ class DeviceController extends Controller
     private function kickoffPoll(Device $device): void
     {
         try {
-            Artisan::call('devices:poll-status', ['--device' => $device->id]);
+            ProvisioningTrace::log('device refresh trace: dispatching poll command', $this->deviceProvisioningContext($device, [
+                'trace' => 'device refresh',
+                'trigger' => 'devices:poll-status',
+                'command' => ['php artisan', 'devices:poll-status', '--device=' . $device->id],
+            ]));
+            $exitCode = Artisan::call('devices:poll-status', ['--device' => $device->id]);
+            ProvisioningTrace::log('device refresh trace: poll command completed', $this->deviceProvisioningContext($device, [
+                'trace' => 'device refresh',
+                'trigger' => 'devices:poll-status',
+                'exit_code' => $exitCode,
+            ]));
         } catch (\Throwable $e) {
             Log::warning('device poll failed', [
                 'device_id' => $device->id,
                 'error' => $e->getMessage(),
             ]);
+            ProvisioningTrace::log('device refresh trace: poll command failed', $this->deviceProvisioningContext($device, [
+                'trace' => 'device refresh',
+                'trigger' => 'devices:poll-status',
+                'error' => $e->getMessage(),
+            ]));
         }
     }
 
@@ -1204,9 +1274,19 @@ class DeviceController extends Controller
 
         $process = new \Symfony\Component\Process\Process($command);
         $process->setTimeout(5);
-        $process->run();
+        $result = ProvisioningTrace::runProcess($process, [
+            'label' => 'device probe trace',
+            'line_prefix' => 'device probe trace',
+            'log_output' => false,
+            'context' => [
+                'trace' => 'device probe',
+                'probe_step' => 'ping',
+                'device_ip' => $ip,
+                'command' => $command,
+            ],
+        ]);
 
-        return $process->isSuccessful();
+        return $result['ok'];
     }
 
     private function normalizeMetadata($value): array
@@ -1250,6 +1330,15 @@ class DeviceController extends Controller
                 'error' => $e->getMessage(),
             ]);
         }
+    }
+
+    private function deviceProvisioningContext(Device $device, array $context = []): array
+    {
+        return $context + [
+            'device_id' => $device->id,
+            'device_name' => $device->name,
+            'device_type' => $device->type,
+        ];
     }
 
     private function resolveSubmittedDeviceName(

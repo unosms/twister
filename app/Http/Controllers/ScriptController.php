@@ -5,9 +5,9 @@ namespace App\Http\Controllers;
 use App\Models\CommandTemplate;
 use App\Models\Device;
 use App\Models\DevicePermission;
+use App\Support\ProvisioningTrace;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -667,6 +667,20 @@ class ScriptController extends Controller
         $cisco = data_get($device->metadata ?? [], 'cisco', []);
         $switchModel = $this->resolveSwitchModel($device, $cisco);
         $isNexus = $this->shouldUseNexus($device, $cisco, $switchModel);
+        $traceContext = $this->deviceTraceContext($device, [
+            'trace' => 'command execution',
+            'trigger' => $request->route()?->getName() ?: 'scripts.exec',
+            'request_method' => $request->getMethod(),
+            'request_path' => $request->path(),
+            'request_ip' => $request->ip(),
+            'actor_id' => optional($request->user())->id,
+            'actor' => optional($request->user())->name,
+            'command_key' => $cmdKey,
+            'switch_model' => $switchModel !== '' ? $switchModel : null,
+            'is_nexus' => $isNexus,
+        ]);
+
+        ProvisioningTrace::log('command trace: request received', $traceContext);
 
         $commandMap = $isNexus ? self::NEXUS_COMMANDS : self::EXEC_COMMANDS;
         $command = $commandMap[$cmdKey] ?? self::EXEC_COMMANDS[$cmdKey] ?? null;
@@ -676,6 +690,11 @@ class ScriptController extends Controller
                 ->first();
 
             if ($template) {
+                ProvisioningTrace::log('command trace: using custom command template', $traceContext + [
+                    'template_id' => $template->id,
+                    'template_name' => $template->name,
+                ]);
+
                 $scriptCode = trim((string) ($template->script_code ?? ''));
                 if ($scriptCode !== '') {
                     return $this->runCustomTemplate($device, $cmdKey, $template, $request);
@@ -697,12 +716,18 @@ class ScriptController extends Controller
                     }
                 }
 
+                ProvisioningTrace::log('command trace: custom template has no runnable script', $traceContext + [
+                    'template_id' => $template->id,
+                    'template_name' => $template->name,
+                ]);
+
                 return $this->plainError(
                     "Custom command '{$cmdKey}' is configured but has no runnable script content. Edit it and add script code.",
                     400
                 );
             }
 
+            ProvisioningTrace::log('command trace: unsupported command requested', $traceContext);
             return $this->plainError("Unsupported command: {$cmdKey}", 400);
         }
 
@@ -725,11 +750,17 @@ class ScriptController extends Controller
             }
         }
         if ($missing) {
+            ProvisioningTrace::log('command trace: validation failed - missing parameters', $traceContext + [
+                'missing' => $missing,
+            ]);
             return $this->plainError('Missing parameters: ' . implode(', ', $missing), 400);
         }
 
         $scriptPath = $this->scriptPath($command['script']);
         if (!$scriptPath) {
+            ProvisioningTrace::log('command trace: script missing', $traceContext + [
+                'script_name' => $command['script'],
+            ]);
             return $this->plainError('Script not found: ' . $command['script'], 404);
         }
 
@@ -746,14 +777,17 @@ class ScriptController extends Controller
         );
 
         if (!$ip || !$password) {
+            ProvisioningTrace::log('command trace: validation failed - missing device IP or password', $traceContext);
             return $this->plainError('Missing device IP or password.', 400);
         }
 
         if (!$isNexus && !$enablePassword) {
+            ProvisioningTrace::log('command trace: validation failed - missing enable password', $traceContext);
             return $this->plainError('Missing enable password for this device.', 400);
         }
 
         if ($isNexus && !$username) {
+            ProvisioningTrace::log('command trace: validation failed - missing Nexus username', $traceContext);
             return $this->plainError('Missing switch username for Nexus device.', 400);
         }
 
@@ -770,7 +804,24 @@ class ScriptController extends Controller
 
         $env = array_merge($env, $command['env'] ?? []);
 
-        $result = $this->runProcess(['bash', $scriptPath], $env);
+        ProvisioningTrace::log('command trace: execution prepared', $traceContext + [
+            'script_name' => $command['script'],
+            'script_path' => $scriptPath,
+            'switch_ip' => $ip,
+            'interface' => $interface,
+            'description_present' => $description !== null && $description !== '',
+            'env_keys' => array_values(array_keys($env)),
+        ]);
+
+        $result = $this->runProcess(['bash', $scriptPath], $env, $traceContext + [
+            'label' => 'command trace',
+            'line_prefix' => 'command trace',
+            'script_name' => $command['script'],
+            'script_path' => $scriptPath,
+            'switch_ip' => $ip,
+            'command' => ['bash', $scriptPath],
+            'secret_values' => array_values(array_filter([$password, $enablePassword])),
+        ]);
         if (isset($result['output']) && is_string($result['output']) && $cmdKey !== 'showlog') {
             $result['output'] = $this->cleanupTransportNoise($result['output']);
         }
@@ -782,6 +833,12 @@ class ScriptController extends Controller
     {
         $scriptCode = trim((string) ($template->script_code ?? ''));
         if ($scriptCode === '') {
+            ProvisioningTrace::log('command trace: custom inline script is empty', $this->deviceTraceContext($device, [
+                'trace' => 'command execution',
+                'command_key' => $cmdKey,
+                'template_id' => $template->id,
+            ]));
+
             return [
                 'ok' => false,
                 'status' => 400,
@@ -792,7 +849,21 @@ class ScriptController extends Controller
 
         $env = $this->buildCustomCommandEnv($device, $cmdKey, $template, $request);
 
-        return $this->runProcess(['bash', '-lc', $scriptCode], $env);
+        return $this->runProcess(['bash', '-lc', $scriptCode], $env, $this->deviceTraceContext($device, [
+            'trace' => 'command execution',
+            'trigger' => $request->route()?->getName() ?: 'scripts.exec',
+            'command_key' => $cmdKey,
+            'template_id' => $template->id,
+            'template_name' => $template->name,
+            'script_source' => 'inline_code',
+            'command' => ['bash', '-lc', '[INLINE SCRIPT REDACTED]'],
+            'label' => 'command trace',
+            'line_prefix' => 'command trace',
+            'secret_values' => array_values(array_filter([
+                $env['SWITCH_PASS'] ?? null,
+                $env['SWITCH_ENA'] ?? null,
+            ])),
+        ]));
     }
 
     private function runCustomTemplateScript(
@@ -803,7 +874,22 @@ class ScriptController extends Controller
         string $scriptPath
     ): array {
         $env = $this->buildCustomCommandEnv($device, $cmdKey, $template, $request);
-        return $this->runProcess(['bash', $scriptPath], $env);
+        return $this->runProcess(['bash', $scriptPath], $env, $this->deviceTraceContext($device, [
+            'trace' => 'command execution',
+            'trigger' => $request->route()?->getName() ?: 'scripts.exec',
+            'command_key' => $cmdKey,
+            'template_id' => $template->id,
+            'template_name' => $template->name,
+            'script_source' => 'custom_script',
+            'script_path' => $scriptPath,
+            'command' => ['bash', $scriptPath],
+            'label' => 'command trace',
+            'line_prefix' => 'command trace',
+            'secret_values' => array_values(array_filter([
+                $env['SWITCH_PASS'] ?? null,
+                $env['SWITCH_ENA'] ?? null,
+            ])),
+        ]));
     }
 
     private function buildCustomCommandEnv(Device $device, string $cmdKey, CommandTemplate $template, Request $request): array
@@ -865,7 +951,8 @@ class ScriptController extends Controller
         $switchModel = $this->resolveSwitchModel($device, $cisco);
         $isNexus = $this->shouldUseNexus($device, $cisco, $switchModel);
         $scriptName = $isNexus ? 'nexus_backup.sh' : '4948_backup.sh';
-        $traceContext = $this->backupTraceContext($device, [
+        $traceContext = $this->deviceTraceContext($device, [
+            'trace' => 'backup execution',
             'trigger' => $request->route()?->getName() ?: 'backup',
             'request_method' => $request->getMethod(),
             'request_path' => $request->path(),
@@ -874,7 +961,7 @@ class ScriptController extends Controller
             'actor' => optional($request->user())->name,
         ]);
 
-        $this->writeProvisioningLog('backup trace: request received', $traceContext + [
+        ProvisioningTrace::log('backup trace: request received', $traceContext + [
             'switch_model' => $switchModel !== '' ? $switchModel : null,
             'is_nexus' => $isNexus,
             'script_name' => $scriptName,
@@ -882,7 +969,7 @@ class ScriptController extends Controller
 
         $scriptPath = $this->scriptPath($scriptName);
         if (!$scriptPath) {
-            $this->writeProvisioningLog('backup trace: backup script missing', $traceContext + [
+            ProvisioningTrace::log('backup trace: backup script missing', $traceContext + [
                 'script_name' => $scriptName,
             ]);
 
@@ -918,7 +1005,7 @@ class ScriptController extends Controller
             $usedFallbackLocation = true;
         }
 
-        $this->writeProvisioningLog('backup trace: resolved backup inputs', $traceContext + [
+        ProvisioningTrace::log('backup trace: resolved backup inputs', $traceContext + [
             'script_name' => $scriptName,
             'script_path' => $scriptPath,
             'switch_model' => $switchModel !== '' ? $switchModel : null,
@@ -932,7 +1019,7 @@ class ScriptController extends Controller
         ]);
 
         if (!$ip || !$password) {
-            $this->writeProvisioningLog('backup trace: validation failed - missing IP or password', $traceContext);
+            ProvisioningTrace::log('backup trace: validation failed - missing IP or password', $traceContext);
 
             return [
                 'ok' => false,
@@ -944,7 +1031,7 @@ class ScriptController extends Controller
 
         if ($isNexus) {
             if (!$username) {
-                $this->writeProvisioningLog('backup trace: validation failed - missing Nexus username', $traceContext);
+                ProvisioningTrace::log('backup trace: validation failed - missing Nexus username', $traceContext);
 
                 return [
                     'ok' => false,
@@ -957,6 +1044,8 @@ class ScriptController extends Controller
             $command = ['bash', $scriptPath, $ip, $username, $password, $location];
 
             return $this->runProcess($command, [], $traceContext + [
+                'label' => 'backup trace',
+                'line_prefix' => 'backup trace',
                 'script_name' => $scriptName,
                 'script_path' => $scriptPath,
                 'switch_model' => $switchModel !== '' ? $switchModel : null,
@@ -969,7 +1058,7 @@ class ScriptController extends Controller
         }
 
         if (!$enablePassword) {
-            $this->writeProvisioningLog('backup trace: validation failed - missing enable password', $traceContext);
+            ProvisioningTrace::log('backup trace: validation failed - missing enable password', $traceContext);
 
             return [
                 'ok' => false,
@@ -982,6 +1071,8 @@ class ScriptController extends Controller
         $command = ['bash', $scriptPath, $ip, $password, $enablePassword, $location];
 
         return $this->runProcess($command, [], $traceContext + [
+            'label' => 'backup trace',
+            'line_prefix' => 'backup trace',
             'script_name' => $scriptName,
             'script_path' => $scriptPath,
             'switch_model' => $switchModel !== '' ? $switchModel : null,
@@ -1002,125 +1093,25 @@ class ScriptController extends Controller
             static fn ($value) => is_scalar($value) || $value === null
         );
         $process->setEnv(array_merge($baseEnv, $env));
-        $startedAt = microtime(true);
-        $traceContext = $provisioningTrace ? $this->withoutProvisioningSecrets($provisioningTrace) : null;
-        $secretValues = array_values(array_filter($provisioningTrace['secret_values'] ?? []));
-        $partialLines = ['stdout' => '', 'stderr' => ''];
-
-        if ($traceContext) {
-            $this->writeProvisioningLog('backup trace: launching process', $traceContext + [
-                'timeout_seconds' => 180,
-                'env_keys' => array_values(array_keys($env)),
-            ]);
-        }
-
-        try {
-            $process->run(function (string $type, string $buffer) use (&$partialLines, $secretValues, $traceContext): void {
-                if (!$traceContext) {
-                    return;
-                }
-
-                $stream = $type === Process::ERR ? 'stderr' : 'stdout';
-                $partialLines[$stream] .= $this->redactProvisioningText($buffer, $secretValues);
-                $normalized = str_replace(["\r\n", "\r"], "\n", $partialLines[$stream]);
-                $lines = explode("\n", $normalized);
-                $partialLines[$stream] = array_pop($lines);
-
-                foreach ($lines as $line) {
-                    $line = trim($line);
-                    if ($line === '') {
-                        continue;
-                    }
-
-                    $this->writeProvisioningLog("backup trace {$stream}: {$line}", $traceContext);
-                }
-            });
-        } catch (\Throwable $e) {
-            if ($traceContext) {
-                $this->writeProvisioningLog('backup trace: process threw an exception', $traceContext + [
-                    'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
-                    'error' => $e->getMessage(),
-                ]);
-            }
-
-            return [
-                'ok' => false,
-                'status' => 500,
-                'message' => 'Script execution failed.',
-                'output' => $e->getMessage(),
-            ];
-        }
-
-        if ($traceContext) {
-            foreach ($partialLines as $stream => $line) {
-                $line = trim($line);
-                if ($line === '') {
-                    continue;
-                }
-
-                $this->writeProvisioningLog("backup trace {$stream}: {$line}", $traceContext);
-            }
-        }
-
-        $output = $process->getOutput();
-        $errorOutput = $process->getErrorOutput();
-        $payload = trim($this->redactProvisioningText($output . ($errorOutput ? "\n" . $errorOutput : ''), $secretValues));
-        $durationMs = (int) round((microtime(true) - $startedAt) * 1000);
-
-        if (!$process->isSuccessful()) {
-            if ($traceContext) {
-                $this->writeProvisioningLog('backup trace: process failed', $traceContext + [
-                    'duration_ms' => $durationMs,
-                    'exit_code' => $process->getExitCode(),
-                ]);
-            }
-
-            return [
-                'ok' => false,
-                'status' => 500,
-                'message' => 'Script execution failed.',
-                'output' => $payload,
-            ];
-        }
-
-        if ($traceContext) {
-            $this->writeProvisioningLog('backup trace: process completed', $traceContext + [
-                'duration_ms' => $durationMs,
-                'exit_code' => $process->getExitCode(),
-            ]);
-        }
+        $trace = $provisioningTrace ?? [];
+        $traceResult = ProvisioningTrace::runProcess($process, [
+            'label' => $trace['label'] ?? 'process trace',
+            'line_prefix' => $trace['line_prefix'] ?? ($trace['label'] ?? 'process trace'),
+            'context' => $trace,
+            'secret_values' => $trace['secret_values'] ?? [],
+            'env_keys' => array_values(array_keys($env)),
+            'log_output' => $trace['log_output'] ?? true,
+        ]);
 
         return [
-            'ok' => true,
-            'status' => 200,
-            'message' => 'Backup completed.',
-            'output' => $payload,
+            'ok' => $traceResult['ok'],
+            'status' => $traceResult['ok'] ? 200 : 500,
+            'message' => $traceResult['ok'] ? 'Process completed.' : 'Script execution failed.',
+            'output' => $traceResult['output'],
         ];
     }
 
-    private function provisioningLogEnabled(): bool
-    {
-        return (bool) Cache::get('provisioning_log_enabled', false);
-    }
-
-    private function writeProvisioningLog(string $message, array $context = []): void
-    {
-        if (!$this->provisioningLogEnabled()) {
-            return;
-        }
-
-        try {
-            Log::build([
-                'driver' => 'single',
-                'path' => storage_path('logs/provisioning.log'),
-                'level' => 'debug',
-            ])->debug($message, $context);
-        } catch (\Throwable $e) {
-            // ignore logging failures
-        }
-    }
-
-    private function backupTraceContext(Device $device, array $context = []): array
+    private function deviceTraceContext(Device $device, array $context = []): array
     {
         return $context + [
             'device_id' => $device->id,
@@ -1150,30 +1141,15 @@ class ScriptController extends Controller
         return $redacted;
     }
 
-    private function withoutProvisioningSecrets(array $context): array
-    {
-        unset($context['secret_values']);
-
-        return $context;
-    }
-
-    private function redactProvisioningText(string $text, array $secretValues): string
-    {
-        foreach ($secretValues as $secret) {
-            if (!is_string($secret) || $secret === '') {
-                continue;
-            }
-
-            $text = str_replace($secret, '[REDACTED]', $text);
-        }
-
-        return $text;
-    }
-
     private function runPollerScript(): array
     {
         $scriptPath = $this->scriptPath('poller.php');
         if (!$scriptPath) {
+            ProvisioningTrace::log('poller trace: script missing', [
+                'trace' => 'poller execution',
+                'script_name' => 'poller.php',
+            ]);
+
             return [
                 'ok' => false,
                 'status' => 404,
@@ -1183,17 +1159,26 @@ class ScriptController extends Controller
         }
 
         $phpBinary = PHP_BINARY ?: 'php';
-        $process = new Process([$phpBinary, $scriptPath], base_path());
+        $command = [$phpBinary, $scriptPath];
+        $process = new Process($command, base_path());
         $process->setTimeout(180);
-        $process->run();
+        $result = ProvisioningTrace::runProcess($process, [
+            'label' => 'poller trace',
+            'line_prefix' => 'poller trace',
+            'context' => [
+                'trace' => 'poller execution',
+                'script_name' => 'poller.php',
+                'script_path' => $scriptPath,
+                'command' => $command,
+            ],
+        ]);
 
-        $output = trim($process->getOutput() . "\n" . $process->getErrorOutput());
-        if (!$process->isSuccessful()) {
+        if (!$result['ok']) {
             return [
                 'ok' => false,
                 'status' => 500,
                 'message' => 'poller.php execution failed.',
-                'output' => $output,
+                'output' => $result['output'],
             ];
         }
 
@@ -1201,7 +1186,7 @@ class ScriptController extends Controller
             'ok' => true,
             'status' => 200,
             'message' => 'poller.php executed.',
-            'output' => $output,
+            'output' => $result['output'],
         ];
     }
 
@@ -1209,6 +1194,11 @@ class ScriptController extends Controller
     {
         $scriptPath = $this->scriptPath('events.php');
         if (!$scriptPath) {
+            ProvisioningTrace::log('events trace: script missing', $this->deviceTraceContext($device, [
+                'trace' => 'events rendering',
+                'script_name' => 'events.php',
+            ]));
+
             return [
                 'ok' => false,
                 'status' => 404,
@@ -1239,23 +1229,29 @@ class ScriptController extends Controller
 
         $phpBinary = PHP_BINARY ?: 'php';
         $bootstrap = 'parse_str($argv[1] ?? "", $_GET); $_SERVER["REQUEST_METHOD"] = "GET"; include $argv[2];';
-        $process = new Process(
-            [$phpBinary, '-d', 'display_errors=1', '-r', $bootstrap, http_build_query($query), $scriptPath],
-            base_path()
-        );
+        $command = [$phpBinary, '-d', 'display_errors=1', '-r', $bootstrap, http_build_query($query), $scriptPath];
+        $process = new Process($command, base_path());
         $process->setTimeout(120);
-        $process->run();
+        $result = ProvisioningTrace::runProcess($process, [
+            'label' => 'events trace',
+            'line_prefix' => 'events trace',
+            'log_output' => false,
+            'context' => $this->deviceTraceContext($device, [
+                'trace' => 'events rendering',
+                'trigger' => $request->route()?->getName() ?: 'devices.events.show',
+                'script_name' => 'events.php',
+                'script_path' => $scriptPath,
+                'command' => [$phpBinary, '-d', 'display_errors=1', '-r', '[INLINE BOOTSTRAP]', http_build_query($query), $scriptPath],
+                'query' => $query,
+            ]),
+        ]);
 
-        $output = $process->getOutput();
-        $errorOutput = $process->getErrorOutput();
-        $payload = trim($output . ($errorOutput ? "\n" . $errorOutput : ''));
-
-        if (!$process->isSuccessful()) {
+        if (!$result['ok']) {
             return [
                 'ok' => false,
                 'status' => 500,
                 'message' => 'events.php execution failed.',
-                'output' => $payload,
+                'output' => $result['output'],
             ];
         }
 
@@ -1263,7 +1259,7 @@ class ScriptController extends Controller
             'ok' => true,
             'status' => 200,
             'message' => 'events.php executed.',
-            'output' => $output !== '' ? $output : $payload,
+            'output' => $result['stdout'] !== '' ? $result['stdout'] : $result['output'],
         ];
     }
 
