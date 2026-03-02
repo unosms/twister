@@ -484,6 +484,7 @@ class RunDeviceBackups extends Command
     {
         $process = new Process($command, base_path());
         $process->setTimeout(180);
+        $process->setEnv(array_merge($_ENV, $_SERVER, ProvisioningTrace::childProcessEnv()));
         $startedAt = microtime(true);
         $logContext = $this->withoutProvisioningSecrets($traceContext);
         $secretValues = array_values(array_filter($traceContext['secret_values'] ?? []));

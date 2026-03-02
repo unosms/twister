@@ -2542,11 +2542,19 @@
     const progressTrace = document.querySelector('[data-provisioning-progress-trace]');
     const progressDevice = document.querySelector('[data-provisioning-progress-device]');
     const progressScript = document.querySelector('[data-provisioning-progress-script]');
+    const progressProtocol = document.querySelector('[data-provisioning-progress-protocol]');
+    const progressLayer = document.querySelector('[data-provisioning-progress-layer]');
     const progressStep = document.querySelector('[data-provisioning-progress-step]');
     const progressUpdated = document.querySelector('[data-provisioning-progress-updated]');
+    const eventsList = document.querySelector('[data-provisioning-events]');
+    const eventsEmptyMessage = eventsList?.dataset.provisioningEventsEmpty || 'No structured provisioning events available yet.';
+    const streamEndpoint = eventsList?.dataset.provisioningStreamEndpoint || '';
+    const streamStatus = document.querySelector('[data-provisioning-stream-status]');
     const token = document.querySelector('meta[name="csrf-token"]')?.content;
     let pollTimer = null;
     let isFetching = false;
+    let stream = null;
+    let streamFallbackActive = false;
 
     const setTailMeta = (message) => {
       if (tailMeta) {
@@ -2591,6 +2599,49 @@
       }
     };
 
+    const setStreamStatus = (state = 'idle') => {
+      if (!streamStatus) {
+        return;
+      }
+
+      streamStatus.classList.remove(
+        'bg-emerald-100',
+        'text-emerald-700',
+        'dark:bg-emerald-900/30',
+        'dark:text-emerald-300',
+        'bg-amber-100',
+        'text-amber-700',
+        'dark:bg-amber-900/30',
+        'dark:text-amber-300',
+        'bg-rose-100',
+        'text-rose-700',
+        'dark:bg-rose-900/30',
+        'dark:text-rose-300',
+        'bg-slate-100',
+        'text-slate-600',
+        'dark:bg-slate-800',
+        'dark:text-slate-300'
+      );
+
+      const labels = {
+        connected: 'SSE live',
+        connecting: 'SSE connecting',
+        fallback: 'Polling fallback',
+        error: 'Stream unavailable',
+        idle: 'Polling only',
+      };
+      const classes = {
+        connected: ['bg-emerald-100', 'text-emerald-700', 'dark:bg-emerald-900/30', 'dark:text-emerald-300'],
+        connecting: ['bg-amber-100', 'text-amber-700', 'dark:bg-amber-900/30', 'dark:text-amber-300'],
+        fallback: ['bg-amber-100', 'text-amber-700', 'dark:bg-amber-900/30', 'dark:text-amber-300'],
+        error: ['bg-rose-100', 'text-rose-700', 'dark:bg-rose-900/30', 'dark:text-rose-300'],
+        idle: ['bg-slate-100', 'text-slate-600', 'dark:bg-slate-800', 'dark:text-slate-300'],
+      };
+
+      streamStatus.textContent = labels[state] || labels.idle;
+      (classes[state] || classes.idle).forEach((className) => streamStatus.classList.add(className));
+    };
+
     const setProgressStateClasses = (element, state) => {
       if (!element) {
         return;
@@ -2631,6 +2682,8 @@
       const trace = progress && progress.trace ? progress.trace : 'N/A';
       const device = progress && progress.device ? progress.device : 'N/A';
       const script = progress && progress.script ? progress.script : 'N/A';
+      const protocol = progress && progress.protocol ? progress.protocol : 'N/A';
+      const layer = progress && progress.layer ? progress.layer : 'N/A';
       const step = progress && progress.step ? progress.step : 'Waiting for provisioning activity.';
       const updated = progress && progress.updated_at
         ? `Updated ${progress.updated_at}`
@@ -2651,6 +2704,12 @@
       }
       if (progressScript) {
         progressScript.textContent = script;
+      }
+      if (progressProtocol) {
+        progressProtocol.textContent = protocol;
+      }
+      if (progressLayer) {
+        progressLayer.textContent = layer;
       }
       if (progressStep) {
         progressStep.textContent = step;
@@ -2684,6 +2743,118 @@
       }
 
       tail.scrollTop = tail.scrollHeight;
+    };
+
+    const createEventBadge = (state) => {
+      const badge = document.createElement('span');
+      badge.className = 'inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold';
+
+      const normalized = (state || 'info').toLowerCase();
+      const palette = {
+        success: ['bg-emerald-100', 'text-emerald-700', 'dark:bg-emerald-900/30', 'dark:text-emerald-300'],
+        warning: ['bg-amber-100', 'text-amber-700', 'dark:bg-amber-900/30', 'dark:text-amber-300'],
+        failure: ['bg-rose-100', 'text-rose-700', 'dark:bg-rose-900/30', 'dark:text-rose-300'],
+        running: ['bg-sky-100', 'text-sky-700', 'dark:bg-sky-900/30', 'dark:text-sky-300'],
+        info: ['bg-slate-100', 'text-slate-600', 'dark:bg-slate-800', 'dark:text-slate-300'],
+      };
+
+      (palette[normalized] || palette.info).forEach((className) => badge.classList.add(className));
+      badge.textContent = normalized.toUpperCase();
+      return badge;
+    };
+
+    const renderEvents = (events) => {
+      if (!eventsList) {
+        return;
+      }
+
+      eventsList.innerHTML = '';
+      if (!events.length) {
+        const empty = document.createElement('div');
+        empty.className = 'px-5 py-4 text-sm text-slate-400';
+        empty.textContent = eventsEmptyMessage;
+        eventsList.appendChild(empty);
+        return;
+      }
+
+      const fragment = document.createDocumentFragment();
+      events.forEach((event) => {
+        const article = document.createElement('article');
+        article.dataset.provisioningEvent = '';
+        article.className = 'grid gap-3 px-5 py-4 text-sm text-slate-700 dark:text-slate-200';
+
+        const header = document.createElement('div');
+        header.className = 'flex flex-wrap items-center gap-2';
+        header.appendChild(createEventBadge(event.state));
+
+        const timestamp = document.createElement('span');
+        timestamp.className = 'font-mono text-[11px] text-slate-500';
+        timestamp.textContent = event.timestamp || 'N/A';
+        header.appendChild(timestamp);
+
+        const layer = document.createElement('span');
+        layer.className = 'text-xs font-semibold uppercase tracking-wider text-slate-500';
+        layer.textContent = event.layer || 'Internal';
+        header.appendChild(layer);
+
+        const protocol = document.createElement('span');
+        protocol.className = 'text-xs font-semibold uppercase tracking-wider text-slate-500';
+        protocol.textContent = event.protocol || 'N/A';
+        header.appendChild(protocol);
+
+        article.appendChild(header);
+
+        const body = document.createElement('div');
+        body.className = 'grid gap-2 lg:grid-cols-[minmax(0,180px)_minmax(0,1fr)_minmax(0,1fr)]';
+
+        const device = document.createElement('div');
+        device.innerHTML = `<p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Device</p>`;
+        const deviceName = document.createElement('p');
+        deviceName.className = 'mt-1 font-semibold text-slate-900 dark:text-white';
+        deviceName.textContent = event.device_name || event.device_ip || 'N/A';
+        device.appendChild(deviceName);
+        const deviceMeta = document.createElement('p');
+        deviceMeta.className = 'text-xs text-slate-500';
+        deviceMeta.textContent = event.device_ip || event.device_hostname || '';
+        device.appendChild(deviceMeta);
+        body.appendChild(device);
+
+        const request = document.createElement('div');
+        request.innerHTML = `<p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Request</p>`;
+        const requestSummary = document.createElement('p');
+        requestSummary.className = 'mt-1';
+        requestSummary.textContent = event.request?.summary || 'N/A';
+        request.appendChild(requestSummary);
+        body.appendChild(request);
+
+        const response = document.createElement('div');
+        response.innerHTML = `<p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Response</p>`;
+        const responseSummary = document.createElement('p');
+        responseSummary.className = 'mt-1';
+        responseSummary.textContent = event.response?.summary || event.message || 'N/A';
+        response.appendChild(responseSummary);
+        body.appendChild(response);
+
+        article.appendChild(body);
+
+        const footer = document.createElement('div');
+        footer.className = 'flex flex-wrap gap-4 text-xs text-slate-500';
+        const latency = document.createElement('span');
+        latency.textContent = `Latency: ${typeof event.latency_ms === 'number' ? `${event.latency_ms} ms` : 'N/A'}`;
+        footer.appendChild(latency);
+        const reason = document.createElement('span');
+        reason.textContent = `Reason: ${event.reason || 'None'}`;
+        footer.appendChild(reason);
+        const hints = document.createElement('span');
+        hints.textContent = `Hints: ${Array.isArray(event.failure_hints) && event.failure_hints.length ? event.failure_hints.join(', ') : 'None'}`;
+        footer.appendChild(hints);
+        article.appendChild(footer);
+
+        fragment.appendChild(article);
+      });
+
+      eventsList.appendChild(fragment);
+      eventsList.scrollTop = eventsList.scrollHeight;
     };
 
     const applyState = (enabled, hasLines = false) => {
@@ -2727,6 +2898,19 @@
       setFileState(hasLines);
     };
 
+    const applyPayload = (payload) => {
+      const lines = Array.isArray(payload.lines) ? payload.lines : [];
+      const events = Array.isArray(payload.events) ? payload.events : [];
+      const enabled = typeof payload.enabled !== 'undefined'
+        ? !!payload.enabled
+        : toggles[0].dataset.provisioningEnabled === '1';
+
+      renderLines(lines);
+      renderEvents(events);
+      applyState(enabled, lines.length > 0);
+      renderProgress(payload.progress || null);
+    };
+
     const fetchLogs = async (force = false) => {
       if (!tailEndpoint || isFetching) {
         return;
@@ -2746,13 +2930,7 @@
           return;
         }
         const payload = await response.json();
-        const lines = Array.isArray(payload.lines) ? payload.lines : [];
-        const enabled = typeof payload.enabled !== 'undefined'
-          ? !!payload.enabled
-          : toggles[0].dataset.provisioningEnabled === '1';
-        renderLines(lines);
-        applyState(enabled, lines.length > 0);
-        renderProgress(payload.progress || null);
+        applyPayload(payload);
         setTailMeta(`Live tail refresh ${new Date().toLocaleTimeString()}`);
       } catch (error) {
         setTailBadge('error');
@@ -2760,6 +2938,60 @@
       } finally {
         isFetching = false;
       }
+    };
+
+    const closeStream = () => {
+      if (stream) {
+        stream.close();
+        stream = null;
+      }
+    };
+
+    const connectStream = () => {
+      if (!streamEndpoint || !window.EventSource) {
+        setStreamStatus('idle');
+        startPolling();
+        return;
+      }
+
+      closeStream();
+      setStreamStatus('connecting');
+      stream = new window.EventSource(streamEndpoint.includes('?')
+        ? `${streamEndpoint}&limit=200&event_limit=60`
+        : `${streamEndpoint}?limit=200&event_limit=60`);
+
+      stream.addEventListener('snapshot', (event) => {
+        try {
+          const payload = JSON.parse(event.data);
+          applyPayload(payload);
+          setStreamStatus('connected');
+          setTailBadge('live');
+          setTailMeta(`Live stream update ${new Date().toLocaleTimeString()}`);
+          if (streamFallbackActive) {
+            stopPolling();
+            streamFallbackActive = false;
+          }
+        } catch (error) {
+          console.warn('Provisioning stream payload error', error);
+        }
+      });
+
+      stream.onopen = () => {
+        setStreamStatus('connected');
+        if (streamFallbackActive) {
+          stopPolling();
+          streamFallbackActive = false;
+        }
+      };
+
+      stream.onerror = () => {
+        setStreamStatus('fallback');
+        closeStream();
+        if (!streamFallbackActive) {
+          streamFallbackActive = true;
+          startPolling();
+        }
+      };
     };
 
     const startPolling = () => {
@@ -2780,14 +3012,24 @@
 
     const initialEnabled = toggles[0].dataset.provisioningEnabled === '1';
     applyState(initialEnabled, tail ? tail.querySelector('[data-log-line]') !== null : false);
-    startPolling();
+    fetchLogs(true);
+    connectStream();
+    if (!window.EventSource || !streamEndpoint) {
+      startPolling();
+    }
 
     document.addEventListener('visibilitychange', () => {
       if (document.visibilityState === 'visible') {
         fetchLogs(true);
+        if (!stream && streamEndpoint && window.EventSource) {
+          connectStream();
+        }
       }
     });
-    window.addEventListener('beforeunload', stopPolling, { once: true });
+    window.addEventListener('beforeunload', () => {
+      stopPolling();
+      closeStream();
+    }, { once: true });
 
     toggles.forEach((button) => {
       button.addEventListener('click', async () => {
@@ -2820,6 +3062,11 @@
             applyState(next, tail ? tail.querySelector('[data-log-line]') !== null : false);
           }
           fetchLogs(true);
+          if (next) {
+            connectStream();
+          } else if (!window.EventSource || !streamEndpoint) {
+            startPolling();
+          }
         } catch (error) {
           console.warn('Provisioning log toggle error', error);
         }

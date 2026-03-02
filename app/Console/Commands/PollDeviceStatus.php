@@ -106,6 +106,16 @@ class PollDeviceStatus extends Command
                 'device_id' => $device->id,
                 'device_name' => $device->name,
             ]);
+            ProvisioningTrace::communication('status poll trace: missing device IP', $this->pollTraceContext($device, [
+                'layer' => 'network_discovery',
+                'protocol' => 'INTERNAL',
+                'state' => 'failure',
+                'reason' => 'No device IP or hostname is configured.',
+                'response' => [
+                    'status' => 'skipped',
+                    'summary' => 'Status poll stopped before network discovery because no target address was resolved.',
+                ],
+            ]));
             $this->notifyStatusChange($device, $previousStatus, 'offline', null);
             return false;
         }
@@ -119,22 +129,33 @@ class PollDeviceStatus extends Command
                 'device_name' => $device->name,
                 'device_ip' => $ip,
             ]);
+            ProvisioningTrace::communication('status poll trace: monitoring disabled', $this->pollTraceContext($device, [
+                'layer' => 'network_discovery',
+                'protocol' => 'INTERNAL',
+                'state' => 'warning',
+                'device_ip' => $ip,
+                'reason' => 'Monitoring is disabled for this device.',
+                'response' => [
+                    'status' => 'skipped',
+                    'summary' => 'Status poll stopped because monitoring is disabled.',
+                ],
+            ]));
             $this->notifyStatusChange($device, $previousStatus, 'offline', $ip);
             return false;
         }
 
         $ports = $this->resolveProbePorts($device);
         $probeMethod = 'tcp';
-        $probeOnline = $this->tcpProbe($ip, $ports);
+        $probeOnline = $this->tcpProbe($device, $ip, $ports);
         if (!$probeOnline) {
-            $probeMethod = 'ping';
-            $probeOnline = $this->pingHost($ip);
+            $probeMethod = 'icmp';
+            $probeOnline = $this->pingHost($device, $ip);
             if (!$probeOnline) {
                 $probeMethod = 'none';
             }
         }
 
-        $isOnline = $this->resolveEffectiveOnlineState($device, $probeOnline);
+        $isOnline = $this->resolveEffectiveOnlineState($device, $probeOnline, $ip, $probeMethod);
         $newStatus = $isOnline ? 'online' : 'offline';
         $updates = ['status' => $newStatus];
         if ($probeOnline) {
@@ -167,6 +188,24 @@ class PollDeviceStatus extends Command
         }
 
         $device->update($updates);
+        ProvisioningTrace::communication('status poll trace: device poll finalized', $this->pollTraceContext($device, [
+            'layer' => 'status_transition',
+            'protocol' => strtoupper($probeMethod === 'icmp' ? 'ICMP' : ($probeMethod === 'tcp' ? 'TCP' : 'INTERNAL')),
+            'state' => $newStatus === 'online' ? 'success' : 'failure',
+            'device_ip' => $ip,
+            'request' => [
+                'operation' => 'device_status_poll',
+                'target' => $ip,
+                'summary' => 'Completed device provisioning poll cycle.',
+            ],
+            'response' => [
+                'status' => $newStatus,
+                'summary' => $newStatus === 'online'
+                    ? 'Device is reachable and status data was refreshed.'
+                    : 'Device did not respond to the live provisioning probes.',
+            ],
+            'reason' => $newStatus === 'online' ? null : 'TCP and ICMP discovery both failed during the current poll cycle.',
+        ]));
         $this->logProvisioning('device poll result', [
             'device_id' => $device->id,
             'device_name' => $device->name,
@@ -186,13 +225,23 @@ class PollDeviceStatus extends Command
     }
 
 
-    private function resolveEffectiveOnlineState(Device $device, bool $probeOnline): bool
+    private function resolveEffectiveOnlineState(Device $device, bool $probeOnline, string $ip, string $probeMethod): bool
     {
         $failureKey = 'device_probe_failures:' . $device->id;
         $wasOnline = strtolower((string) ($device->status ?? 'offline')) === 'online';
 
         if ($probeOnline) {
             Cache::forget($failureKey);
+            ProvisioningTrace::communication('status poll trace: probe succeeded', $this->pollTraceContext($device, [
+                'layer' => 'error_handling',
+                'protocol' => strtoupper($probeMethod === 'icmp' ? 'ICMP' : 'TCP'),
+                'state' => 'success',
+                'device_ip' => $ip,
+                'response' => [
+                    'status' => 'reachable',
+                    'summary' => 'Failure counter cleared after a successful probe.',
+                ],
+            ]));
             return true;
         }
 
@@ -200,9 +249,39 @@ class PollDeviceStatus extends Command
         Cache::put($failureKey, $failures, now()->addSeconds(self::PROBE_FAILURE_TTL_SECONDS));
 
         if ($wasOnline && $failures < self::OFFLINE_FAILURE_THRESHOLD) {
+            ProvisioningTrace::communication('status poll trace: retaining online state during retry window', $this->pollTraceContext($device, [
+                'layer' => 'error_handling',
+                'protocol' => strtoupper($probeMethod === 'icmp' ? 'ICMP' : ($probeMethod === 'tcp' ? 'TCP' : 'INTERNAL')),
+                'state' => 'warning',
+                'device_ip' => $ip,
+                'reason' => 'Device missed one probe but has not crossed the offline retry threshold yet.',
+                'retry' => [
+                    'attempt' => $failures,
+                    'max' => self::OFFLINE_FAILURE_THRESHOLD,
+                ],
+                'response' => [
+                    'status' => 'retrying',
+                    'summary' => 'Keeping the device online until the retry threshold is reached.',
+                ],
+            ]));
             return true;
         }
 
+        ProvisioningTrace::communication('status poll trace: offline threshold reached', $this->pollTraceContext($device, [
+            'layer' => 'error_handling',
+            'protocol' => strtoupper($probeMethod === 'icmp' ? 'ICMP' : ($probeMethod === 'tcp' ? 'TCP' : 'INTERNAL')),
+            'state' => 'failure',
+            'device_ip' => $ip,
+            'reason' => 'Probe retry threshold reached; device is now considered offline.',
+            'retry' => [
+                'attempt' => $failures,
+                'max' => self::OFFLINE_FAILURE_THRESHOLD,
+            ],
+            'response' => [
+                'status' => 'offline',
+                'summary' => 'No successful response was received before the retry threshold elapsed.',
+            ],
+        ]));
         return false;
     }
     private function resolveDeviceIp(Device $device): ?string
@@ -251,13 +330,45 @@ class PollDeviceStatus extends Command
         return array_values(array_filter(array_merge([$sshPort, $snmpPort], $mikrotikPorts, $defaults)));
     }
 
-    private function tcpProbe(string $ip, array $ports): bool
+    private function tcpProbe(Device $device, string $ip, array $ports): bool
     {
         $ports = array_values(array_unique(array_filter($ports, static fn ($port) => is_int($port) && $port > 0)));
-        foreach ($ports as $port) {
+        $maxAttempts = max(1, count($ports));
+
+        foreach ($ports as $index => $port) {
             $errno = 0;
             $errstr = '';
+            $startedAt = microtime(true);
             $socket = @fsockopen($ip, $port, $errno, $errstr, 0.8);
+            $latencyMs = (int) round((microtime(true) - $startedAt) * 1000);
+
+            ProvisioningTrace::communication(
+                $socket ? 'status poll trace: tcp probe succeeded' : 'status poll trace: tcp probe failed',
+                $this->pollTraceContext($device, [
+                    'layer' => 'network_discovery',
+                    'protocol' => 'TCP',
+                    'state' => $socket ? 'success' : 'warning',
+                    'device_ip' => $ip,
+                    'latency_ms' => $latencyMs,
+                    'request' => [
+                        'operation' => 'tcp_connect',
+                        'target' => $ip . ':' . $port,
+                        'summary' => "TCP connect attempt to {$ip}:{$port}",
+                    ],
+                    'response' => [
+                        'status' => $socket ? 'connected' : 'failed',
+                        'summary' => $socket
+                            ? "TCP connection opened on {$ip}:{$port}"
+                            : ($errstr !== '' ? $errstr : "TCP connection failed on {$ip}:{$port}"),
+                    ],
+                    'reason' => $socket ? null : ($errstr !== '' ? $errstr : ($errno !== 0 ? "TCP error {$errno}" : 'TCP probe failed without an OS error message.')),
+                    'retry' => [
+                        'attempt' => $index + 1,
+                        'max' => $maxAttempts,
+                    ],
+                ])
+            );
+
             if ($socket) {
                 fclose($socket);
                 return true;
@@ -266,7 +377,7 @@ class PollDeviceStatus extends Command
         return false;
     }
 
-    private function pingHost(string $ip): bool
+    private function pingHost(Device $device, string $ip): bool
     {
         $timeoutMs = 1000;
         if (PHP_OS_FAMILY === 'Windows') {
@@ -290,12 +401,45 @@ class PollDeviceStatus extends Command
             ],
         ]);
 
+        ProvisioningTrace::communication(
+            $result['ok'] ? 'status poll trace: icmp probe succeeded' : 'status poll trace: icmp probe failed',
+            $this->pollTraceContext($device, [
+                'layer' => 'network_discovery',
+                'protocol' => 'ICMP',
+                'state' => $result['ok'] ? 'success' : 'failure',
+                'device_ip' => $ip,
+                'latency_ms' => $result['duration_ms'] ?? null,
+                'request' => [
+                    'operation' => 'ping',
+                    'target' => $ip,
+                    'summary' => 'ICMP echo request',
+                ],
+                'response' => [
+                    'status' => $result['ok'] ? 'reachable' : 'unreachable',
+                    'summary' => ProvisioningTrace::summarizeText($result['output'] ?? '') ?? ($result['ok'] ? 'Ping completed successfully.' : 'Ping failed.'),
+                ],
+                'reason' => $result['ok'] ? null : (ProvisioningTrace::summarizeText($result['output'] ?? '') ?? 'Ping failed or timed out.'),
+            ])
+        );
+
         return $result['ok'];
     }
 
     private function fetchSnmpData(Device $device, string $ip): array
     {
         if (!function_exists('snmp2_get') && !function_exists('snmpget')) {
+            ProvisioningTrace::communication('status poll trace: SNMP extension missing', $this->pollTraceContext($device, [
+                'layer' => 'data_polling',
+                'protocol' => 'SNMP',
+                'state' => 'failure',
+                'device_ip' => $ip,
+                'reason' => 'PHP SNMP extension is not installed on this host.',
+                'response' => [
+                    'status' => 'skipped',
+                    'summary' => 'SNMP polling could not start because the SNMP extension is unavailable.',
+                ],
+                'failure_hints' => ['runtime_extension'],
+            ]));
             return [];
         }
 
@@ -312,8 +456,9 @@ class PollDeviceStatus extends Command
         $retries = 1;
 
         $uptimeOid = '1.3.6.1.2.1.1.3.0';
-        $uptimeRaw = $this->snmpGet($version, $host, $community, $uptimeOid, $timeout, $retries);
-        $uptime = $this->parseSnmpValue($uptimeRaw);
+        $uptimeResult = $this->snmpGet($device, $version, $host, $community, $uptimeOid, $timeout, $retries);
+        $uptime = $this->parseSnmpValue($uptimeResult['value'] ?? null);
+        $this->traceSnmpParsing($device, $ip, $uptimeOid, $uptimeResult['value'] ?? null, $uptime, 'uptime');
 
         $temperature = null;
         $type = strtoupper((string) ($device->type ?? ''));
@@ -323,8 +468,9 @@ class PollDeviceStatus extends Command
                 '1.3.6.1.4.1.9.9.13.1.3.1.3.1',
             ];
             foreach ($tempOids as $oid) {
-                $tempRaw = $this->snmpGet($version, $host, $community, $oid, $timeout, $retries);
-                $tempParsed = $this->parseSnmpValue($tempRaw, true);
+                $tempResult = $this->snmpGet($device, $version, $host, $community, $oid, $timeout, $retries);
+                $tempParsed = $this->parseSnmpValue($tempResult['value'] ?? null, true);
+                $this->traceSnmpParsing($device, $ip, $oid, $tempResult['value'] ?? null, $tempParsed, 'temperature');
                 if ($tempParsed !== null) {
                     $temperature = $tempParsed;
                     break;
@@ -342,21 +488,169 @@ class PollDeviceStatus extends Command
         return $payload;
     }
 
-    private function snmpGet(string $version, string $host, string $community, string $oid, int $timeout, int $retries): ?string
+    private function snmpGet(Device $device, string $version, string $host, string $community, string $oid, int $timeout, int $retries): array
     {
+        $warningMessage = null;
+        $startedAt = microtime(true);
+        $attemptMax = max(1, $retries + 1);
+
+        ProvisioningTrace::communication('status poll trace: SNMP request sent', $this->pollTraceContext($device, [
+            'layer' => 'data_polling',
+            'protocol' => 'SNMP',
+            'state' => 'running',
+            'device_ip' => strtok($host, ':') ?: $host,
+            'request' => [
+                'operation' => 'snmp_get',
+                'target' => $host,
+                'resource' => $oid,
+                'summary' => "SNMP v{$version} GET {$oid} (community masked)",
+            ],
+            'retry' => [
+                'attempt' => 1,
+                'max' => $attemptMax,
+            ],
+        ]));
+
         try {
+            set_error_handler(static function (int $severity, string $message) use (&$warningMessage): bool {
+                $warningMessage = $message;
+                return true;
+            });
+
             if ($version === '1' && function_exists('snmpget')) {
                 $value = @snmpget($host, $community, $oid, $timeout, $retries);
-                return $value !== false ? (string) $value : null;
+                $latencyMs = (int) round((microtime(true) - $startedAt) * 1000);
+                restore_error_handler();
+                return $this->handleSnmpResult($device, $host, $oid, $value !== false ? (string) $value : null, $warningMessage, $latencyMs);
             }
             if (function_exists('snmp2_get')) {
                 $value = @snmp2_get($host, $community, $oid, $timeout, $retries);
-                return $value !== false ? (string) $value : null;
+                $latencyMs = (int) round((microtime(true) - $startedAt) * 1000);
+                restore_error_handler();
+                return $this->handleSnmpResult($device, $host, $oid, $value !== false ? (string) $value : null, $warningMessage, $latencyMs);
             }
         } catch (\Throwable $e) {
-            return null;
+            restore_error_handler();
+            $latencyMs = (int) round((microtime(true) - $startedAt) * 1000);
+            ProvisioningTrace::communication('status poll trace: SNMP request failed', $this->pollTraceContext($device, [
+                'layer' => 'error_handling',
+                'protocol' => 'SNMP',
+                'state' => 'failure',
+                'device_ip' => strtok($host, ':') ?: $host,
+                'latency_ms' => $latencyMs,
+                'request' => [
+                    'operation' => 'snmp_get',
+                    'target' => $host,
+                    'resource' => $oid,
+                    'summary' => "SNMP GET {$oid}",
+                ],
+                'response' => [
+                    'status' => 'exception',
+                    'summary' => ProvisioningTrace::summarizeText($e->getMessage()) ?? 'SNMP request threw an exception.',
+                ],
+                'reason' => $e->getMessage(),
+            ]));
+
+            return [
+                'value' => null,
+                'latency_ms' => $latencyMs,
+                'error' => $e->getMessage(),
+            ];
         }
-        return null;
+
+        restore_error_handler();
+        $latencyMs = (int) round((microtime(true) - $startedAt) * 1000);
+
+        return $this->handleSnmpResult($device, $host, $oid, null, $warningMessage ?: 'SNMP function is unavailable for the requested version.', $latencyMs);
+    }
+
+    private function handleSnmpResult(Device $device, string $host, string $oid, ?string $value, ?string $warningMessage, int $latencyMs): array
+    {
+        $deviceIp = strtok($host, ':') ?: $host;
+
+        if ($value !== null) {
+            ProvisioningTrace::communication('status poll trace: SNMP response received', $this->pollTraceContext($device, [
+                'layer' => 'data_polling',
+                'protocol' => 'SNMP',
+                'state' => 'success',
+                'device_ip' => $deviceIp,
+                'latency_ms' => $latencyMs,
+                'request' => [
+                    'operation' => 'snmp_get',
+                    'target' => $host,
+                    'resource' => $oid,
+                    'summary' => "SNMP response received for {$oid}",
+                ],
+                'response' => [
+                    'status' => 'ok',
+                    'summary' => ProvisioningTrace::summarizeText($value) ?? 'SNMP returned a value.',
+                    'payload_summary' => ProvisioningTrace::summarizeText($value),
+                ],
+            ]));
+
+            return [
+                'value' => $value,
+                'latency_ms' => $latencyMs,
+                'error' => null,
+            ];
+        }
+
+        $reason = $warningMessage ?: 'No SNMP response was received.';
+        ProvisioningTrace::communication('status poll trace: SNMP request failed', $this->pollTraceContext($device, [
+            'layer' => 'error_handling',
+            'protocol' => 'SNMP',
+            'state' => 'failure',
+            'device_ip' => $deviceIp,
+            'latency_ms' => $latencyMs,
+            'request' => [
+                'operation' => 'snmp_get',
+                'target' => $host,
+                'resource' => $oid,
+                'summary' => "SNMP request failed for {$oid}",
+            ],
+            'response' => [
+                'status' => 'failed',
+                'summary' => ProvisioningTrace::summarizeText($reason) ?? 'SNMP request failed.',
+            ],
+            'reason' => $reason,
+        ]));
+
+        return [
+            'value' => null,
+            'latency_ms' => $latencyMs,
+            'error' => $reason,
+        ];
+    }
+
+    private function traceSnmpParsing(Device $device, string $ip, string $oid, ?string $rawValue, ?string $parsedValue, string $field): void
+    {
+        if ($rawValue === null && $parsedValue === null) {
+            return;
+        }
+
+        ProvisioningTrace::communication(
+            $parsedValue !== null ? 'status poll trace: SNMP response parsed' : 'status poll trace: SNMP response parse warning',
+            $this->pollTraceContext($device, [
+                'layer' => 'response_parsing',
+                'protocol' => 'SNMP',
+                'state' => $parsedValue !== null ? 'success' : 'warning',
+                'device_ip' => $ip,
+                'request' => [
+                    'operation' => 'snmp_parse',
+                    'target' => $ip,
+                    'resource' => $oid,
+                    'summary' => "Parsing SNMP field {$field} from {$oid}",
+                ],
+                'response' => [
+                    'status' => $parsedValue !== null ? 'parsed' : 'unparsed',
+                    'summary' => $parsedValue !== null
+                        ? "Parsed {$field} value {$parsedValue}"
+                        : 'SNMP response was received but could not be normalized.',
+                    'payload_summary' => ProvisioningTrace::summarizeText($rawValue),
+                ],
+                'reason' => $parsedValue !== null ? null : 'SNMP response parsing returned no normalized value.',
+            ])
+        );
     }
 
     private function fetchScriptUptime(Device $device, string $ip): ?string
@@ -414,12 +708,14 @@ class PollDeviceStatus extends Command
             $timeout = $script === 'showuptime_nexus.sh' ? 90 : 40;
             $process = new Process(['bash', $scriptPath], base_path());
             $process->setTimeout($timeout);
-            $process->setEnv(array_merge($_ENV, $_SERVER, $env));
+            $process->setEnv(array_merge($_ENV, $_SERVER, ProvisioningTrace::childProcessEnv(), $env));
             $result = ProvisioningTrace::runProcess($process, [
                 'label' => 'status poll trace',
                 'line_prefix' => 'status poll trace',
                 'context' => $this->pollTraceContext($device, [
                     'probe_step' => 'fetch_uptime',
+                    'layer' => 'authentication_handshake',
+                    'protocol' => 'TELNET',
                     'script_name' => $script,
                     'script_path' => $scriptPath,
                     'device_ip' => $ip,
@@ -514,12 +810,14 @@ class PollDeviceStatus extends Command
             $timeout = $script === 'showtemp_nexus.sh' ? 90 : 40;
             $process = new Process(['bash', $scriptPath], base_path());
             $process->setTimeout($timeout);
-            $process->setEnv(array_merge($_ENV, $_SERVER, $env));
+            $process->setEnv(array_merge($_ENV, $_SERVER, ProvisioningTrace::childProcessEnv(), $env));
             $result = ProvisioningTrace::runProcess($process, [
                 'label' => 'status poll trace',
                 'line_prefix' => 'status poll trace',
                 'context' => $this->pollTraceContext($device, [
                     'probe_step' => 'fetch_temperature',
+                    'layer' => 'authentication_handshake',
+                    'protocol' => 'TELNET',
                     'script_name' => $script,
                     'script_path' => $scriptPath,
                     'device_ip' => $ip,

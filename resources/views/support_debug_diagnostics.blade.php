@@ -255,6 +255,7 @@ Open raw log
 <span class="inline-flex rounded-full px-3 py-1 text-xs font-bold {{ $provisioningLogExists ? 'bg-white text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300' }}" data-provisioning-file-status>{{ $provisioningLogExists ? 'File Ready' : 'No File Yet' }}</span>
 </div>
 <p class="mt-4 rounded-xl bg-white/80 px-3 py-2 font-mono text-[11px] text-slate-600 dark:bg-slate-900/50 dark:text-slate-300" data-provisioning-path>{{ $provisioningLogPath }}</p>
+<p class="mt-3 rounded-xl bg-white/80 px-3 py-2 font-mono text-[11px] text-slate-600 dark:bg-slate-900/50 dark:text-slate-300" data-provisioning-events-path>{{ $provisioningEventLogPath }}</p>
 <button class="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-white px-4 py-3 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-50 dark:border-emerald-900/50 dark:bg-slate-900/40 dark:text-emerald-300 dark:hover:bg-emerald-950/20" type="button" data-provisioning-toggle data-provisioning-endpoint="{{ route('debug.provisioning-log') }}" data-provisioning-enabled="{{ $provisioningLogEnabled ? '1' : '0' }}">
 <span class="material-symbols-outlined text-[18px]">bug_report</span>
 <span data-provisioning-label>{{ $provisioningLogEnabled ? 'Disable Capture' : 'Enable Capture' }}</span>
@@ -292,9 +293,68 @@ data-provisioning-progress-state>
 <p class="mt-2 text-sm font-semibold text-slate-900 dark:text-white" data-provisioning-progress-script>{{ $provisioningProgress['script'] ?? 'N/A' }}</p>
 </div>
 </div>
+<div class="mt-3 grid gap-3 sm:grid-cols-2">
+<div class="rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-900/60">
+<p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Protocol</p>
+<p class="mt-2 text-sm font-semibold text-slate-900 dark:text-white" data-provisioning-progress-protocol>{{ $provisioningProgress['protocol'] ?? 'N/A' }}</p>
+</div>
+<div class="rounded-xl bg-slate-50 px-4 py-3 dark:bg-slate-900/60">
+<p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Layer</p>
+<p class="mt-2 text-sm font-semibold text-slate-900 dark:text-white" data-provisioning-progress-layer>{{ $provisioningProgress['layer'] ?? 'N/A' }}</p>
+</div>
+</div>
 <p class="mt-4 text-xs text-slate-500 dark:text-slate-400" data-provisioning-progress-updated>
 {{ ($provisioningProgress['updated_at'] ?? null) ? 'Updated ' . $provisioningProgress['updated_at'] : 'No provisioning activity captured yet.' }}
 </p>
+</div>
+
+<div class="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/40">
+<div class="flex items-center justify-between border-b border-slate-200 px-5 py-4 dark:border-slate-800">
+<div>
+<h4 class="text-lg font-bold text-slate-900 dark:text-white">Structured Provisioning Events</h4>
+<p class="mt-1 text-xs text-slate-500">ISO-timestamped protocol events for discovery, auth, polling, parsing, retries, and failures.</p>
+</div>
+<span class="inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300" data-provisioning-stream-status>{{ $provisioningStreamEnabled ? 'SSE standby' : 'Polling only' }}</span>
+</div>
+<div
+class="max-h-[420px] overflow-y-auto divide-y divide-slate-200 dark:divide-slate-800"
+data-provisioning-events
+data-provisioning-stream-endpoint="{{ route('debug.provisioning-log.stream') }}"
+data-provisioning-events-empty="No structured provisioning events available yet."
+>
+@forelse ($provisioningEvents as $event)
+<article class="grid gap-3 px-5 py-4 text-sm text-slate-700 dark:text-slate-200" data-provisioning-event>
+<div class="flex flex-wrap items-center gap-2">
+<span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold {{ ($event['state'] ?? '') === 'success' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : (($event['state'] ?? '') === 'warning' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : (($event['state'] ?? '') === 'failure' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300')) }}">{{ strtoupper($event['state'] ?? 'INFO') }}</span>
+<span class="font-mono text-[11px] text-slate-500">{{ $event['timestamp'] ?? 'N/A' }}</span>
+<span class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ $event['layer'] ?? 'Internal' }}</span>
+<span class="text-xs font-semibold uppercase tracking-wider text-slate-500">{{ $event['protocol'] ?? 'N/A' }}</span>
+</div>
+<div class="grid gap-2 lg:grid-cols-[minmax(0,180px)_minmax(0,1fr)_minmax(0,1fr)]">
+<div>
+<p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Device</p>
+<p class="mt-1 font-semibold text-slate-900 dark:text-white">{{ $event['device_name'] ?? ($event['device_ip'] ?? 'N/A') }}</p>
+<p class="text-xs text-slate-500">{{ $event['device_ip'] ?? $event['device_hostname'] ?? '' }}</p>
+</div>
+<div>
+<p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Request</p>
+<p class="mt-1">{{ data_get($event, 'request.summary') ?? 'N/A' }}</p>
+</div>
+<div>
+<p class="text-[11px] font-bold uppercase tracking-wider text-slate-500">Response</p>
+<p class="mt-1">{{ data_get($event, 'response.summary') ?? ($event['message'] ?? 'N/A') }}</p>
+</div>
+</div>
+<div class="flex flex-wrap gap-4 text-xs text-slate-500">
+<span>Latency: {{ isset($event['latency_ms']) ? $event['latency_ms'] . ' ms' : 'N/A' }}</span>
+<span>Reason: {{ $event['reason'] ?? 'None' }}</span>
+<span>Hints: {{ !empty($event['failure_hints']) ? implode(', ', $event['failure_hints']) : 'None' }}</span>
+</div>
+</article>
+@empty
+<div class="px-5 py-4 text-sm text-slate-400">No structured provisioning events available yet.</div>
+@endforelse
+</div>
 </div>
 
 <div class="rounded-2xl border border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950/40">

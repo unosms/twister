@@ -1165,7 +1165,7 @@ class ScriptController extends Controller
             array_merge($_ENV, $_SERVER),
             static fn ($value) => is_scalar($value) || $value === null
         );
-        $process->setEnv(array_merge($baseEnv, $env));
+        $process->setEnv(array_merge($baseEnv, ProvisioningTrace::childProcessEnv(), $env));
         $trace = $provisioningTrace ?? [];
         $traceResult = ProvisioningTrace::runProcess($process, [
             'label' => $trace['label'] ?? 'process trace',
@@ -1337,11 +1337,14 @@ class ScriptController extends Controller
         $command = [$phpBinary, $scriptPath];
         $process = new Process($command, base_path());
         $process->setTimeout(180);
+        $process->setEnv(array_merge($_ENV, $_SERVER, ProvisioningTrace::childProcessEnv()));
         $result = ProvisioningTrace::runProcess($process, [
             'label' => 'poller trace',
             'line_prefix' => 'poller trace',
             'context' => [
                 'trace' => 'poller execution',
+                'layer' => 'data_polling',
+                'protocol' => 'SNMP',
                 'script_name' => 'poller.php',
                 'script_path' => $scriptPath,
                 'command' => $command,
@@ -1407,12 +1410,15 @@ class ScriptController extends Controller
         $command = [$phpBinary, '-d', 'display_errors=1', '-r', $bootstrap, http_build_query($query), $scriptPath];
         $process = new Process($command, base_path());
         $process->setTimeout(120);
+        $process->setEnv(array_merge($_ENV, $_SERVER, ProvisioningTrace::childProcessEnv()));
         $result = ProvisioningTrace::runProcess($process, [
             'label' => 'events trace',
             'line_prefix' => 'events trace',
             'log_output' => false,
             'context' => $this->deviceTraceContext($device, [
                 'trace' => 'events rendering',
+                'layer' => 'data_polling',
+                'protocol' => 'SNMP',
                 'trigger' => $request->route()?->getName() ?: 'devices.events.show',
                 'script_name' => 'events.php',
                 'script_path' => $scriptPath,

@@ -1160,6 +1160,17 @@ class DeviceController extends Controller
         $meta = $this->normalizeMetadata($device->metadata);
         if ($this->isMonitoringDisabled($meta)) {
             Cache::forget('device_probe_failures:' . $device->id);
+            ProvisioningTrace::communication('device probe trace: monitoring disabled', $this->deviceProvisioningContext($device, [
+                'trace' => 'device probe',
+                'layer' => 'network_discovery',
+                'protocol' => 'INTERNAL',
+                'state' => 'warning',
+                'reason' => 'Monitoring is disabled for this device.',
+                'response' => [
+                    'status' => 'skipped',
+                    'summary' => 'Monitoring disabled; probe stopped before network discovery.',
+                ],
+            ]));
             $device->update(['status' => 'offline']);
             return;
         }
@@ -1167,32 +1178,72 @@ class DeviceController extends Controller
         $ip = $this->resolveDeviceIp($device, $meta);
         if (!$ip) {
             Cache::forget('device_probe_failures:' . $device->id);
+            ProvisioningTrace::communication('device probe trace: missing device IP', $this->deviceProvisioningContext($device, [
+                'trace' => 'device probe',
+                'layer' => 'network_discovery',
+                'protocol' => 'INTERNAL',
+                'state' => 'failure',
+                'reason' => 'No device IP or hostname is configured.',
+                'response' => [
+                    'status' => 'skipped',
+                    'summary' => 'Probe could not start because no target address was resolved.',
+                ],
+            ]));
             $device->update(['status' => 'offline']);
             return;
         }
 
         $ports = $this->resolveProbePorts($meta);
-        $probeOnline = $this->tcpProbe($ip, $ports);
+        $probeOnline = $this->tcpProbe($device, $ip, $ports);
+        $probeMethod = 'tcp';
         if (!$probeOnline) {
-            $probeOnline = $this->pingHost($ip);
+            $probeMethod = 'icmp';
+            $probeOnline = $this->pingHost($device, $ip);
         }
 
-        $isOnline = $this->resolveEffectiveOnlineState($device, $probeOnline);
+        $isOnline = $this->resolveEffectiveOnlineState($device, $probeOnline, $ip, $probeMethod);
         $updates = ['status' => $isOnline ? 'online' : 'offline'];
         if ($isOnline) {
             $updates['last_seen_at'] = now();
         }
 
         $device->update($updates);
+        ProvisioningTrace::communication('device probe trace: probe completed', $this->deviceProvisioningContext($device, [
+            'trace' => 'device probe',
+            'layer' => 'status_transition',
+            'protocol' => strtoupper($probeMethod === 'icmp' ? 'ICMP' : 'TCP'),
+            'state' => $isOnline ? 'success' : 'failure',
+            'device_ip' => $ip,
+            'request' => [
+                'operation' => 'status_snapshot_probe',
+                'target' => $ip,
+                'summary' => 'Device status snapshot probe completed.',
+            ],
+            'response' => [
+                'status' => $isOnline ? 'online' : 'offline',
+                'summary' => $isOnline ? 'Device responded to probe.' : 'Device did not respond to TCP or ICMP probe.',
+            ],
+        ]));
     }
 
-    private function resolveEffectiveOnlineState(Device $device, bool $probeOnline): bool
+    private function resolveEffectiveOnlineState(Device $device, bool $probeOnline, string $ip, string $probeMethod): bool
     {
         $failureKey = 'device_probe_failures:' . $device->id;
         $wasOnline = strtolower((string) ($device->status ?? 'offline')) === 'online';
 
         if ($probeOnline) {
             Cache::forget($failureKey);
+            ProvisioningTrace::communication('device probe trace: probe succeeded', $this->deviceProvisioningContext($device, [
+                'trace' => 'device probe',
+                'layer' => 'error_handling',
+                'protocol' => strtoupper($probeMethod === 'icmp' ? 'ICMP' : 'TCP'),
+                'state' => 'success',
+                'device_ip' => $ip,
+                'response' => [
+                    'status' => 'reachable',
+                    'summary' => 'Failure counter cleared after a successful probe.',
+                ],
+            ]));
             return true;
         }
 
@@ -1200,8 +1251,41 @@ class DeviceController extends Controller
         Cache::put($failureKey, $failures, now()->addSeconds(self::PROBE_FAILURE_TTL_SECONDS));
 
         if ($wasOnline && $failures < self::OFFLINE_FAILURE_THRESHOLD) {
+            ProvisioningTrace::communication('device probe trace: transient failure retained online state', $this->deviceProvisioningContext($device, [
+                'trace' => 'device probe',
+                'layer' => 'error_handling',
+                'protocol' => strtoupper($probeMethod === 'icmp' ? 'ICMP' : 'TCP'),
+                'state' => 'warning',
+                'device_ip' => $ip,
+                'reason' => 'Device missed a probe but has not crossed the offline retry threshold yet.',
+                'retry' => [
+                    'attempt' => $failures,
+                    'max' => self::OFFLINE_FAILURE_THRESHOLD,
+                ],
+                'response' => [
+                    'status' => 'retrying',
+                    'summary' => 'Keeping device online until the retry threshold is reached.',
+                ],
+            ]));
             return true;
         }
+
+        ProvisioningTrace::communication('device probe trace: offline threshold reached', $this->deviceProvisioningContext($device, [
+            'trace' => 'device probe',
+            'layer' => 'error_handling',
+            'protocol' => strtoupper($probeMethod === 'icmp' ? 'ICMP' : 'TCP'),
+            'state' => 'failure',
+            'device_ip' => $ip,
+            'reason' => 'Probe retry threshold reached; device is now considered offline.',
+            'retry' => [
+                'attempt' => $failures,
+                'max' => self::OFFLINE_FAILURE_THRESHOLD,
+            ],
+            'response' => [
+                'status' => 'offline',
+                'summary' => 'No successful probe response before the offline threshold elapsed.',
+            ],
+        ]));
 
         return false;
     }
@@ -1247,13 +1331,46 @@ class DeviceController extends Controller
         return array_values(array_filter(array_merge([$sshPort, $snmpPort], $mikrotikPorts, $defaults)));
     }
 
-    private function tcpProbe(string $ip, array $ports): bool
+    private function tcpProbe(Device $device, string $ip, array $ports): bool
     {
         $ports = array_values(array_unique(array_filter($ports, static fn ($port) => is_int($port) && $port > 0)));
-        foreach ($ports as $port) {
+        $maxAttempts = max(1, count($ports));
+
+        foreach ($ports as $index => $port) {
             $errno = 0;
             $errstr = '';
+            $startedAt = microtime(true);
             $socket = @fsockopen($ip, $port, $errno, $errstr, 0.8);
+            $latencyMs = (int) round((microtime(true) - $startedAt) * 1000);
+
+            ProvisioningTrace::communication(
+                $socket ? 'device probe trace: tcp probe succeeded' : 'device probe trace: tcp probe failed',
+                $this->deviceProvisioningContext($device, [
+                    'trace' => 'device probe',
+                    'layer' => 'network_discovery',
+                    'protocol' => 'TCP',
+                    'state' => $socket ? 'success' : 'warning',
+                    'device_ip' => $ip,
+                    'latency_ms' => $latencyMs,
+                    'request' => [
+                        'operation' => 'tcp_connect',
+                        'target' => $ip . ':' . $port,
+                        'summary' => "TCP connect attempt to {$ip}:{$port}",
+                    ],
+                    'response' => [
+                        'status' => $socket ? 'connected' : 'failed',
+                        'summary' => $socket
+                            ? "TCP connection opened on {$ip}:{$port}"
+                            : ($errstr !== '' ? $errstr : "TCP connection failed on {$ip}:{$port}"),
+                    ],
+                    'reason' => $socket ? null : ($errstr !== '' ? $errstr : ($errno !== 0 ? "TCP error {$errno}" : 'TCP probe failed without an OS error message.')),
+                    'retry' => [
+                        'attempt' => $index + 1,
+                        'max' => $maxAttempts,
+                    ],
+                ])
+            );
+
             if ($socket) {
                 fclose($socket);
                 return true;
@@ -1262,7 +1379,7 @@ class DeviceController extends Controller
         return false;
     }
 
-    private function pingHost(string $ip): bool
+    private function pingHost(Device $device, string $ip): bool
     {
         $timeoutMs = 1000;
         if (PHP_OS_FAMILY === 'Windows') {
@@ -1285,6 +1402,28 @@ class DeviceController extends Controller
                 'command' => $command,
             ],
         ]);
+
+        ProvisioningTrace::communication(
+            $result['ok'] ? 'device probe trace: icmp probe succeeded' : 'device probe trace: icmp probe failed',
+            $this->deviceProvisioningContext($device, [
+                'trace' => 'device probe',
+                'layer' => 'network_discovery',
+                'protocol' => 'ICMP',
+                'state' => $result['ok'] ? 'success' : 'failure',
+                'device_ip' => $ip,
+                'latency_ms' => $result['duration_ms'] ?? null,
+                'request' => [
+                    'operation' => 'ping',
+                    'target' => $ip,
+                    'summary' => 'ICMP echo request',
+                ],
+                'response' => [
+                    'status' => $result['ok'] ? 'reachable' : 'unreachable',
+                    'summary' => ProvisioningTrace::summarizeText($result['output'] ?? '') ?? ($result['ok'] ? 'Ping completed successfully.' : 'Ping failed.'),
+                ],
+                'reason' => $result['ok'] ? null : (ProvisioningTrace::summarizeText($result['output'] ?? '') ?? 'Ping failed or timed out.'),
+            ])
+        );
 
         return $result['ok'];
     }

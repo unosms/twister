@@ -93,6 +93,7 @@ Route::middleware(['admin.auth', 'audit.log'])->group(function () {
         ->name('devices.backups.download');
     Route::post('/debug/provisioning-log', [DebugController::class, 'toggleProvisioningLog'])->name('debug.provisioning-log');
     Route::get('/debug/provisioning-log', [DebugController::class, 'viewProvisioningLog'])->name('debug.provisioning-log.view');
+    Route::get('/debug/provisioning-log/stream', [DebugController::class, 'streamProvisioningLog'])->name('debug.provisioning-log.stream');
 });
 
 

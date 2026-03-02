@@ -42,11 +42,14 @@ class PollDeviceEvents extends Command
         $command = [$phpBinary, $scriptPath];
         $process = new Process($command, base_path());
         $process->setTimeout(180);
+        $process->setEnv(array_merge($_ENV, $_SERVER, ProvisioningTrace::childProcessEnv()));
         $result = ProvisioningTrace::runProcess($process, [
             'label' => 'events poll trace',
             'line_prefix' => 'events poll trace',
             'context' => [
                 'trace' => 'events polling',
+                'layer' => 'data_polling',
+                'protocol' => 'SNMP',
                 'trigger' => 'events:poll',
                 'script_name' => 'poller.php',
                 'script_path' => $scriptPath,

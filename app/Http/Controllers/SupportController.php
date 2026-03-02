@@ -17,9 +17,11 @@ class SupportController extends Controller
     public function index(Request $request)
     {
         $authUser = User::find($request->session()->get('auth.user_id'));
-        $provisioningLogPath = storage_path('logs/provisioning.log');
-        $provisioningLogEnabled = (bool) Cache::get('provisioning_log_enabled', false);
+        $provisioningLogPath = ProvisioningTrace::rawLogPath();
+        $provisioningEventLogPath = ProvisioningTrace::eventLogPath();
+        $provisioningLogEnabled = ProvisioningTrace::enabled();
         $provisioningLogLines = ProvisioningLogFeed::readLines($provisioningLogPath, 120);
+        $provisioningEvents = ProvisioningLogFeed::readEvents($provisioningEventLogPath, 40);
 
         $totalDevices = Device::count();
         $onlineDevices = Device::where('status', 'online')->count();
@@ -31,9 +33,12 @@ class SupportController extends Controller
             'authUser' => $authUser,
             'provisioningLogEnabled' => $provisioningLogEnabled,
             'provisioningLogPath' => $provisioningLogPath,
+            'provisioningEventLogPath' => $provisioningEventLogPath,
             'provisioningLogExists' => file_exists($provisioningLogPath),
             'provisioningLogLines' => $provisioningLogLines,
-            'provisioningProgress' => ProvisioningLogFeed::summarize($provisioningLogLines),
+            'provisioningEvents' => $provisioningEvents,
+            'provisioningProgress' => ProvisioningLogFeed::summarize($provisioningLogLines, $provisioningEvents),
+            'provisioningStreamEnabled' => ProvisioningTrace::streamEnabled(),
             'totalDevices' => $totalDevices,
             'onlineDevices' => $onlineDevices,
             'offlineDevices' => max(0, $totalDevices - $onlineDevices),

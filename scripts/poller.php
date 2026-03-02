@@ -19,6 +19,36 @@ $NOW = time();
 function log_poll(string $msg): void {
   $line = '[' . date('Y-m-d H:i:s') . '] ' . $msg . "\n";
   @file_put_contents(__DIR__ . '/poller.log', $line, FILE_APPEND);
+  if (getenv('PROVISIONING_TRACE_STDOUT') === '1') {
+    echo $msg . PHP_EOL;
+  }
+}
+function provisioning_event(string $message, array $event = []): void {
+  if (getenv('PROVISIONING_LOG_ENABLED') !== '1') {
+    return;
+  }
+
+  $path = getenv('PROVISIONING_EVENTS_LOG') ?: '';
+  if ($path === '') {
+    return;
+  }
+
+  $event = array_filter(array_merge([
+    'id' => uniqid('poller_', true),
+    'timestamp' => gmdate('c'),
+    'message' => $message,
+    'state' => 'info',
+    'trace' => 'Poller',
+    'layer' => 'Internal',
+    'protocol' => 'SNMP',
+  ], $event), static fn ($value) => $value !== null && $value !== []);
+
+  $dir = dirname($path);
+  if (!is_dir($dir)) {
+    @mkdir($dir, 0775, true);
+  }
+
+  @file_put_contents($path, json_encode($event, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE) . PHP_EOL, FILE_APPEND | LOCK_EX);
 }
 function fmt_dur(int $secs): string {
   $secs = max(0, $secs);
@@ -178,9 +208,51 @@ function parse_snmp_val($val) {
   return $v;
 }
 function snmp_walk_map(string $ip, string $comm, string $oid): array {
-  if (!function_exists('snmp2_real_walk')) return [];
+  $started = microtime(true);
+  if (!function_exists('snmp2_real_walk')) {
+    provisioning_event('poller trace: SNMP walk skipped because extension is missing', [
+      'state' => 'failure',
+      'layer' => 'Data Polling',
+      'protocol' => 'SNMP',
+      'device_ip' => $ip,
+      'request' => [
+        'operation' => 'snmp_walk',
+        'target' => $ip,
+        'resource' => $oid,
+        'summary' => "SNMP walk {$oid} skipped because snmp2_real_walk() is unavailable",
+      ],
+      'response' => [
+        'status' => 'skipped',
+        'summary' => 'PHP SNMP extension is missing on this host.',
+      ],
+      'reason' => 'snmp2_real_walk() is unavailable.',
+      'failure_hints' => ['runtime_extension'],
+    ]);
+    return [];
+  }
   $out = @snmp2_real_walk($ip, $comm, $oid, 800000, 1);
-  if (!is_array($out)) return [];
+  $latency = (int)round((microtime(true) - $started) * 1000);
+  if (!is_array($out)) {
+    provisioning_event('poller trace: SNMP walk failed', [
+      'state' => 'failure',
+      'layer' => 'Data Polling',
+      'protocol' => 'SNMP',
+      'device_ip' => $ip,
+      'latency_ms' => $latency,
+      'request' => [
+        'operation' => 'snmp_walk',
+        'target' => $ip,
+        'resource' => $oid,
+        'summary' => "SNMP walk {$oid} returned no rows",
+      ],
+      'response' => [
+        'status' => 'failed',
+        'summary' => 'SNMP walk returned no data.',
+      ],
+      'reason' => 'No SNMP walk response was received.',
+    ]);
+    return [];
+  }
   $ret = [];
   foreach ($out as $k => $v) {
     if (preg_match('/\.([0-9]+)$/', $k, $m)) {
@@ -188,13 +260,92 @@ function snmp_walk_map(string $ip, string $comm, string $oid): array {
       $ret[$idx] = parse_snmp_val($v);
     }
   }
+  provisioning_event('poller trace: SNMP walk completed', [
+    'state' => 'success',
+    'layer' => 'Data Polling',
+    'protocol' => 'SNMP',
+    'device_ip' => $ip,
+    'latency_ms' => $latency,
+    'request' => [
+      'operation' => 'snmp_walk',
+      'target' => $ip,
+      'resource' => $oid,
+      'summary' => "SNMP walk {$oid}",
+    ],
+    'response' => [
+      'status' => 'ok',
+      'summary' => 'SNMP walk returned ' . count($ret) . ' row(s).',
+      'payload_summary' => count($ret) . ' row(s) normalized from the SNMP response.',
+    ],
+  ]);
   return $ret;
 }
 function snmp_get_val(string $ip, string $comm, string $oid) {
-  if (!function_exists('snmp2_get')) return null;
+  $started = microtime(true);
+  if (!function_exists('snmp2_get')) {
+    provisioning_event('poller trace: SNMP get skipped because extension is missing', [
+      'state' => 'failure',
+      'layer' => 'Data Polling',
+      'protocol' => 'SNMP',
+      'device_ip' => $ip,
+      'request' => [
+        'operation' => 'snmp_get',
+        'target' => $ip,
+        'resource' => $oid,
+        'summary' => "SNMP GET {$oid} skipped because snmp2_get() is unavailable",
+      ],
+      'response' => [
+        'status' => 'skipped',
+        'summary' => 'PHP SNMP extension is missing on this host.',
+      ],
+      'reason' => 'snmp2_get() is unavailable.',
+      'failure_hints' => ['runtime_extension'],
+    ]);
+    return null;
+  }
   $v = @snmp2_get($ip, $comm, $oid, 800000, 1);
-  if ($v === false || $v === null) return null;
-  return parse_snmp_val($v);
+  $latency = (int)round((microtime(true) - $started) * 1000);
+  if ($v === false || $v === null) {
+    provisioning_event('poller trace: SNMP get failed', [
+      'state' => 'failure',
+      'layer' => 'Data Polling',
+      'protocol' => 'SNMP',
+      'device_ip' => $ip,
+      'latency_ms' => $latency,
+      'request' => [
+        'operation' => 'snmp_get',
+        'target' => $ip,
+        'resource' => $oid,
+        'summary' => "SNMP GET {$oid} returned no value",
+      ],
+      'response' => [
+        'status' => 'failed',
+        'summary' => 'SNMP GET returned no data.',
+      ],
+      'reason' => 'No SNMP GET response was received.',
+    ]);
+    return null;
+  }
+  $parsed = parse_snmp_val($v);
+  provisioning_event('poller trace: SNMP get completed', [
+    'state' => 'success',
+    'layer' => 'Response Parsing',
+    'protocol' => 'SNMP',
+    'device_ip' => $ip,
+    'latency_ms' => $latency,
+    'request' => [
+      'operation' => 'snmp_get',
+      'target' => $ip,
+      'resource' => $oid,
+      'summary' => "SNMP GET {$oid}",
+    ],
+    'response' => [
+      'status' => 'ok',
+      'summary' => is_scalar($parsed) ? ('Parsed value ' . (string)$parsed) : 'SNMP value parsed successfully.',
+      'payload_summary' => substr(trim((string)$v), 0, 240),
+    ],
+  ]);
+  return $parsed;
 }
 
 /* ============================================================
@@ -346,21 +497,107 @@ while ($d = $devQ->fetch_assoc()) {
   }
   $enabled = (!empty($meta['monitoring_disabled']) || !empty($cisco['monitoring_disabled'])) ? 0 : 1;
 
-  if (!$enabled || $ip === '') { log_poll("Skip {$device_name} (disabled or no IP)"); continue; }
+  if (!$enabled || $ip === '') {
+    log_poll("Skip {$device_name} (disabled or no IP)");
+    provisioning_event('poller trace: device skipped before polling', [
+      'state' => 'warning',
+      'layer' => 'Network Discovery',
+      'protocol' => 'INTERNAL',
+      'device_id' => $device_id,
+      'device_name' => $device_name,
+      'device_ip' => $ip !== '' ? $ip : null,
+      'response' => [
+        'status' => 'skipped',
+        'summary' => $enabled ? 'No IP address was configured.' : 'Monitoring is disabled for this device.',
+      ],
+      'reason' => $enabled ? 'Device IP is missing.' : 'Monitoring is disabled for this device.',
+    ]);
+    continue;
+  }
 
   log_poll("== Polling {$device_name} ({$ip}) ==");
+  provisioning_event('poller trace: device polling started', [
+    'state' => 'running',
+    'layer' => 'Network Discovery',
+    'protocol' => 'SNMP',
+    'device_id' => $device_id,
+    'device_name' => $device_name,
+    'device_ip' => $ip,
+    'request' => [
+      'operation' => 'device_poll',
+      'target' => $ip,
+      'summary' => "Starting live interface poll for {$device_name}",
+    ],
+    'response' => [
+      'status' => 'running',
+      'summary' => 'Beginning SNMP reachability and interface collection.',
+    ],
+  ]);
 
   // Reachability by SNMP sysUpTime.0 then ping
   $upticks = snmp_get_val($ip, $comm, '1.3.6.1.2.1.1.3.0');
   if ($upticks !== null) {
     resolve_device_down_and_log_up($conn, $device_id, $device_name, $ip, $NOW);
+    provisioning_event('poller trace: device reachability confirmed by SNMP', [
+      'state' => 'success',
+      'layer' => 'Network Discovery',
+      'protocol' => 'SNMP',
+      'device_id' => $device_id,
+      'device_name' => $device_name,
+      'device_ip' => $ip,
+      'response' => [
+        'status' => 'reachable',
+        'summary' => 'SNMP sysUpTime returned a value; continuing with interface polling.',
+      ],
+    ]);
   } else {
+    provisioning_event('poller trace: falling back to ICMP reachability', [
+      'state' => 'warning',
+      'layer' => 'Error Handling / Retry',
+      'protocol' => 'ICMP',
+      'device_id' => $device_id,
+      'device_name' => $device_name,
+      'device_ip' => $ip,
+      'reason' => 'SNMP sysUpTime did not respond; attempting ICMP fallback.',
+      'response' => [
+        'status' => 'retrying',
+        'summary' => 'SNMP reachability failed, switching to ICMP.',
+      ],
+    ]);
     $out=[]; $rc=0;
     @exec('ping -n -c 1 -W 1 ' . escapeshellarg($ip) . ' 2>&1', $out, $rc);
     if ($rc === 0) {
       resolve_device_down_and_log_up($conn, $device_id, $device_name, $ip, $NOW);
+      provisioning_event('poller trace: ICMP fallback succeeded', [
+        'state' => 'success',
+        'layer' => 'Network Discovery',
+        'protocol' => 'ICMP',
+        'device_id' => $device_id,
+        'device_name' => $device_name,
+        'device_ip' => $ip,
+        'response' => [
+          'status' => 'reachable',
+          'summary' => 'ICMP fallback succeeded; continuing with interface polling.',
+          'payload_summary' => substr(trim(implode(' ', $out)), 0, 240),
+        ],
+      ]);
     } else {
       ensure_device_down($conn, $device_id, $device_name, $ip, $NOW);
+      provisioning_event('poller trace: device unreachable after SNMP and ICMP', [
+        'state' => 'failure',
+        'layer' => 'Error Handling / Retry',
+        'protocol' => 'ICMP',
+        'device_id' => $device_id,
+        'device_name' => $device_name,
+        'device_ip' => $ip,
+        'response' => [
+          'status' => 'offline',
+          'summary' => 'Device did not answer SNMP or ICMP reachability checks.',
+          'payload_summary' => substr(trim(implode(' ', $out)), 0, 240),
+        ],
+        'reason' => 'Device is unreachable after SNMP and ICMP checks.',
+        'failure_hints' => ['timeout_or_firewall', 'routing_or_nat'],
+      ]);
       continue;
     }
   }
@@ -393,6 +630,18 @@ while ($d = $devQ->fetch_assoc()) {
     array_keys($HC_IN), array_keys($HC_OUT), array_keys($L32_IN), array_keys($L32_OUT)
   )));
   sort($idxs);
+  provisioning_event('poller trace: interface index discovery completed', [
+    'state' => 'success',
+    'layer' => 'Response Parsing',
+    'protocol' => 'SNMP',
+    'device_id' => $device_id,
+    'device_name' => $device_name,
+    'device_ip' => $ip,
+    'response' => [
+      'status' => 'ok',
+      'summary' => 'Discovered ' . count($idxs) . ' interface index(es) for polling.',
+    ],
+  ]);
 
   foreach ($idxs as $idx) {
     $name  = isset($m_name[$idx])  ? (string)$m_name[$idx]  : ("ifIndex {$idx}");
