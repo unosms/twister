@@ -10,7 +10,7 @@ USERNAME="$2"
 PASSWORD="$3"
 LOCATION="$4"
 # Fixed TFTP server
-TFTP_SERVER="172.16.203.247"
+TFTP_SERVER="192.168.88.57"
 
 # Date and file name
 DATE_STR=$(date +"%F_%H-%M-%S")
