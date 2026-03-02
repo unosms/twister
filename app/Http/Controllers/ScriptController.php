@@ -1550,13 +1550,13 @@ class ScriptController extends Controller
         }
 
         $roots = array_merge($roots, [
-            base_path(),
-            '/var/www/html',
             '/srv/tftp',
             '/srv/tftpboot',
             '/var/lib/tftpboot',
             '/var/tftpboot',
             '/tftpboot',
+            base_path(),
+            '/var/www/html',
         ]);
 
         $normalized = [];
