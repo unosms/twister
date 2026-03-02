@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Models\Device;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\Process\Process;
 
 class RunDeviceBackups extends Command
@@ -17,6 +18,12 @@ class RunDeviceBackups extends Command
         $deviceOption = (int) ($this->option('device') ?? 0);
         $limit = (int) ($this->option('limit') ?? 0);
 
+        $this->writeProvisioningLog('backup trace: scheduled backup command started', [
+            'trigger' => 'devices:run-backups',
+            'device_option' => $deviceOption > 0 ? $deviceOption : null,
+            'limit_option' => $limit > 0 ? $limit : null,
+        ]);
+
         $query = Device::query()->orderBy('id');
 
         if ($deviceOption > 0) {
@@ -27,6 +34,9 @@ class RunDeviceBackups extends Command
 
         $devices = $query->get();
         if ($devices->isEmpty()) {
+            $this->writeProvisioningLog('backup trace: scheduled backup command found no devices', [
+                'trigger' => 'devices:run-backups',
+            ]);
             $this->warn('No matching devices found.');
             return self::SUCCESS;
         }
@@ -56,6 +66,13 @@ class RunDeviceBackups extends Command
         }
 
         $this->line("Backups attempted: {$ran}, successful: {$ok}, failed: {$failed}, skipped: {$skipped}.");
+        $this->writeProvisioningLog('backup trace: scheduled backup command finished', [
+            'trigger' => 'devices:run-backups',
+            'attempted' => $ran,
+            'successful' => $ok,
+            'failed' => $failed,
+            'skipped' => $skipped,
+        ]);
 
         return $failed > 0 ? self::FAILURE : self::SUCCESS;
     }
@@ -64,9 +81,15 @@ class RunDeviceBackups extends Command
     {
         $meta = $this->normalizeMetadata($device->metadata);
         $cisco = data_get($meta, 'cisco', []);
+        $traceContext = $this->backupTraceContext($device, [
+            'trigger' => 'devices:run-backups',
+        ]);
+
+        $this->writeProvisioningLog('backup trace: scheduled backup evaluation started', $traceContext);
 
         $type = strtoupper((string) ($device->type ?? ''));
         if ($type !== 'CISCO' || !is_array($cisco) || empty($cisco)) {
+            $this->writeProvisioningLog('backup trace: scheduled backup skipped - invalid Cisco metadata', $traceContext);
             return [
                 'status' => 'skipped',
                 'message' => 'not a Cisco device or missing Cisco metadata',
@@ -74,6 +97,7 @@ class RunDeviceBackups extends Command
         }
 
         if (!empty($meta['monitoring_disabled'])) {
+            $this->writeProvisioningLog('backup trace: scheduled backup skipped - device deactivated', $traceContext);
             return [
                 'status' => 'skipped',
                 'message' => 'device is deactivated',
@@ -89,7 +113,18 @@ class RunDeviceBackups extends Command
         $enablePassword = $this->decryptValue($cisco['enable_password'] ?? null);
         $location = $this->resolveFolderLocation($device, $cisco);
 
+        $this->writeProvisioningLog('backup trace: scheduled backup inputs resolved', $traceContext + [
+            'switch_model' => $switchModel !== '' ? $switchModel : null,
+            'is_nexus' => $isNexus,
+            'switch_ip' => $ip,
+            'location' => $location,
+            'password_present' => $password !== null && $password !== '',
+            'enable_password_present' => $enablePassword !== null && $enablePassword !== '',
+            'username_present' => $username !== null && $username !== '',
+        ]);
+
         if (!$ip || !$password) {
+            $this->writeProvisioningLog('backup trace: scheduled backup failed validation - missing IP or password', $traceContext);
             return [
                 'status' => 'failed',
                 'message' => 'missing IP or password',
@@ -97,6 +132,7 @@ class RunDeviceBackups extends Command
         }
 
         if ($isNexus && !$username) {
+            $this->writeProvisioningLog('backup trace: scheduled backup failed validation - missing Nexus username', $traceContext);
             return [
                 'status' => 'failed',
                 'message' => 'missing username for Nexus backup',
@@ -104,6 +140,7 @@ class RunDeviceBackups extends Command
         }
 
         if (!$isNexus && !$enablePassword) {
+            $this->writeProvisioningLog('backup trace: scheduled backup failed validation - missing enable password', $traceContext);
             return [
                 'status' => 'failed',
                 'message' => 'missing enable password for backup',
@@ -113,6 +150,9 @@ class RunDeviceBackups extends Command
         $script = $isNexus ? 'nexus_backup.sh' : '4948_backup.sh';
         $scriptPath = base_path('scripts/' . $script);
         if (!is_file($scriptPath)) {
+            $this->writeProvisioningLog('backup trace: scheduled backup script missing', $traceContext + [
+                'script_name' => $script,
+            ]);
             return [
                 'status' => 'failed',
                 'message' => "script not found: {$script}",
@@ -123,23 +163,21 @@ class RunDeviceBackups extends Command
             ? ['bash', $scriptPath, $ip, $username, $password, $location]
             : ['bash', $scriptPath, $ip, $password, $enablePassword, $location];
 
-        $process = new Process($command, base_path());
-        $process->setTimeout(180);
+        $result = $this->runLoggedProcess($command, $traceContext + [
+            'switch_model' => $switchModel !== '' ? $switchModel : null,
+            'is_nexus' => $isNexus,
+            'switch_ip' => $ip,
+            'location' => $location,
+            'script_name' => $script,
+            'script_path' => $scriptPath,
+            'command' => $this->redactBackupCommand($command, $isNexus),
+            'secret_values' => array_values(array_filter($isNexus ? [$password] : [$password, $enablePassword])),
+        ]);
 
-        try {
-            $process->run();
-        } catch (\Throwable $e) {
+        if (!$result['ok']) {
             return [
                 'status' => 'failed',
-                'message' => $e->getMessage(),
-            ];
-        }
-
-        if (!$process->isSuccessful()) {
-            $errorOutput = trim($process->getOutput() . "\n" . $process->getErrorOutput());
-            return [
-                'status' => 'failed',
-                'message' => $errorOutput !== '' ? $errorOutput : 'backup script failed',
+                'message' => $result['output'] !== '' ? $result['output'] : 'backup script failed',
             ];
         }
 
@@ -212,5 +250,154 @@ class RunDeviceBackups extends Command
         } catch (\Throwable $e) {
             return $value;
         }
+    }
+
+    private function provisioningLogEnabled(): bool
+    {
+        return (bool) cache()->get('provisioning_log_enabled', false);
+    }
+
+    private function writeProvisioningLog(string $message, array $context = []): void
+    {
+        if (!$this->provisioningLogEnabled()) {
+            return;
+        }
+
+        try {
+            Log::build([
+                'driver' => 'single',
+                'path' => storage_path('logs/provisioning.log'),
+                'level' => 'debug',
+            ])->debug($message, $context);
+        } catch (\Throwable $e) {
+            // ignore logging failures
+        }
+    }
+
+    private function backupTraceContext(Device $device, array $context = []): array
+    {
+        return $context + [
+            'device_id' => $device->id,
+            'device_name' => $device->name,
+            'device_type' => $device->type,
+        ];
+    }
+
+    private function redactBackupCommand(array $command, bool $isNexus): array
+    {
+        $redacted = $command;
+
+        if ($isNexus) {
+            if (isset($redacted[4])) {
+                $redacted[4] = '[REDACTED]';
+            }
+        } else {
+            if (isset($redacted[3])) {
+                $redacted[3] = '[REDACTED]';
+            }
+
+            if (isset($redacted[4])) {
+                $redacted[4] = '[REDACTED]';
+            }
+        }
+
+        return $redacted;
+    }
+
+    private function runLoggedProcess(array $command, array $traceContext): array
+    {
+        $process = new Process($command, base_path());
+        $process->setTimeout(180);
+        $startedAt = microtime(true);
+        $logContext = $this->withoutProvisioningSecrets($traceContext);
+        $secretValues = array_values(array_filter($traceContext['secret_values'] ?? []));
+        $partialLines = ['stdout' => '', 'stderr' => ''];
+
+        $this->writeProvisioningLog('backup trace: launching process', $logContext + [
+            'timeout_seconds' => 180,
+        ]);
+
+        try {
+            $process->run(function (string $type, string $buffer) use (&$partialLines, $secretValues, $logContext): void {
+                $stream = $type === Process::ERR ? 'stderr' : 'stdout';
+                $partialLines[$stream] .= $this->redactProvisioningText($buffer, $secretValues);
+                $normalized = str_replace(["\r\n", "\r"], "\n", $partialLines[$stream]);
+                $lines = explode("\n", $normalized);
+                $partialLines[$stream] = array_pop($lines);
+
+                foreach ($lines as $line) {
+                    $line = trim($line);
+                    if ($line === '') {
+                        continue;
+                    }
+
+                    $this->writeProvisioningLog("backup trace {$stream}: {$line}", $logContext);
+                }
+            });
+        } catch (\Throwable $e) {
+            $this->writeProvisioningLog('backup trace: process threw an exception', $logContext + [
+                'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+                'error' => $e->getMessage(),
+            ]);
+
+            return [
+                'ok' => false,
+                'output' => $e->getMessage(),
+            ];
+        }
+
+        foreach ($partialLines as $stream => $line) {
+            $line = trim($line);
+            if ($line === '') {
+                continue;
+            }
+
+            $this->writeProvisioningLog("backup trace {$stream}: {$line}", $logContext);
+        }
+
+        $payload = trim($this->redactProvisioningText($process->getOutput() . "\n" . $process->getErrorOutput(), $secretValues));
+        $durationMs = (int) round((microtime(true) - $startedAt) * 1000);
+
+        if (!$process->isSuccessful()) {
+            $this->writeProvisioningLog('backup trace: process failed', $logContext + [
+                'duration_ms' => $durationMs,
+                'exit_code' => $process->getExitCode(),
+            ]);
+
+            return [
+                'ok' => false,
+                'output' => $payload,
+            ];
+        }
+
+        $this->writeProvisioningLog('backup trace: process completed', $logContext + [
+            'duration_ms' => $durationMs,
+            'exit_code' => $process->getExitCode(),
+        ]);
+
+        return [
+            'ok' => true,
+            'output' => $payload,
+        ];
+    }
+
+    private function withoutProvisioningSecrets(array $context): array
+    {
+        unset($context['secret_values']);
+
+        return $context;
+    }
+
+    private function redactProvisioningText(string $text, array $secretValues): string
+    {
+        foreach ($secretValues as $secret) {
+            if (!is_string($secret) || $secret === '') {
+                continue;
+            }
+
+            $text = str_replace($secret, '[REDACTED]', $text);
+        }
+
+        return $text;
     }
 }

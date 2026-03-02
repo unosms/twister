@@ -7,6 +7,7 @@ use App\Models\Device;
 use App\Models\DevicePermission;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\DB;
@@ -864,8 +865,27 @@ class ScriptController extends Controller
         $switchModel = $this->resolveSwitchModel($device, $cisco);
         $isNexus = $this->shouldUseNexus($device, $cisco, $switchModel);
         $scriptName = $isNexus ? 'nexus_backup.sh' : '4948_backup.sh';
+        $traceContext = $this->backupTraceContext($device, [
+            'trigger' => $request->route()?->getName() ?: 'backup',
+            'request_method' => $request->getMethod(),
+            'request_path' => $request->path(),
+            'request_ip' => $request->ip(),
+            'actor_id' => optional($request->user())->id,
+            'actor' => optional($request->user())->name,
+        ]);
+
+        $this->writeProvisioningLog('backup trace: request received', $traceContext + [
+            'switch_model' => $switchModel !== '' ? $switchModel : null,
+            'is_nexus' => $isNexus,
+            'script_name' => $scriptName,
+        ]);
+
         $scriptPath = $this->scriptPath($scriptName);
         if (!$scriptPath) {
+            $this->writeProvisioningLog('backup trace: backup script missing', $traceContext + [
+                'script_name' => $scriptName,
+            ]);
+
             return [
                 'ok' => false,
                 'status' => 404,
@@ -889,14 +909,31 @@ class ScriptController extends Controller
             data_get($cisco, 'folder_location'),
             data_get($device->metadata ?? [], 'folder_location')
         );
+        $usedFallbackLocation = false;
 
         if (!$location) {
             $fallbackName = data_get($cisco, 'name') ?? $device->name ?? 'device';
             $fallbackSlug = preg_replace('/\s+/', '_', trim((string) $fallbackName));
             $location = 'uno/' . ($fallbackSlug !== '' ? $fallbackSlug : 'device');
+            $usedFallbackLocation = true;
         }
 
+        $this->writeProvisioningLog('backup trace: resolved backup inputs', $traceContext + [
+            'script_name' => $scriptName,
+            'script_path' => $scriptPath,
+            'switch_model' => $switchModel !== '' ? $switchModel : null,
+            'is_nexus' => $isNexus,
+            'switch_ip' => $ip,
+            'location' => $location,
+            'location_source' => $usedFallbackLocation ? 'fallback' : 'configured',
+            'password_present' => $password !== null && $password !== '',
+            'enable_password_present' => $enablePassword !== null && $enablePassword !== '',
+            'username_present' => $username !== null && $username !== '',
+        ]);
+
         if (!$ip || !$password) {
+            $this->writeProvisioningLog('backup trace: validation failed - missing IP or password', $traceContext);
+
             return [
                 'ok' => false,
                 'status' => 400,
@@ -907,7 +944,9 @@ class ScriptController extends Controller
 
         if ($isNexus) {
             if (!$username) {
-        return [
+                $this->writeProvisioningLog('backup trace: validation failed - missing Nexus username', $traceContext);
+
+                return [
                     'ok' => false,
                     'status' => 400,
                     'message' => 'Missing switch username for Nexus backup.',
@@ -915,10 +954,23 @@ class ScriptController extends Controller
                 ];
             }
 
-            return $this->runProcess(['bash', $scriptPath, $ip, $username, $password, $location]);
+            $command = ['bash', $scriptPath, $ip, $username, $password, $location];
+
+            return $this->runProcess($command, [], $traceContext + [
+                'script_name' => $scriptName,
+                'script_path' => $scriptPath,
+                'switch_model' => $switchModel !== '' ? $switchModel : null,
+                'is_nexus' => true,
+                'switch_ip' => $ip,
+                'location' => $location,
+                'command' => $this->redactBackupCommand($command, true),
+                'secret_values' => array_values(array_filter([$password])),
+            ]);
         }
 
         if (!$enablePassword) {
+            $this->writeProvisioningLog('backup trace: validation failed - missing enable password', $traceContext);
+
             return [
                 'ok' => false,
                 'status' => 400,
@@ -927,10 +979,21 @@ class ScriptController extends Controller
             ];
         }
 
-        return $this->runProcess(['bash', $scriptPath, $ip, $password, $enablePassword, $location]);
+        $command = ['bash', $scriptPath, $ip, $password, $enablePassword, $location];
+
+        return $this->runProcess($command, [], $traceContext + [
+            'script_name' => $scriptName,
+            'script_path' => $scriptPath,
+            'switch_model' => $switchModel !== '' ? $switchModel : null,
+            'is_nexus' => false,
+            'switch_ip' => $ip,
+            'location' => $location,
+            'command' => $this->redactBackupCommand($command, false),
+            'secret_values' => array_values(array_filter([$password, $enablePassword])),
+        ]);
     }
 
-    private function runProcess(array $command, array $env = []): array
+    private function runProcess(array $command, array $env = [], ?array $provisioningTrace = null): array
     {
         $process = new Process($command, base_path());
         $process->setTimeout(180);
@@ -939,14 +1002,79 @@ class ScriptController extends Controller
             static fn ($value) => is_scalar($value) || $value === null
         );
         $process->setEnv(array_merge($baseEnv, $env));
+        $startedAt = microtime(true);
+        $traceContext = $provisioningTrace ? $this->withoutProvisioningSecrets($provisioningTrace) : null;
+        $secretValues = array_values(array_filter($provisioningTrace['secret_values'] ?? []));
+        $partialLines = ['stdout' => '', 'stderr' => ''];
 
-        $process->run();
+        if ($traceContext) {
+            $this->writeProvisioningLog('backup trace: launching process', $traceContext + [
+                'timeout_seconds' => 180,
+                'env_keys' => array_values(array_keys($env)),
+            ]);
+        }
+
+        try {
+            $process->run(function (string $type, string $buffer) use (&$partialLines, $secretValues, $traceContext): void {
+                if (!$traceContext) {
+                    return;
+                }
+
+                $stream = $type === Process::ERR ? 'stderr' : 'stdout';
+                $partialLines[$stream] .= $this->redactProvisioningText($buffer, $secretValues);
+                $normalized = str_replace(["\r\n", "\r"], "\n", $partialLines[$stream]);
+                $lines = explode("\n", $normalized);
+                $partialLines[$stream] = array_pop($lines);
+
+                foreach ($lines as $line) {
+                    $line = trim($line);
+                    if ($line === '') {
+                        continue;
+                    }
+
+                    $this->writeProvisioningLog("backup trace {$stream}: {$line}", $traceContext);
+                }
+            });
+        } catch (\Throwable $e) {
+            if ($traceContext) {
+                $this->writeProvisioningLog('backup trace: process threw an exception', $traceContext + [
+                    'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
+                    'error' => $e->getMessage(),
+                ]);
+            }
+
+            return [
+                'ok' => false,
+                'status' => 500,
+                'message' => 'Script execution failed.',
+                'output' => $e->getMessage(),
+            ];
+        }
+
+        if ($traceContext) {
+            foreach ($partialLines as $stream => $line) {
+                $line = trim($line);
+                if ($line === '') {
+                    continue;
+                }
+
+                $this->writeProvisioningLog("backup trace {$stream}: {$line}", $traceContext);
+            }
+        }
 
         $output = $process->getOutput();
         $errorOutput = $process->getErrorOutput();
-        $payload = trim($output . ($errorOutput ? "\n" . $errorOutput : ''));
+        $payload = trim($this->redactProvisioningText($output . ($errorOutput ? "\n" . $errorOutput : ''), $secretValues));
+        $durationMs = (int) round((microtime(true) - $startedAt) * 1000);
 
         if (!$process->isSuccessful()) {
+            if ($traceContext) {
+                $this->writeProvisioningLog('backup trace: process failed', $traceContext + [
+                    'duration_ms' => $durationMs,
+                    'exit_code' => $process->getExitCode(),
+                ]);
+            }
+
             return [
                 'ok' => false,
                 'status' => 500,
@@ -955,12 +1083,91 @@ class ScriptController extends Controller
             ];
         }
 
+        if ($traceContext) {
+            $this->writeProvisioningLog('backup trace: process completed', $traceContext + [
+                'duration_ms' => $durationMs,
+                'exit_code' => $process->getExitCode(),
+            ]);
+        }
+
         return [
             'ok' => true,
             'status' => 200,
             'message' => 'Backup completed.',
             'output' => $payload,
         ];
+    }
+
+    private function provisioningLogEnabled(): bool
+    {
+        return (bool) Cache::get('provisioning_log_enabled', false);
+    }
+
+    private function writeProvisioningLog(string $message, array $context = []): void
+    {
+        if (!$this->provisioningLogEnabled()) {
+            return;
+        }
+
+        try {
+            Log::build([
+                'driver' => 'single',
+                'path' => storage_path('logs/provisioning.log'),
+                'level' => 'debug',
+            ])->debug($message, $context);
+        } catch (\Throwable $e) {
+            // ignore logging failures
+        }
+    }
+
+    private function backupTraceContext(Device $device, array $context = []): array
+    {
+        return $context + [
+            'device_id' => $device->id,
+            'device_name' => $device->name,
+            'device_type' => $device->type,
+        ];
+    }
+
+    private function redactBackupCommand(array $command, bool $isNexus): array
+    {
+        $redacted = $command;
+
+        if ($isNexus) {
+            if (isset($redacted[4])) {
+                $redacted[4] = '[REDACTED]';
+            }
+        } else {
+            if (isset($redacted[3])) {
+                $redacted[3] = '[REDACTED]';
+            }
+
+            if (isset($redacted[4])) {
+                $redacted[4] = '[REDACTED]';
+            }
+        }
+
+        return $redacted;
+    }
+
+    private function withoutProvisioningSecrets(array $context): array
+    {
+        unset($context['secret_values']);
+
+        return $context;
+    }
+
+    private function redactProvisioningText(string $text, array $secretValues): string
+    {
+        foreach ($secretValues as $secret) {
+            if (!is_string($secret) || $secret === '') {
+                continue;
+            }
+
+            $text = str_replace($secret, '[REDACTED]', $text);
+        }
+
+        return $text;
     }
 
     private function runPollerScript(): array
