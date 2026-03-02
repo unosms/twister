@@ -21,7 +21,6 @@ class DeviceController extends Controller
     private const TEMP_POLL_MINUTES_DEFAULT = 1;
     private const SERVER_SERVICE_OPTIONS = [
         'web',
-        'mysql',
         'astra',
         'hls_restream',
         'xtream',
@@ -40,6 +39,39 @@ class DeviceController extends Controller
         'crm',
         'vmware',
         'vnc',
+    ];
+    private const SERVER_WEB_AUTH_SERVICE_OPTIONS = [
+        'web',
+        'log',
+        'middleware',
+        'radius',
+        'vertiofiber',
+        'netplay',
+        'hls_restream',
+        'xtream',
+        'voip',
+        'stock_management',
+        'crm',
+        'vmware',
+    ];
+    private const SERVER_WEB_ADDRESS_SERVICE_OPTIONS = [
+        'web',
+        'log',
+        'middleware',
+        'radius',
+        'vertiofiber',
+        'netplay',
+        'hls_restream',
+        'xtream',
+        'voip',
+        'stock_management',
+        'crm',
+        'vmware',
+        'speedtest',
+    ];
+    private const CISCO_MODELS_WITHOUT_USERNAME = [
+        '3560',
+        '4948',
     ];
     private const SERVER_TYPE_OPTIONS = [
         'virtual_server',
@@ -311,7 +343,13 @@ class DeviceController extends Controller
             'server_password' => ['nullable', 'string', 'max:255'],
             'server_service' => ['nullable', 'array', 'min:1'],
             'server_service.*' => ['string', 'max:100', Rule::in(self::SERVER_SERVICE_OPTIONS)],
-            'server_web_address_port' => ['nullable', 'string', 'max:500'],
+            'server_web_address_port' => [
+                'nullable',
+                'string',
+                'max:500',
+                Rule::requiredIf(fn () => strtoupper((string) $request->input('type')) === 'SERVER'
+                    && $this->serverServiceRequiresWebAddress($request->input('server_service'))),
+            ],
             'server_web_username' => ['nullable', 'string', 'max:255'],
             'server_web_password' => ['nullable', 'string', 'max:255'],
             'server_vnc_address_port' => ['nullable', 'string', 'max:500'],
@@ -389,7 +427,9 @@ class DeviceController extends Controller
                 'name' => $switchName,
                 'switch_model' => $switchModel,
                 'ip_address' => $ipAddress,
-                'username' => $data['cisco_username'] ?? null,
+                'username' => $this->ciscoModelUsesUsername($switchModel)
+                    ? $this->normalizeOptionalString($data['cisco_username'] ?? null)
+                    : null,
                 'password' => !empty($data['cisco_password']) ? encrypt($data['cisco_password']) : null,
                 'enable_password' => !empty($data['enable_password']) ? encrypt($data['enable_password']) : null,
                 'temp_poll_minutes' => (int) ($data['temp_poll_minutes'] ?? self::TEMP_POLL_MINUTES_DEFAULT),
@@ -401,6 +441,9 @@ class DeviceController extends Controller
             ];
             if ($snmpPort !== null) {
                 $meta['cisco']['snmp_port'] = $snmpPort;
+            }
+            if (!$this->ciscoModelUsesUsername($switchModel)) {
+                unset($meta['cisco']['username']);
             }
 
             if ($switchModel) {
@@ -448,6 +491,8 @@ class DeviceController extends Controller
             $serverSshPort = isset($data['server_ssh_port']) && is_numeric($data['server_ssh_port'])
                 ? (int) $data['server_ssh_port']
                 : null;
+            $requiresWebAddress = $this->serverServiceRequiresWebAddress($serverServices);
+            $requiresWebCredentials = $this->serverServiceRequiresWebCredentials($serverServices);
 
             $serverMeta = [
                 'server_type' => $serverType,
@@ -456,8 +501,6 @@ class DeviceController extends Controller
                 'username' => $serverUsername,
                 'service' => $serverPrimaryService,
                 'services' => $serverServices,
-                'web_address_port' => $this->normalizeOptionalString($data['server_web_address_port'] ?? null),
-                'web_username' => $this->normalizeOptionalString($data['server_web_username'] ?? null),
                 'ssh_port' => $serverSshPort,
                 'ip_address' => $ipAddress,
                 'snmp_community' => $snmpCommunity,
@@ -466,6 +509,12 @@ class DeviceController extends Controller
 
             if ($serverPassword !== null) {
                 $serverMeta['password'] = encrypt($serverPassword);
+            }
+            if ($requiresWebAddress) {
+                $serverMeta['web_address_port'] = $this->normalizeOptionalString($data['server_web_address_port'] ?? null);
+            }
+            if ($requiresWebCredentials) {
+                $serverMeta['web_username'] = $this->normalizeOptionalString($data['server_web_username'] ?? null);
             }
 
             if (in_array('vnc', $serverServices, true)) {
@@ -480,7 +529,7 @@ class DeviceController extends Controller
                 $serverMeta['rack_uid'] = $this->normalizeOptionalString($data['server_rack_uid'] ?? null);
             }
 
-            if (!empty($data['server_web_password'])) {
+            if ($requiresWebCredentials && !empty($data['server_web_password'])) {
                 $serverMeta['web_password'] = encrypt($data['server_web_password']);
             }
 
@@ -604,7 +653,13 @@ class DeviceController extends Controller
             'server_name' => ['nullable', 'string', 'max:255', 'required_if:type,SERVER'],
             'server_service' => ['nullable', 'array', 'required_if:type,SERVER', 'min:1'],
             'server_service.*' => ['string', 'max:100', Rule::in(self::SERVER_SERVICE_OPTIONS)],
-            'server_web_address_port' => ['nullable', 'string', 'max:500', 'required_if:type,SERVER'],
+            'server_web_address_port' => [
+                'nullable',
+                'string',
+                'max:500',
+                Rule::requiredIf(fn () => strtoupper((string) $request->input('type', $device->type ?? '')) === 'SERVER'
+                    && $this->serverServiceRequiresWebAddress($request->input('server_service'))),
+            ],
             'server_web_username' => ['nullable', 'string', 'max:255'],
             'server_web_password' => ['nullable', 'string', 'max:255'],
             'server_vnc_address_port' => [
@@ -676,7 +731,12 @@ class DeviceController extends Controller
         if ($type === 'CISCO') {
             $cisco = data_get($meta, 'cisco', []);
             $cisco['ip_address'] = $ipAddress ?? ($cisco['ip_address'] ?? null);
-            $cisco['username'] = $this->normalizeOptionalString($data['cisco_username'] ?? null) ?? ($cisco['username'] ?? null);
+            $ciscoModel = $this->normalizeOptionalString($cisco['switch_model'] ?? $updatedModel);
+            if ($this->ciscoModelUsesUsername($ciscoModel)) {
+                $cisco['username'] = $this->normalizeOptionalString($data['cisco_username'] ?? null) ?? ($cisco['username'] ?? null);
+            } else {
+                unset($cisco['username']);
+            }
             if ($snmpCommunity !== null) {
                 $cisco['snmp_community'] = $snmpCommunity;
             } else {
@@ -711,14 +771,24 @@ class DeviceController extends Controller
                 ?: ($server['server_name'] ?? null);
             $serverServices = $this->normalizeServerServices($data['server_service'] ?? []);
             $serverPrimaryService = $serverServices[0] ?? null;
+            $requiresWebAddress = $this->serverServiceRequiresWebAddress($serverServices);
+            $requiresWebCredentials = $this->serverServiceRequiresWebCredentials($serverServices);
             $server['server_type'] = $serverType;
             $server['hardware_specs'] = $this->normalizeOptionalString($data['server_hardware_specs'] ?? null);
             $server['server_name'] = $serverName;
             $server['service'] = $serverPrimaryService;
             $server['services'] = $serverServices;
-            $server['web_address_port'] = $this->normalizeOptionalString($data['server_web_address_port'] ?? null);
-            $server['web_username'] = $this->normalizeOptionalString($data['server_web_username'] ?? null);
             $server['ip_address'] = $ipAddress;
+            if ($requiresWebAddress) {
+                $server['web_address_port'] = $this->normalizeOptionalString($data['server_web_address_port'] ?? null);
+            } else {
+                unset($server['web_address_port']);
+            }
+            if ($requiresWebCredentials) {
+                $server['web_username'] = $this->normalizeOptionalString($data['server_web_username'] ?? null);
+            } else {
+                unset($server['web_username'], $server['web_password']);
+            }
             if (isset($data['server_ssh_port']) && is_numeric($data['server_ssh_port'])) {
                 $server['ssh_port'] = (int) $data['server_ssh_port'];
             } else {
@@ -740,7 +810,7 @@ class DeviceController extends Controller
             } else {
                 unset($server['cabinet_id'], $server['rack_uid']);
             }
-            if (!empty($data['server_web_password'])) {
+            if ($requiresWebCredentials && !empty($data['server_web_password'])) {
                 $server['web_password'] = encrypt($data['server_web_password']);
             }
             if (in_array('vnc', $serverServices, true)) {
@@ -1247,12 +1317,13 @@ class DeviceController extends Controller
     private function validateCreateRequiredFields(string $type, array $data): array
     {
         return match (strtoupper(trim($type))) {
-            'CISCO' => $this->buildMissingFieldErrors([
+            'CISCO' => $this->buildMissingFieldErrors(array_filter([
                 'cisco_name' => ['label' => 'Device name', 'value' => $data['cisco_name'] ?? null],
                 'ip_address' => ['label' => 'IP address', 'value' => $data['ip_address'] ?? null],
                 'cisco_username' => ['label' => 'Username', 'value' => $data['cisco_username'] ?? null],
                 'cisco_password' => ['label' => 'Password', 'value' => $data['cisco_password'] ?? null],
-            ]),
+            ], fn (mixed $field, string $key) => $key !== 'cisco_username'
+                || $this->ciscoModelUsesUsername($data['switch_model'] ?? null), ARRAY_FILTER_USE_BOTH)),
             'MIMOSA' => $this->buildMissingFieldErrors([
                 'mimosa_' . $this->resolveMimosaFormKey($data['mimosa_model'] ?? null) . '_name' => [
                     'label' => 'Device name',
@@ -1346,6 +1417,35 @@ class DeviceController extends Controller
         }
 
         return array_values(array_unique($services));
+    }
+
+    private function ciscoModelUsesUsername(mixed $value): bool
+    {
+        $normalized = strtoupper(trim((string) $value));
+
+        return !in_array($normalized, self::CISCO_MODELS_WITHOUT_USERNAME, true);
+    }
+
+    private function serverServiceRequiresWebAddress(mixed $value): bool
+    {
+        foreach ($this->normalizeServerServices($value) as $service) {
+            if (in_array($service, self::SERVER_WEB_ADDRESS_SERVICE_OPTIONS, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function serverServiceRequiresWebCredentials(mixed $value): bool
+    {
+        foreach ($this->normalizeServerServices($value) as $service) {
+            if (in_array($service, self::SERVER_WEB_AUTH_SERVICE_OPTIONS, true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function typeUsesSerialNumber(string $type): bool

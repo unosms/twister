@@ -1,7 +1,6 @@
 @php
 $serverServiceOptions = [
     'web',
-    'mysql',
     'astra',
     'hls_restream',
     'xtream',
@@ -21,6 +20,8 @@ $serverServiceOptions = [
     'vmware',
     'vnc',
 ];
+$serverWebCredentialServicesLabel = 'Web, Log, Middleware, Radius, Vertiofiber, Netplay, Hls Restream, Xtream, VoIP, Stock Management, CRM, VMware';
+$serverWebAddressServicesLabel = $serverWebCredentialServicesLabel . ', Speedtest';
 $oldServerServices = old('server_service', []);
 if (!is_array($oldServerServices)) {
     $oldServerServices = [$oldServerServices];
@@ -73,7 +74,7 @@ $oldServerServices = array_values(array_filter(array_map(
 </div>
 <div class="flex flex-col gap-2">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Switch Model</label>
-<select class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="switch_model">
+<select class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="switch_model" data-cisco-switch-model>
 <option value="">--Select Model--</option>
 <option value="Nexus">Nexus</option>
 <option value="4948">4948</option>
@@ -85,7 +86,7 @@ $oldServerServices = array_values(array_filter(array_map(
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">IP Address *</label>
 <input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="ip_address" placeholder="e.g., 192.168.1.10" type="text" data-cisco-required/>
 </div>
-<div class="flex flex-col gap-2">
+<div class="flex flex-col gap-2" data-cisco-username-field>
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Username *</label>
 <input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="cisco_username" placeholder="e.g., admin" type="text" data-cisco-required/>
 </div>
@@ -203,11 +204,11 @@ $oldServerServices = array_values(array_filter(array_map(
 </div>
 <p class="text-[11px] text-gray-400">Select one or more services.</p>
 </div>
-<div class="flex flex-col gap-2 hidden" data-server-vnc-field><label class="text-sm font-semibold text-gray-600 dark:text-gray-300">VNC Address and Port</label><input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_vnc_address_port" placeholder="e.g., 192.168.1.20:5900" type="text" disabled/></div>
-<div class="flex flex-col gap-2 hidden" data-server-vnc-field><label class="text-sm font-semibold text-gray-600 dark:text-gray-300">VNC Password</label><input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_vnc_password" placeholder="********" type="password" disabled/></div>
-<div class="flex flex-col gap-2"><label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server Web Address and Port</label><input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_web_address_port" placeholder="e.g., https://example.com:8080" type="text" disabled/></div>
-<div class="flex flex-col gap-2"><label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server Web Username</label><input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_web_username" placeholder="e.g., admin" type="text" disabled/></div>
-<div class="flex flex-col gap-2"><label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server Web Password</label><input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_web_password" placeholder="********" type="password" disabled/></div>
+<div class="flex flex-col gap-2 hidden" data-server-vnc-field><label class="text-sm font-semibold text-gray-600 dark:text-gray-300">VNC IP (VNC)</label><input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_vnc_address_port" placeholder="e.g., 192.168.1.20" type="text" disabled/></div>
+<div class="flex flex-col gap-2 hidden" data-server-vnc-field><label class="text-sm font-semibold text-gray-600 dark:text-gray-300">VNC Password (VNC)</label><input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_vnc_password" placeholder="********" type="password" disabled/></div>
+<div class="flex flex-col gap-2 hidden" data-server-web-address-field><label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server Web Address and Port ({{ $serverWebAddressServicesLabel }})</label><input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_web_address_port" placeholder="e.g., https://example.com:8080" type="text" data-server-web-address-required disabled/></div>
+<div class="flex flex-col gap-2 hidden" data-server-web-auth-field><label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server Web Username ({{ $serverWebCredentialServicesLabel }})</label><input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_web_username" placeholder="e.g., admin" type="text" disabled/></div>
+<div class="flex flex-col gap-2 hidden" data-server-web-auth-field><label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server Web Password ({{ $serverWebCredentialServicesLabel }})</label><input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_web_password" placeholder="********" type="password" disabled/></div>
 <div class="flex flex-col gap-2"><label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server SSH Port</label><input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_ssh_port" type="number" min="1" max="65535" placeholder="22" disabled/></div>
 <div class="flex flex-col gap-2 hidden" data-server-standalone-field><label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Cabinet ID</label><input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_cabinet_id" type="text" placeholder="e.g., CAB-01" disabled/></div>
 <div class="flex flex-col gap-2 hidden" data-server-standalone-field><label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Rack UID</label><input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_rack_uid" type="text" placeholder="e.g., RACK-U12" disabled/></div>

@@ -149,7 +149,6 @@ Export
 @php
 $serverServiceOptions = [
     'web',
-    'mysql',
     'astra',
     'hls_restream',
     'xtream',
@@ -169,12 +168,13 @@ $serverServiceOptions = [
     'vmware',
     'vnc',
 ];
+$serverWebCredentialServicesLabel = 'Web, Log, Middleware, Radius, Vertiofiber, Netplay, Hls Restream, Xtream, VoIP, Stock Management, CRM, VMware';
+$serverWebAddressServicesLabel = $serverWebCredentialServicesLabel . ', Speedtest';
 @endphp
 @if (false)
 @php
 $serverServiceOptions = [
     'web',
-    'mysql',
     'astra',
     'hls_restream',
     'xtream',
@@ -778,8 +778,8 @@ $isSelected = isset($selectedDevice) && $selectedDevice && $selectedDevice->id =
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">SNMP Port</label>
 <input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="snmp_port" type="number" min="1" max="65535" value="{{ data_get($device->metadata, 'snmp_port') ?? data_get($device->metadata, 'server.snmp_port') ?? data_get($device->metadata, 'mikrotik.snmp_port') ?? '' }}"/>
 </div>
-<div class="contents" data-device-edit-cisco-fields>
-<div class="flex flex-col gap-2">
+<div class="contents" data-device-edit-cisco-fields data-device-edit-cisco-model="{{ data_get($device->metadata, 'cisco.switch_model') ?? $device->model ?? '' }}">
+<div class="flex flex-col gap-2" data-device-edit-cisco-username-field>
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Cisco Username</label>
 <input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="cisco_username" type="text" value="{{ data_get($device->metadata, 'cisco.username') ?? '' }}"/>
 </div>
@@ -841,23 +841,23 @@ $selectedServerServices = array_values(array_filter(array_map(
 <p class="text-[11px] text-gray-400">Select one or more services.</p>
 </div>
 <div class="flex flex-col gap-2 hidden" data-device-edit-server-vnc-field>
-<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">VNC Address and Port</label>
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">VNC IP (VNC)</label>
 <input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_vnc_address_port" type="text" value="{{ data_get($device->metadata, 'server.vnc_address_port') ?? '' }}" data-device-edit-server-vnc-required/>
 </div>
 <div class="flex flex-col gap-2 hidden" data-device-edit-server-vnc-field>
-<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">VNC Password</label>
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">VNC Password (VNC)</label>
 <input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_vnc_password" type="password" placeholder="Leave blank to keep"/>
 </div>
-<div class="flex flex-col gap-2">
-<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server Web Address and Port</label>
-<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_web_address_port" type="text" value="{{ data_get($device->metadata, 'server.web_address_port') ?? '' }}" data-device-edit-server-required/>
+<div class="flex flex-col gap-2 hidden" data-device-edit-server-web-address-field>
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server Web Address and Port ({{ $serverWebAddressServicesLabel }})</label>
+<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_web_address_port" type="text" value="{{ data_get($device->metadata, 'server.web_address_port') ?? '' }}" data-device-edit-server-web-address-required/>
 </div>
-<div class="flex flex-col gap-2">
-<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server Web Username</label>
+<div class="flex flex-col gap-2 hidden" data-device-edit-server-web-auth-field>
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server Web Username ({{ $serverWebCredentialServicesLabel }})</label>
 <input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_web_username" type="text" value="{{ data_get($device->metadata, 'server.web_username') ?? '' }}"/>
 </div>
-<div class="flex flex-col gap-2">
-<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server Web Password</label>
+<div class="flex flex-col gap-2 hidden" data-device-edit-server-web-auth-field>
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server Web Password ({{ $serverWebCredentialServicesLabel }})</label>
 <input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_web_password" type="password" placeholder="Leave blank to keep"/>
 </div>
 <div class="flex flex-col gap-2">

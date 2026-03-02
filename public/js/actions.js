@@ -24,6 +24,36 @@
   const mobileLayoutStyleId = 'mobile-layout-style';
   const mobileSidebarClass = 'sidebar-mobile-open';
   const mobileBreakpointPx = 1023;
+  const ciscoModelsWithoutUsername = new Set(['3560', '4948']);
+  const serverWebAuthServices = new Set([
+    'web',
+    'log',
+    'middleware',
+    'radius',
+    'vertiofiber',
+    'netplay',
+    'hls_restream',
+    'xtream',
+    'voip',
+    'stock_management',
+    'crm',
+    'vmware',
+  ]);
+  const serverWebAddressServices = new Set([
+    'web',
+    'log',
+    'middleware',
+    'radius',
+    'vertiofiber',
+    'netplay',
+    'hls_restream',
+    'xtream',
+    'voip',
+    'stock_management',
+    'crm',
+    'vmware',
+    'speedtest',
+  ]);
 
   const normalizeAction = (raw) => {
     if (!raw) {
@@ -34,6 +64,36 @@
       .replace(/[^a-z0-9]+/g, '_')
       .replace(/^_+|_+$/g, '');
   };
+
+  const normalizeServerService = (value) => {
+    const normalized = String(value || '')
+      .trim()
+      .toLowerCase();
+
+    if (!normalized) {
+      return '';
+    }
+
+    return normalized === 'netplat' ? 'netplay' : normalized;
+  };
+
+  const collectSelectedServerServices = ({ select = null, checkboxes = [] } = {}) =>
+    Array.from(
+      new Set(
+        [
+          ...(select
+            ? Array.from(select.selectedOptions || []).map((option) => normalizeServerService(option.value))
+            : []),
+          ...checkboxes.map((input) => (input.checked ? normalizeServerService(input.value) : '')),
+        ].filter((value) => value !== '')
+      )
+    );
+
+  const containsAnyService = (selectedServices, allowedServices) =>
+    selectedServices.some((service) => allowedServices.has(service));
+
+  const ciscoModelUsesUsername = (model) =>
+    !ciscoModelsWithoutUsername.has(String(model || '').trim().toUpperCase());
 
   const getActionFromElement = (element) => {
     if (!element) {
@@ -967,6 +1027,8 @@
       : [];
     const serverStandaloneFields = serverFields ? Array.from(serverFields.querySelectorAll('[data-server-standalone-field]')) : [];
     const serverVncFields = serverFields ? Array.from(serverFields.querySelectorAll('[data-server-vnc-field]')) : [];
+    const serverWebAddressFields = serverFields ? Array.from(serverFields.querySelectorAll('[data-server-web-address-field]')) : [];
+    const serverWebAuthFields = serverFields ? Array.from(serverFields.querySelectorAll('[data-server-web-auth-field]')) : [];
     const mimosaModel = document.querySelector('[data-mimosa-model]');
     if (!typeSelect || !ciscoFields) {
       return;
@@ -974,6 +1036,8 @@
 
     const requiredFields = Array.from(ciscoFields.querySelectorAll('[data-cisco-required]'));
     const ciscoInputs = Array.from(ciscoFields.querySelectorAll('input, select, textarea'));
+    const ciscoUsernameFields = Array.from(ciscoFields.querySelectorAll('[data-cisco-username-field]'));
+    const ciscoSwitchModel = ciscoFields.querySelector('[data-cisco-switch-model]');
     const ciscoName = ciscoFields.querySelector('[data-cisco-name]');
     const shbackup = ciscoFields.querySelector('[data-cisco-shbackup]');
     const execCmd = ciscoFields.querySelector('[data-cisco-exec]');
@@ -1080,6 +1144,7 @@
         field.required = true;
       });
       updateAutoFields();
+      toggleCiscoUsernameFields();
     };
 
     const resetCiscoInputs = () => {
@@ -1110,6 +1175,24 @@
       if (reset) {
         resetCiscoInputs();
       }
+    };
+
+    const toggleCiscoUsernameFields = () => {
+      const isCiscoVisible = !ciscoFields.classList.contains('hidden');
+      const showUsername = isCiscoVisible && ciscoModelUsesUsername(ciscoSwitchModel?.value || '');
+
+      ciscoUsernameFields.forEach((group) => {
+        group.classList.toggle('hidden', !showUsername);
+        group.querySelectorAll('input, select, textarea').forEach((field) => {
+          if (!showUsername) {
+            field.value = '';
+          }
+          field.disabled = !showUsername;
+        });
+        group.querySelectorAll('[data-cisco-required]').forEach((field) => {
+          field.required = showUsername;
+        });
+      });
     };
 
     const showMimosaForm = () => {
@@ -1194,14 +1277,12 @@
         return;
       }
       const isServerVisible = !serverFields.classList.contains('hidden');
-      const selectedServices = [
-        ...(serverServiceSelect
-          ? Array.from(serverServiceSelect.selectedOptions || []).map((option) =>
-              String(option.value || '').toLowerCase()
-            )
-          : []),
-        ...serverServiceCheckboxes.map((input) => (input.checked ? String(input.value || '').toLowerCase() : '')),
-      ].filter((value) => value !== '');
+      const selectedServices = collectSelectedServerServices({
+        select: serverServiceSelect,
+        checkboxes: serverServiceCheckboxes,
+      });
+      const showWebAddress = isServerVisible && containsAnyService(selectedServices, serverWebAddressServices);
+      const showWebAuth = isServerVisible && containsAnyService(selectedServices, serverWebAuthServices);
       const isVnc = isServerVisible && selectedServices.includes('vnc');
 
       serverVncFields.forEach((group) => {
@@ -1211,6 +1292,21 @@
         });
         group.querySelectorAll('[data-server-vnc-required]').forEach((field) => {
           field.required = isVnc;
+        });
+      });
+      serverWebAddressFields.forEach((group) => {
+        group.classList.toggle('hidden', !showWebAddress);
+        group.querySelectorAll('input, select, textarea').forEach((field) => {
+          field.disabled = !showWebAddress;
+        });
+        group.querySelectorAll('[data-server-web-address-required]').forEach((field) => {
+          field.required = showWebAddress;
+        });
+      });
+      serverWebAuthFields.forEach((group) => {
+        group.classList.toggle('hidden', !showWebAuth);
+        group.querySelectorAll('input, select, textarea').forEach((field) => {
+          field.disabled = !showWebAuth;
         });
       });
     };
@@ -1385,6 +1481,9 @@
 
     if (ciscoName) {
       ciscoName.addEventListener('input', updateAutoFields);
+    }
+    if (ciscoSwitchModel) {
+      ciscoSwitchModel.addEventListener('change', toggleCiscoUsernameFields);
     }
 
     if (mimosaModel) {
@@ -1763,9 +1862,13 @@
       const serverServiceCheckboxes = Array.from(form.querySelectorAll('[data-device-edit-server-service-option]'));
       const serverStandaloneFields = Array.from(form.querySelectorAll('[data-device-edit-server-standalone-field]'));
       const serverVncFields = Array.from(form.querySelectorAll('[data-device-edit-server-vnc-field]'));
+      const serverWebAddressFields = Array.from(form.querySelectorAll('[data-device-edit-server-web-address-field]'));
+      const serverWebAuthFields = Array.from(form.querySelectorAll('[data-device-edit-server-web-auth-field]'));
       const genericIpField = form.querySelector('[data-device-edit-generic-ip-field]');
       const snmpCommunityField = form.querySelector('[data-device-edit-snmp-community-field]');
       const snmpPortField = form.querySelector('[data-device-edit-snmp-port-field]');
+      const ciscoUsernameFields = Array.from(form.querySelectorAll('[data-device-edit-cisco-username-field]'));
+      const ciscoModel = String(ciscoFields?.dataset.deviceEditCiscoModel || '');
 
       const toggleServerStandalone = (serverVisible) => {
         const selectedType = String(serverTypeSelect?.value || 'virtual_server').toLowerCase();
@@ -1783,14 +1886,12 @@
       };
 
       const toggleServerVnc = (serverVisible) => {
-        const selectedServices = [
-          ...(serverServiceSelect
-            ? Array.from(serverServiceSelect.selectedOptions || []).map((option) =>
-                String(option.value || '').toLowerCase()
-              )
-            : []),
-          ...serverServiceCheckboxes.map((input) => (input.checked ? String(input.value || '').toLowerCase() : '')),
-        ].filter((value) => value !== '');
+        const selectedServices = collectSelectedServerServices({
+          select: serverServiceSelect,
+          checkboxes: serverServiceCheckboxes,
+        });
+        const showWebAddress = serverVisible && containsAnyService(selectedServices, serverWebAddressServices);
+        const showWebAuth = serverVisible && containsAnyService(selectedServices, serverWebAuthServices);
         const isVnc = serverVisible && selectedServices.includes('vnc');
 
         serverVncFields.forEach((group) => {
@@ -1802,11 +1903,38 @@
             field.required = isVnc;
           });
         });
+        serverWebAddressFields.forEach((group) => {
+          group.classList.toggle('hidden', !showWebAddress);
+          group.querySelectorAll('input, select, textarea').forEach((field) => {
+            field.disabled = !showWebAddress;
+          });
+          group.querySelectorAll('[data-device-edit-server-web-address-required]').forEach((field) => {
+            field.required = showWebAddress;
+          });
+        });
+        serverWebAuthFields.forEach((group) => {
+          group.classList.toggle('hidden', !showWebAuth);
+          group.querySelectorAll('input, select, textarea').forEach((field) => {
+            field.disabled = !showWebAuth;
+          });
+        });
+      };
+
+      const toggleCiscoUsername = (ciscoVisible) => {
+        const showUsername = ciscoVisible && ciscoModelUsesUsername(ciscoModel);
+
+        ciscoUsernameFields.forEach((group) => {
+          group.classList.toggle('hidden', !showUsername);
+          group.querySelectorAll('input, select, textarea').forEach((field) => {
+            field.disabled = !showUsername;
+          });
+        });
       };
 
       const updateType = () => {
         const type = (typeSelect.value || '').toUpperCase();
         const isCisco = type === 'CISCO';
+        const isMimosa = type === 'MIMOSA';
         const isServer = type === 'SERVER';
         const isOlt = type === 'OLT';
         const isMikrotik = type === 'MIKROTIK';
@@ -1817,6 +1945,7 @@
         toggleGroup(serverFields, isServer, 'data-device-edit-server-required');
         toggleGroup(oltFields, isOlt, 'data-device-edit-olt-required');
         toggleGroup(mikrotikFields, isMikrotik, 'data-device-edit-mikrotik-required');
+        toggleCiscoUsername(isCisco);
         toggleServerStandalone(isServer);
         toggleServerVnc(isServer);
         toggleGroup(commonNameField, showCommonName, 'data-device-edit-common-name-required');

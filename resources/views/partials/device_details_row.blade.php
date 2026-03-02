@@ -37,6 +37,8 @@ $mimosaPasswordEncrypted = data_get($mimosa, 'password')
 $switchName = data_get($cisco, 'name') ?? $mimosaName ?? data_get($olt, 'name') ?? data_get($mikrotik, 'name') ?? data_get($server, 'server_name') ?? $device->name;
 $typeDisplay = $device->type ?? data_get($cisco, 'type') ?? '-';
 $subtypeDisplay = $device->model ?? data_get($cisco, 'switch_model') ?? '-';
+$ciscoModel = strtoupper(trim((string) ($subtypeDisplay ?? '')));
+$ciscoUsesUsername = !in_array($ciscoModel, ['3560', '4948'], true);
 $ipAddress = data_get($cisco, 'ip_address')
     ?? data_get($olt, 'ip_address')
     ?? data_get($mikrotik, 'ip_address')
@@ -51,7 +53,7 @@ $username = match ($typeKey) {
     'OLT' => data_get($olt, 'username'),
     'MIMOSA' => $mimosaUsername,
     'SERVER' => data_get($server, 'username') ?? data_get($server, 'web_username'),
-    default => data_get($cisco, 'username'),
+    default => $ciscoUsesUsername ? data_get($cisco, 'username') : null,
 };
 $typePassword = match ($typeKey) {
     'MIKROTIK' => $decryptValue(data_get($mikrotik, 'password')),
