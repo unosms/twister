@@ -168,8 +168,33 @@ $serverServiceOptions = [
     'vmware',
     'vnc',
 ];
-$serverWebCredentialServicesLabel = 'Web, Log, Middleware, Radius, Vertiofiber, Netplay, Hls Restream, Xtream, VoIP, Stock Management, CRM, VMware';
-$serverWebAddressServicesLabel = $serverWebCredentialServicesLabel . ', Speedtest';
+$serverServiceLabels = [
+    'web' => 'Web',
+    'astra' => 'Astra',
+    'hls_restream' => 'Hls Restream',
+    'xtream' => 'Xtream',
+    'log' => 'Log',
+    'middleware' => 'Middleware',
+    'radius' => 'Radius',
+    'vertiofiber' => 'Vertiofiber',
+    'netplay' => 'Netplay',
+    'speedtest' => 'Speedtest',
+    'tftp' => 'TFTP',
+    'storage' => 'Storage',
+    'rsyslog' => 'Rsyslog',
+    'dns' => 'DNS',
+    'voip' => 'VoIP',
+    'stock_management' => 'Stock Management',
+    'crm' => 'CRM',
+    'vmware' => 'VMware',
+    'vnc' => 'VNC',
+];
+$serverWebCredentialServices = ['web', 'log', 'middleware', 'radius', 'vertiofiber', 'netplay', 'hls_restream', 'xtream', 'voip', 'stock_management', 'crm', 'vmware'];
+$serverWebAddressServices = array_values(array_unique(array_merge($serverWebCredentialServices, ['speedtest'])));
+$serverServiceFieldOptions = array_values(array_filter(
+    $serverServiceOptions,
+    static fn ($service) => in_array($service, array_merge($serverWebAddressServices, ['vnc']), true)
+));
 @endphp
 @if (false)
 @php
@@ -810,6 +835,13 @@ $selectedServerServices = array_values(array_filter(array_map(
         : null,
     $selectedServerServices
 ), static fn ($service) => $service !== null && $service !== ''));
+$selectedServerServiceAccess = data_get($device->metadata, 'server.service_access');
+if (!is_array($selectedServerServiceAccess)) {
+    $selectedServerServiceAccess = [];
+}
+$legacyServerWebAddress = data_get($device->metadata, 'server.web_address_port');
+$legacyServerWebUsername = data_get($device->metadata, 'server.web_username');
+$legacyServerVncIp = data_get($device->metadata, 'server.vnc_address_port');
 @endphp
 <div class="md:col-span-2 hidden" data-device-edit-server-fields>
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-lg border border-[#dce3f2] dark:border-gray-700 p-4 bg-white/70 dark:bg-gray-900/30">
@@ -840,26 +872,59 @@ $selectedServerServices = array_values(array_filter(array_map(
 </div>
 <p class="text-[11px] text-gray-400">Select one or more services.</p>
 </div>
-<div class="flex flex-col gap-2 hidden" data-device-edit-server-vnc-field>
-<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">VNC IP (VNC)</label>
-<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_vnc_address_port" type="text" value="{{ data_get($device->metadata, 'server.vnc_address_port') ?? '' }}" data-device-edit-server-vnc-required/>
+@foreach ($serverServiceFieldOptions as $serviceOption)
+@php
+    $serviceLabel = $serverServiceLabels[$serviceOption] ?? ucwords(str_replace('_', ' ', $serviceOption));
+    $needsWebAddress = in_array($serviceOption, $serverWebAddressServices, true);
+    $needsWebCredentials = in_array($serviceOption, $serverWebCredentialServices, true);
+    $isVncService = $serviceOption === 'vnc';
+    $serviceAddressValue = data_get($selectedServerServiceAccess, $serviceOption . '.address_port');
+    if ($serviceAddressValue === null && $needsWebAddress) {
+        $serviceAddressValue = $legacyServerWebAddress;
+    }
+    $serviceUsernameValue = data_get($selectedServerServiceAccess, $serviceOption . '.username');
+    if ($serviceUsernameValue === null && $needsWebCredentials) {
+        $serviceUsernameValue = $legacyServerWebUsername;
+    }
+    $serviceVncIpValue = data_get($selectedServerServiceAccess, $serviceOption . '.vnc_ip');
+    if ($serviceVncIpValue === null && $isVncService) {
+        $serviceVncIpValue = $legacyServerVncIp;
+    }
+@endphp
+<div class="md:col-span-2 hidden rounded-lg border border-[#dce3f2] dark:border-gray-700 bg-white/70 dark:bg-gray-900/30 p-4" data-device-edit-server-service-fields="{{ $serviceOption }}">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div class="md:col-span-2">
+<p class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">{{ $serviceLabel }}</p>
 </div>
-<div class="flex flex-col gap-2 hidden" data-device-edit-server-vnc-field>
-<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">VNC Password (VNC)</label>
-<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_vnc_password" type="password" placeholder="Leave blank to keep"/>
+@if ($needsWebAddress)
+<div class="flex flex-col gap-2">
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server Web Address and Port ({{ $serviceLabel }})</label>
+<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_service_access[{{ $serviceOption }}][address_port]" type="text" value="{{ $serviceAddressValue ?? '' }}" data-device-edit-server-service-address-required/>
 </div>
-<div class="flex flex-col gap-2 hidden" data-device-edit-server-web-address-field>
-<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server Web Address and Port ({{ $serverWebAddressServicesLabel }})</label>
-<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_web_address_port" type="text" value="{{ data_get($device->metadata, 'server.web_address_port') ?? '' }}" data-device-edit-server-web-address-required/>
+@endif
+@if ($needsWebCredentials)
+<div class="flex flex-col gap-2">
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server Web Username ({{ $serviceLabel }})</label>
+<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_service_access[{{ $serviceOption }}][username]" type="text" value="{{ $serviceUsernameValue ?? '' }}"/>
 </div>
-<div class="flex flex-col gap-2 hidden" data-device-edit-server-web-auth-field>
-<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server Web Username ({{ $serverWebCredentialServicesLabel }})</label>
-<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_web_username" type="text" value="{{ data_get($device->metadata, 'server.web_username') ?? '' }}"/>
+<div class="flex flex-col gap-2">
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server Web Password ({{ $serviceLabel }})</label>
+<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_service_access[{{ $serviceOption }}][password]" type="password" placeholder="Leave blank to keep"/>
 </div>
-<div class="flex flex-col gap-2 hidden" data-device-edit-server-web-auth-field>
-<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server Web Password ({{ $serverWebCredentialServicesLabel }})</label>
-<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_web_password" type="password" placeholder="Leave blank to keep"/>
+@endif
+@if ($isVncService)
+<div class="flex flex-col gap-2">
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">VNC IP ({{ $serviceLabel }})</label>
+<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_service_access[{{ $serviceOption }}][vnc_ip]" type="text" value="{{ $serviceVncIpValue ?? '' }}" data-device-edit-server-service-vnc-required/>
 </div>
+<div class="flex flex-col gap-2">
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">VNC Password ({{ $serviceLabel }})</label>
+<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_service_access[{{ $serviceOption }}][vnc_password]" type="password" placeholder="Leave blank to keep"/>
+</div>
+@endif
+</div>
+</div>
+@endforeach
 <div class="flex flex-col gap-2">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server SSH Port</label>
 <input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_ssh_port" type="number" min="1" max="65535" value="{{ data_get($device->metadata, 'server.ssh_port') ?? '' }}" data-device-edit-server-required/>

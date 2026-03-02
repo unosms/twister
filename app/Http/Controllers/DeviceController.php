@@ -69,6 +69,27 @@ class DeviceController extends Controller
         'vmware',
         'speedtest',
     ];
+    private const SERVER_SERVICE_LABELS = [
+        'web' => 'Web',
+        'astra' => 'Astra',
+        'hls_restream' => 'Hls Restream',
+        'xtream' => 'Xtream',
+        'log' => 'Log',
+        'middleware' => 'Middleware',
+        'radius' => 'Radius',
+        'vertiofiber' => 'Vertiofiber',
+        'netplay' => 'Netplay',
+        'speedtest' => 'Speedtest',
+        'tftp' => 'TFTP',
+        'storage' => 'Storage',
+        'rsyslog' => 'Rsyslog',
+        'dns' => 'DNS',
+        'voip' => 'VoIP',
+        'stock_management' => 'Stock Management',
+        'crm' => 'CRM',
+        'vmware' => 'VMware',
+        'vnc' => 'VNC',
+    ];
     private const CISCO_MODELS_WITHOUT_USERNAME = [
         '3560',
         '4948',
@@ -343,17 +364,13 @@ class DeviceController extends Controller
             'server_password' => ['nullable', 'string', 'max:255'],
             'server_service' => ['nullable', 'array', 'min:1'],
             'server_service.*' => ['string', 'max:100', Rule::in(self::SERVER_SERVICE_OPTIONS)],
-            'server_web_address_port' => [
-                'nullable',
-                'string',
-                'max:500',
-                Rule::requiredIf(fn () => strtoupper((string) $request->input('type')) === 'SERVER'
-                    && $this->serverServiceRequiresWebAddress($request->input('server_service'))),
-            ],
-            'server_web_username' => ['nullable', 'string', 'max:255'],
-            'server_web_password' => ['nullable', 'string', 'max:255'],
-            'server_vnc_address_port' => ['nullable', 'string', 'max:500'],
-            'server_vnc_password' => ['nullable', 'string', 'max:255'],
+            'server_service_access' => ['nullable', 'array'],
+            'server_service_access.*' => ['nullable', 'array'],
+            'server_service_access.*.address_port' => ['nullable', 'string', 'max:500'],
+            'server_service_access.*.username' => ['nullable', 'string', 'max:255'],
+            'server_service_access.*.password' => ['nullable', 'string', 'max:255'],
+            'server_service_access.*.vnc_ip' => ['nullable', 'string', 'max:500'],
+            'server_service_access.*.vnc_password' => ['nullable', 'string', 'max:255'],
             'server_ssh_port' => ['nullable', 'integer', 'min:1', 'max:65535'],
             'server_cabinet_id' => ['nullable', 'string', 'max:255'],
             'server_rack_uid' => ['nullable', 'string', 'max:255'],
@@ -389,6 +406,14 @@ class DeviceController extends Controller
             return back()
                 ->withInput()
                 ->withErrors($missingFieldErrors);
+        }
+        $serverServiceFieldErrors = $type === 'SERVER'
+            ? $this->validateServerServiceAccess($data)
+            : [];
+        if ($serverServiceFieldErrors !== []) {
+            return back()
+                ->withInput()
+                ->withErrors($serverServiceFieldErrors);
         }
 
         $meta = [];
@@ -491,8 +516,7 @@ class DeviceController extends Controller
             $serverSshPort = isset($data['server_ssh_port']) && is_numeric($data['server_ssh_port'])
                 ? (int) $data['server_ssh_port']
                 : null;
-            $requiresWebAddress = $this->serverServiceRequiresWebAddress($serverServices);
-            $requiresWebCredentials = $this->serverServiceRequiresWebCredentials($serverServices);
+            $serviceAccess = $this->buildServerServiceAccess($serverServices, $data['server_service_access'] ?? [], []);
 
             $serverMeta = [
                 'server_type' => $serverType,
@@ -510,27 +534,13 @@ class DeviceController extends Controller
             if ($serverPassword !== null) {
                 $serverMeta['password'] = encrypt($serverPassword);
             }
-            if ($requiresWebAddress) {
-                $serverMeta['web_address_port'] = $this->normalizeOptionalString($data['server_web_address_port'] ?? null);
-            }
-            if ($requiresWebCredentials) {
-                $serverMeta['web_username'] = $this->normalizeOptionalString($data['server_web_username'] ?? null);
-            }
-
-            if (in_array('vnc', $serverServices, true)) {
-                $serverMeta['vnc_address_port'] = $this->normalizeOptionalString($data['server_vnc_address_port'] ?? null);
-                if (!empty($data['server_vnc_password'])) {
-                    $serverMeta['vnc_password'] = encrypt($data['server_vnc_password']);
-                }
+            if ($serviceAccess !== []) {
+                $serverMeta['service_access'] = $serviceAccess;
             }
 
             if ($serverType === 'stand_alone_server') {
                 $serverMeta['cabinet_id'] = $this->normalizeOptionalString($data['server_cabinet_id'] ?? null);
                 $serverMeta['rack_uid'] = $this->normalizeOptionalString($data['server_rack_uid'] ?? null);
-            }
-
-            if ($requiresWebCredentials && !empty($data['server_web_password'])) {
-                $serverMeta['web_password'] = encrypt($data['server_web_password']);
             }
 
             $meta['server'] = array_filter($serverMeta, static fn ($value) => $value !== null && $value !== '');
@@ -653,22 +663,13 @@ class DeviceController extends Controller
             'server_name' => ['nullable', 'string', 'max:255', 'required_if:type,SERVER'],
             'server_service' => ['nullable', 'array', 'required_if:type,SERVER', 'min:1'],
             'server_service.*' => ['string', 'max:100', Rule::in(self::SERVER_SERVICE_OPTIONS)],
-            'server_web_address_port' => [
-                'nullable',
-                'string',
-                'max:500',
-                Rule::requiredIf(fn () => strtoupper((string) $request->input('type', $device->type ?? '')) === 'SERVER'
-                    && $this->serverServiceRequiresWebAddress($request->input('server_service'))),
-            ],
-            'server_web_username' => ['nullable', 'string', 'max:255'],
-            'server_web_password' => ['nullable', 'string', 'max:255'],
-            'server_vnc_address_port' => [
-                'nullable',
-                'string',
-                'max:500',
-                Rule::requiredIf(fn () => in_array('vnc', $this->normalizeServerServices($request->input('server_service')), true)),
-            ],
-            'server_vnc_password' => ['nullable', 'string', 'max:255'],
+            'server_service_access' => ['nullable', 'array'],
+            'server_service_access.*' => ['nullable', 'array'],
+            'server_service_access.*.address_port' => ['nullable', 'string', 'max:500'],
+            'server_service_access.*.username' => ['nullable', 'string', 'max:255'],
+            'server_service_access.*.password' => ['nullable', 'string', 'max:255'],
+            'server_service_access.*.vnc_ip' => ['nullable', 'string', 'max:500'],
+            'server_service_access.*.vnc_password' => ['nullable', 'string', 'max:255'],
             'server_ssh_port' => ['nullable', 'integer', 'min:1', 'max:65535', 'required_if:type,SERVER'],
             'server_cabinet_id' => ['nullable', 'string', 'max:255', 'required_if:server_type,stand_alone_server'],
             'server_rack_uid' => ['nullable', 'string', 'max:255', 'required_if:server_type,stand_alone_server'],
@@ -700,6 +701,14 @@ class DeviceController extends Controller
 
         $meta = $this->normalizeMetadata($device->metadata);
         $type = strtoupper((string) ($data['type'] ?? $device->type ?? ''));
+        $serverServiceFieldErrors = $type === 'SERVER'
+            ? $this->validateServerServiceAccess($data)
+            : [];
+        if ($serverServiceFieldErrors !== []) {
+            return back()
+                ->withInput()
+                ->withErrors($serverServiceFieldErrors);
+        }
         $snmpCommunity = $this->normalizeOptionalString($data['snmp_community'] ?? null);
         $snmpPort = isset($data['snmp_port']) && is_numeric($data['snmp_port']) ? (int) $data['snmp_port'] : null;
         $ipAddress = $this->normalizeOptionalString($data['ip_address'] ?? null);
@@ -771,24 +780,25 @@ class DeviceController extends Controller
                 ?: ($server['server_name'] ?? null);
             $serverServices = $this->normalizeServerServices($data['server_service'] ?? []);
             $serverPrimaryService = $serverServices[0] ?? null;
-            $requiresWebAddress = $this->serverServiceRequiresWebAddress($serverServices);
-            $requiresWebCredentials = $this->serverServiceRequiresWebCredentials($serverServices);
+            $serviceAccess = $this->buildServerServiceAccess($serverServices, $data['server_service_access'] ?? [], $server);
             $server['server_type'] = $serverType;
             $server['hardware_specs'] = $this->normalizeOptionalString($data['server_hardware_specs'] ?? null);
             $server['server_name'] = $serverName;
             $server['service'] = $serverPrimaryService;
             $server['services'] = $serverServices;
             $server['ip_address'] = $ipAddress;
-            if ($requiresWebAddress) {
-                $server['web_address_port'] = $this->normalizeOptionalString($data['server_web_address_port'] ?? null);
+            if ($serviceAccess !== []) {
+                $server['service_access'] = $serviceAccess;
             } else {
-                unset($server['web_address_port']);
+                unset($server['service_access']);
             }
-            if ($requiresWebCredentials) {
-                $server['web_username'] = $this->normalizeOptionalString($data['server_web_username'] ?? null);
-            } else {
-                unset($server['web_username'], $server['web_password']);
-            }
+            unset(
+                $server['web_address_port'],
+                $server['web_username'],
+                $server['web_password'],
+                $server['vnc_address_port'],
+                $server['vnc_password']
+            );
             if (isset($data['server_ssh_port']) && is_numeric($data['server_ssh_port'])) {
                 $server['ssh_port'] = (int) $data['server_ssh_port'];
             } else {
@@ -809,17 +819,6 @@ class DeviceController extends Controller
                 $server['rack_uid'] = $this->normalizeOptionalString($data['server_rack_uid'] ?? null);
             } else {
                 unset($server['cabinet_id'], $server['rack_uid']);
-            }
-            if ($requiresWebCredentials && !empty($data['server_web_password'])) {
-                $server['web_password'] = encrypt($data['server_web_password']);
-            }
-            if (in_array('vnc', $serverServices, true)) {
-                $server['vnc_address_port'] = $this->normalizeOptionalString($data['server_vnc_address_port'] ?? null);
-                if (!empty($data['server_vnc_password'])) {
-                    $server['vnc_password'] = encrypt($data['server_vnc_password']);
-                }
-            } else {
-                unset($server['vnc_address_port'], $server['vnc_password']);
             }
             $meta['server'] = array_filter($server, static fn ($value) => $value !== null && $value !== '');
             $updatedModel = $serverType === 'stand_alone_server' ? 'Stand Alone Server' : 'Virtual Server';
@@ -1426,26 +1425,122 @@ class DeviceController extends Controller
         return !in_array($normalized, self::CISCO_MODELS_WITHOUT_USERNAME, true);
     }
 
-    private function serverServiceRequiresWebAddress(mixed $value): bool
+    private function serverServiceNeedsWebAddress(string $service): bool
     {
-        foreach ($this->normalizeServerServices($value) as $service) {
-            if (in_array($service, self::SERVER_WEB_ADDRESS_SERVICE_OPTIONS, true)) {
-                return true;
-            }
-        }
-
-        return false;
+        return in_array($service, self::SERVER_WEB_ADDRESS_SERVICE_OPTIONS, true);
     }
 
-    private function serverServiceRequiresWebCredentials(mixed $value): bool
+    private function serverServiceNeedsWebCredentials(string $service): bool
     {
-        foreach ($this->normalizeServerServices($value) as $service) {
-            if (in_array($service, self::SERVER_WEB_AUTH_SERVICE_OPTIONS, true)) {
-                return true;
+        return in_array($service, self::SERVER_WEB_AUTH_SERVICE_OPTIONS, true);
+    }
+
+    private function validateServerServiceAccess(array $data): array
+    {
+        $services = $this->normalizeServerServices($data['server_service'] ?? []);
+        $access = $data['server_service_access'] ?? [];
+        if (!is_array($access)) {
+            $access = [];
+        }
+
+        $errors = [];
+        foreach ($services as $service) {
+            $serviceAccess = $access[$service] ?? [];
+            if (!is_array($serviceAccess)) {
+                $serviceAccess = [];
+            }
+
+            if ($this->serverServiceNeedsWebAddress($service)
+                && $this->normalizeOptionalString($serviceAccess['address_port'] ?? null) === null) {
+                $errors["server_service_access.$service.address_port"] = sprintf(
+                    'Server Web Address and Port (%s) is required.',
+                    $this->serverServiceLabel($service)
+                );
+            }
+
+            if ($service === 'vnc'
+                && $this->normalizeOptionalString($serviceAccess['vnc_ip'] ?? null) === null) {
+                $errors["server_service_access.$service.vnc_ip"] = 'VNC IP (VNC) is required.';
             }
         }
 
-        return false;
+        return $errors;
+    }
+
+    private function buildServerServiceAccess(array $services, mixed $value, array $existingServer): array
+    {
+        $input = is_array($value) ? $value : [];
+        $existingAccess = data_get($existingServer, 'service_access', []);
+        if (!is_array($existingAccess)) {
+            $existingAccess = [];
+        }
+
+        $legacyWebPassword = data_get($existingServer, 'web_password');
+        $legacyVncPassword = data_get($existingServer, 'vnc_password');
+        $normalized = [];
+
+        foreach ($services as $service) {
+            $serviceInput = $input[$service] ?? [];
+            if (!is_array($serviceInput)) {
+                $serviceInput = [];
+            }
+            $existingServiceAccess = $existingAccess[$service] ?? [];
+            if (!is_array($existingServiceAccess)) {
+                $existingServiceAccess = [];
+            }
+
+            $serviceMeta = [];
+            if ($this->serverServiceNeedsWebAddress($service)) {
+                $addressPort = $this->normalizeOptionalString($serviceInput['address_port'] ?? null);
+                if ($addressPort !== null) {
+                    $serviceMeta['address_port'] = $addressPort;
+                }
+            }
+
+            if ($this->serverServiceNeedsWebCredentials($service)) {
+                $username = $this->normalizeOptionalString($serviceInput['username'] ?? null);
+                if ($username !== null) {
+                    $serviceMeta['username'] = $username;
+                }
+
+                $password = $this->normalizeOptionalString($serviceInput['password'] ?? null);
+                if ($password !== null) {
+                    $serviceMeta['password'] = encrypt($password);
+                } elseif (!empty($existingServiceAccess['password'])) {
+                    $serviceMeta['password'] = $existingServiceAccess['password'];
+                } elseif (!empty($legacyWebPassword)) {
+                    $serviceMeta['password'] = $legacyWebPassword;
+                }
+            }
+
+            if ($service === 'vnc') {
+                $vncIp = $this->normalizeOptionalString($serviceInput['vnc_ip'] ?? null);
+                if ($vncIp !== null) {
+                    $serviceMeta['vnc_ip'] = $vncIp;
+                }
+
+                $vncPassword = $this->normalizeOptionalString($serviceInput['vnc_password'] ?? null);
+                if ($vncPassword !== null) {
+                    $serviceMeta['vnc_password'] = encrypt($vncPassword);
+                } elseif (!empty($existingServiceAccess['vnc_password'])) {
+                    $serviceMeta['vnc_password'] = $existingServiceAccess['vnc_password'];
+                } elseif (!empty($legacyVncPassword)) {
+                    $serviceMeta['vnc_password'] = $legacyVncPassword;
+                }
+            }
+
+            if ($serviceMeta !== []) {
+                $normalized[$service] = $serviceMeta;
+            }
+        }
+
+        return $normalized;
+    }
+
+    private function serverServiceLabel(string $service): string
+    {
+        return self::SERVER_SERVICE_LABELS[$service]
+            ?? Str::title(str_replace('_', ' ', $service));
     }
 
     private function typeUsesSerialNumber(string $type): bool

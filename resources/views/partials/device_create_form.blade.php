@@ -20,8 +20,33 @@ $serverServiceOptions = [
     'vmware',
     'vnc',
 ];
-$serverWebCredentialServicesLabel = 'Web, Log, Middleware, Radius, Vertiofiber, Netplay, Hls Restream, Xtream, VoIP, Stock Management, CRM, VMware';
-$serverWebAddressServicesLabel = $serverWebCredentialServicesLabel . ', Speedtest';
+$serverServiceLabels = [
+    'web' => 'Web',
+    'astra' => 'Astra',
+    'hls_restream' => 'Hls Restream',
+    'xtream' => 'Xtream',
+    'log' => 'Log',
+    'middleware' => 'Middleware',
+    'radius' => 'Radius',
+    'vertiofiber' => 'Vertiofiber',
+    'netplay' => 'Netplay',
+    'speedtest' => 'Speedtest',
+    'tftp' => 'TFTP',
+    'storage' => 'Storage',
+    'rsyslog' => 'Rsyslog',
+    'dns' => 'DNS',
+    'voip' => 'VoIP',
+    'stock_management' => 'Stock Management',
+    'crm' => 'CRM',
+    'vmware' => 'VMware',
+    'vnc' => 'VNC',
+];
+$serverWebCredentialServices = ['web', 'log', 'middleware', 'radius', 'vertiofiber', 'netplay', 'hls_restream', 'xtream', 'voip', 'stock_management', 'crm', 'vmware'];
+$serverWebAddressServices = array_values(array_unique(array_merge($serverWebCredentialServices, ['speedtest'])));
+$serverServiceFieldOptions = array_values(array_filter(
+    $serverServiceOptions,
+    static fn ($service) => in_array($service, array_merge($serverWebAddressServices, ['vnc']), true)
+));
 $oldServerServices = old('server_service', []);
 if (!is_array($oldServerServices)) {
     $oldServerServices = [$oldServerServices];
@@ -32,6 +57,10 @@ $oldServerServices = array_values(array_filter(array_map(
         : null,
     $oldServerServices
 ), static fn ($service) => $service !== null && $service !== ''));
+$oldServerServiceAccess = old('server_service_access', []);
+if (!is_array($oldServerServiceAccess)) {
+    $oldServerServiceAccess = [];
+}
 @endphp
 <form class="space-y-6" method="POST" action="{{ route('devices.store') }}">
 @csrf
@@ -204,11 +233,47 @@ $oldServerServices = array_values(array_filter(array_map(
 </div>
 <p class="text-[11px] text-gray-400">Select one or more services.</p>
 </div>
-<div class="flex flex-col gap-2 hidden" data-server-vnc-field><label class="text-sm font-semibold text-gray-600 dark:text-gray-300">VNC IP (VNC)</label><input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_vnc_address_port" placeholder="e.g., 192.168.1.20" type="text" disabled/></div>
-<div class="flex flex-col gap-2 hidden" data-server-vnc-field><label class="text-sm font-semibold text-gray-600 dark:text-gray-300">VNC Password (VNC)</label><input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_vnc_password" placeholder="********" type="password" disabled/></div>
-<div class="flex flex-col gap-2 hidden" data-server-web-address-field><label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server Web Address and Port ({{ $serverWebAddressServicesLabel }})</label><input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_web_address_port" placeholder="e.g., https://example.com:8080" type="text" data-server-web-address-required disabled/></div>
-<div class="flex flex-col gap-2 hidden" data-server-web-auth-field><label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server Web Username ({{ $serverWebCredentialServicesLabel }})</label><input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_web_username" placeholder="e.g., admin" type="text" disabled/></div>
-<div class="flex flex-col gap-2 hidden" data-server-web-auth-field><label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server Web Password ({{ $serverWebCredentialServicesLabel }})</label><input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_web_password" placeholder="********" type="password" disabled/></div>
+@foreach ($serverServiceFieldOptions as $serviceOption)
+@php
+    $serviceLabel = $serverServiceLabels[$serviceOption] ?? ucwords(str_replace('_', ' ', $serviceOption));
+    $needsWebAddress = in_array($serviceOption, $serverWebAddressServices, true);
+    $needsWebCredentials = in_array($serviceOption, $serverWebCredentialServices, true);
+    $isVncService = $serviceOption === 'vnc';
+@endphp
+<div class="md:col-span-2 hidden rounded-lg border border-[#dce3f2] dark:border-gray-700 bg-white/70 dark:bg-gray-900/30 p-4" data-server-service-fields="{{ $serviceOption }}">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<div class="md:col-span-2">
+<p class="text-xs font-semibold uppercase tracking-[0.2em] text-gray-500">{{ $serviceLabel }}</p>
+</div>
+@if ($needsWebAddress)
+<div class="flex flex-col gap-2">
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server Web Address and Port ({{ $serviceLabel }})</label>
+<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_service_access[{{ $serviceOption }}][address_port]" placeholder="e.g., https://example.com:8080" type="text" value="{{ old('server_service_access.' . $serviceOption . '.address_port', data_get($oldServerServiceAccess, $serviceOption . '.address_port') ?? '') }}" data-server-service-address-required disabled/>
+</div>
+@endif
+@if ($needsWebCredentials)
+<div class="flex flex-col gap-2">
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server Web Username ({{ $serviceLabel }})</label>
+<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_service_access[{{ $serviceOption }}][username]" placeholder="e.g., admin" type="text" value="{{ old('server_service_access.' . $serviceOption . '.username', data_get($oldServerServiceAccess, $serviceOption . '.username') ?? '') }}" disabled/>
+</div>
+<div class="flex flex-col gap-2">
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server Web Password ({{ $serviceLabel }})</label>
+<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_service_access[{{ $serviceOption }}][password]" placeholder="********" type="password" disabled/>
+</div>
+@endif
+@if ($isVncService)
+<div class="flex flex-col gap-2">
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">VNC IP ({{ $serviceLabel }})</label>
+<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_service_access[{{ $serviceOption }}][vnc_ip]" placeholder="e.g., 192.168.1.20" type="text" value="{{ old('server_service_access.' . $serviceOption . '.vnc_ip', data_get($oldServerServiceAccess, $serviceOption . '.vnc_ip') ?? '') }}" data-server-service-vnc-required disabled/>
+</div>
+<div class="flex flex-col gap-2">
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">VNC Password ({{ $serviceLabel }})</label>
+<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_service_access[{{ $serviceOption }}][vnc_password]" placeholder="********" type="password" disabled/>
+</div>
+@endif
+</div>
+</div>
+@endforeach
 <div class="flex flex-col gap-2"><label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Server SSH Port</label><input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_ssh_port" type="number" min="1" max="65535" placeholder="22" disabled/></div>
 <div class="flex flex-col gap-2 hidden" data-server-standalone-field><label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Cabinet ID</label><input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_cabinet_id" type="text" placeholder="e.g., CAB-01" disabled/></div>
 <div class="flex flex-col gap-2 hidden" data-server-standalone-field><label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Rack UID</label><input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="server_rack_uid" type="text" placeholder="e.g., RACK-U12" disabled/></div>

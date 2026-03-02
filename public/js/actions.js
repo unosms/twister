@@ -25,35 +25,6 @@
   const mobileSidebarClass = 'sidebar-mobile-open';
   const mobileBreakpointPx = 1023;
   const ciscoModelsWithoutUsername = new Set(['3560', '4948']);
-  const serverWebAuthServices = new Set([
-    'web',
-    'log',
-    'middleware',
-    'radius',
-    'vertiofiber',
-    'netplay',
-    'hls_restream',
-    'xtream',
-    'voip',
-    'stock_management',
-    'crm',
-    'vmware',
-  ]);
-  const serverWebAddressServices = new Set([
-    'web',
-    'log',
-    'middleware',
-    'radius',
-    'vertiofiber',
-    'netplay',
-    'hls_restream',
-    'xtream',
-    'voip',
-    'stock_management',
-    'crm',
-    'vmware',
-    'speedtest',
-  ]);
 
   const normalizeAction = (raw) => {
     if (!raw) {
@@ -88,9 +59,6 @@
         ].filter((value) => value !== '')
       )
     );
-
-  const containsAnyService = (selectedServices, allowedServices) =>
-    selectedServices.some((service) => allowedServices.has(service));
 
   const ciscoModelUsesUsername = (model) =>
     !ciscoModelsWithoutUsername.has(String(model || '').trim().toUpperCase());
@@ -1026,9 +994,7 @@
       ? Array.from(serverFields.querySelectorAll('[data-server-service-option]'))
       : [];
     const serverStandaloneFields = serverFields ? Array.from(serverFields.querySelectorAll('[data-server-standalone-field]')) : [];
-    const serverVncFields = serverFields ? Array.from(serverFields.querySelectorAll('[data-server-vnc-field]')) : [];
-    const serverWebAddressFields = serverFields ? Array.from(serverFields.querySelectorAll('[data-server-web-address-field]')) : [];
-    const serverWebAuthFields = serverFields ? Array.from(serverFields.querySelectorAll('[data-server-web-auth-field]')) : [];
+    const serverServiceFieldGroups = serverFields ? Array.from(serverFields.querySelectorAll('[data-server-service-fields]')) : [];
     const mimosaModel = document.querySelector('[data-mimosa-model]');
     if (!typeSelect || !ciscoFields) {
       return;
@@ -1272,7 +1238,7 @@
       });
     };
 
-    const toggleServerVncFields = () => {
+    const toggleServerServiceFields = () => {
       if (!serverFields) {
         return;
       }
@@ -1281,32 +1247,19 @@
         select: serverServiceSelect,
         checkboxes: serverServiceCheckboxes,
       });
-      const showWebAddress = isServerVisible && containsAnyService(selectedServices, serverWebAddressServices);
-      const showWebAuth = isServerVisible && containsAnyService(selectedServices, serverWebAuthServices);
-      const isVnc = isServerVisible && selectedServices.includes('vnc');
+      serverServiceFieldGroups.forEach((group) => {
+        const service = normalizeServerService(group.dataset.serverServiceFields || '');
+        const show = isServerVisible && selectedServices.includes(service);
 
-      serverVncFields.forEach((group) => {
-        group.classList.toggle('hidden', !isVnc);
+        group.classList.toggle('hidden', !show);
         group.querySelectorAll('input, select, textarea').forEach((field) => {
-          field.disabled = !isVnc;
+          field.disabled = !show;
         });
-        group.querySelectorAll('[data-server-vnc-required]').forEach((field) => {
-          field.required = isVnc;
+        group.querySelectorAll('[data-server-service-address-required]').forEach((field) => {
+          field.required = show;
         });
-      });
-      serverWebAddressFields.forEach((group) => {
-        group.classList.toggle('hidden', !showWebAddress);
-        group.querySelectorAll('input, select, textarea').forEach((field) => {
-          field.disabled = !showWebAddress;
-        });
-        group.querySelectorAll('[data-server-web-address-required]').forEach((field) => {
-          field.required = showWebAddress;
-        });
-      });
-      serverWebAuthFields.forEach((group) => {
-        group.classList.toggle('hidden', !showWebAuth);
-        group.querySelectorAll('input, select, textarea').forEach((field) => {
-          field.disabled = !showWebAuth;
+        group.querySelectorAll('[data-server-service-vnc-required]').forEach((field) => {
+          field.required = show;
         });
       });
     };
@@ -1344,7 +1297,7 @@
         resetServerInputs();
       }
       toggleServerStandaloneFields();
-      toggleServerVncFields();
+      toggleServerServiceFields();
     };
 
     const showServerFields = () => {
@@ -1359,7 +1312,7 @@
         field.required = true;
       });
       toggleServerStandaloneFields();
-      toggleServerVncFields();
+      toggleServerServiceFields();
     };
 
     const resetOltInputs = () => {
@@ -1493,10 +1446,10 @@
       serverType.addEventListener('change', toggleServerStandaloneFields);
     }
     if (serverServiceSelect) {
-      serverServiceSelect.addEventListener('change', toggleServerVncFields);
+      serverServiceSelect.addEventListener('change', toggleServerServiceFields);
     }
     serverServiceCheckboxes.forEach((input) => {
-      input.addEventListener('change', toggleServerVncFields);
+      input.addEventListener('change', toggleServerServiceFields);
     });
 
     typeSelect.addEventListener('change', toggleTypeSections);
@@ -1861,9 +1814,7 @@
       const serverServiceSelect = form.querySelector('select[data-device-edit-server-service]');
       const serverServiceCheckboxes = Array.from(form.querySelectorAll('[data-device-edit-server-service-option]'));
       const serverStandaloneFields = Array.from(form.querySelectorAll('[data-device-edit-server-standalone-field]'));
-      const serverVncFields = Array.from(form.querySelectorAll('[data-device-edit-server-vnc-field]'));
-      const serverWebAddressFields = Array.from(form.querySelectorAll('[data-device-edit-server-web-address-field]'));
-      const serverWebAuthFields = Array.from(form.querySelectorAll('[data-device-edit-server-web-auth-field]'));
+      const serverServiceFieldGroups = Array.from(form.querySelectorAll('[data-device-edit-server-service-fields]'));
       const genericIpField = form.querySelector('[data-device-edit-generic-ip-field]');
       const snmpCommunityField = form.querySelector('[data-device-edit-snmp-community-field]');
       const snmpPortField = form.querySelector('[data-device-edit-snmp-port-field]');
@@ -1885,37 +1836,24 @@
         });
       };
 
-      const toggleServerVnc = (serverVisible) => {
+      const toggleServerServiceFields = (serverVisible) => {
         const selectedServices = collectSelectedServerServices({
           select: serverServiceSelect,
           checkboxes: serverServiceCheckboxes,
         });
-        const showWebAddress = serverVisible && containsAnyService(selectedServices, serverWebAddressServices);
-        const showWebAuth = serverVisible && containsAnyService(selectedServices, serverWebAuthServices);
-        const isVnc = serverVisible && selectedServices.includes('vnc');
+        serverServiceFieldGroups.forEach((group) => {
+          const service = normalizeServerService(group.dataset.deviceEditServerServiceFields || '');
+          const show = serverVisible && selectedServices.includes(service);
 
-        serverVncFields.forEach((group) => {
-          group.classList.toggle('hidden', !isVnc);
+          group.classList.toggle('hidden', !show);
           group.querySelectorAll('input, select, textarea').forEach((field) => {
-            field.disabled = !isVnc;
+            field.disabled = !show;
           });
-          group.querySelectorAll('[data-device-edit-server-vnc-required]').forEach((field) => {
-            field.required = isVnc;
+          group.querySelectorAll('[data-device-edit-server-service-address-required]').forEach((field) => {
+            field.required = show;
           });
-        });
-        serverWebAddressFields.forEach((group) => {
-          group.classList.toggle('hidden', !showWebAddress);
-          group.querySelectorAll('input, select, textarea').forEach((field) => {
-            field.disabled = !showWebAddress;
-          });
-          group.querySelectorAll('[data-device-edit-server-web-address-required]').forEach((field) => {
-            field.required = showWebAddress;
-          });
-        });
-        serverWebAuthFields.forEach((group) => {
-          group.classList.toggle('hidden', !showWebAuth);
-          group.querySelectorAll('input, select, textarea').forEach((field) => {
-            field.disabled = !showWebAuth;
+          group.querySelectorAll('[data-device-edit-server-service-vnc-required]').forEach((field) => {
+            field.required = show;
           });
         });
       };
@@ -1947,7 +1885,7 @@
         toggleGroup(mikrotikFields, isMikrotik, 'data-device-edit-mikrotik-required');
         toggleCiscoUsername(isCisco);
         toggleServerStandalone(isServer);
-        toggleServerVnc(isServer);
+        toggleServerServiceFields(isServer);
         toggleGroup(commonNameField, showCommonName, 'data-device-edit-common-name-required');
 
         if (genericIpField) {
@@ -1981,13 +1919,13 @@
       if (serverServiceSelect) {
         serverServiceSelect.addEventListener('change', () => {
           const isServer = (typeSelect.value || '').toUpperCase() === 'SERVER';
-          toggleServerVnc(isServer);
+          toggleServerServiceFields(isServer);
         });
       }
       serverServiceCheckboxes.forEach((input) => {
         input.addEventListener('change', () => {
           const isServer = (typeSelect.value || '').toUpperCase() === 'SERVER';
-          toggleServerVnc(isServer);
+          toggleServerServiceFields(isServer);
         });
       });
       updateType();
