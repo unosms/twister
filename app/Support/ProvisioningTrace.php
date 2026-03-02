@@ -98,21 +98,21 @@ class ProvisioningTrace
         $normalized = self::normalizeEvent($event + ['message' => $message]);
 
         self::log($message, array_filter([
-            'trace' => $normalized['trace_key'],
-            'layer' => $normalized['layer_key'],
-            'protocol' => $normalized['protocol'],
-            'state' => $normalized['state'],
-            'device_id' => $normalized['device_id'],
-            'device_name' => $normalized['device_name'],
-            'device_ip' => $normalized['device_ip'],
-            'script_name' => $normalized['script_name'],
+            'trace' => $normalized['trace_key'] ?? null,
+            'layer' => $normalized['layer_key'] ?? null,
+            'protocol' => $normalized['protocol'] ?? null,
+            'state' => $normalized['state'] ?? null,
+            'device_id' => $normalized['device_id'] ?? null,
+            'device_name' => $normalized['device_name'] ?? null,
+            'device_ip' => $normalized['device_ip'] ?? null,
+            'script_name' => $normalized['script_name'] ?? null,
             'request' => $normalized['request']['summary'] ?? null,
             'response' => $normalized['response']['summary'] ?? null,
-            'latency_ms' => $normalized['latency_ms'],
-            'reason' => $normalized['reason'],
+            'latency_ms' => $normalized['latency_ms'] ?? null,
+            'reason' => $normalized['reason'] ?? null,
             'retry_attempt' => data_get($normalized, 'retry.attempt'),
             'retry_max' => data_get($normalized, 'retry.max'),
-            'failure_hints' => $normalized['failure_hints'],
+            'failure_hints' => $normalized['failure_hints'] ?? null,
         ], static fn ($value) => $value !== null && $value !== [] && $value !== ''));
 
         self::writeEvent($normalized);
