@@ -140,12 +140,36 @@ function query_rows(mysqli $conn, string $sql, string $types, array $params, arr
     return $rows;
 }
 
+function query_device_options(mysqli $conn): array
+{
+    $result = $conn->query("SELECT DISTINCT name FROM devices WHERE name IS NOT NULL AND TRIM(name) <> '' ORDER BY name ASC");
+    if (!$result instanceof mysqli_result) {
+        return [];
+    }
+
+    $options = [];
+    while ($row = $result->fetch_assoc()) {
+        $name = trim((string) ($row['name'] ?? ''));
+        if ($name !== '') {
+            $options[] = $name;
+        }
+    }
+    $result->close();
+
+    return $options;
+}
+
 $hours = 1;
 $sinceEpoch = time() - ($hours * 3600);
 $deviceFilter = safe_str('device');
 $typeFilter = safe_str('type'); // '', 'iface', 'device'
 if (!in_array($typeFilter, ['', 'iface', 'device'], true)) {
     $typeFilter = '';
+}
+$deviceOptions = query_device_options($conn);
+if ($deviceFilter !== '' && !in_array($deviceFilter, $deviceOptions, true)) {
+    $deviceOptions[] = $deviceFilter;
+    sort($deviceOptions, SORT_NATURAL | SORT_FLAG_CASE);
 }
 
 $sqlErrors = [];
@@ -269,7 +293,7 @@ $titleSuffix = $deviceFilter !== '' ? ' &bull; ' . esc($deviceFilter) : '';
             background: white;
         }
 
-        input[name="device"] {
+        select[name="device"] {
             width: 320px;
         }
 
@@ -412,24 +436,30 @@ $titleSuffix = $deviceFilter !== '' ? ' &bull; ' . esc($deviceFilter) : '';
     <h1>Events (last <?= (int) $hours ?> hour<?= $titleSuffix ?>)</h1>
     <p class="empty">Auto-refreshes every 1 minute. Full history remains stored in the database.</p>
 
-    <form class="filters" method="get" action="">
+    <form class="filters" method="get" action="" data-auto-filter-form>
         <input type="hidden" name="hours" value="<?= (int) $hours ?>">
 
         <label>
             Device
-            <input type="text" name="device" value="<?= esc($deviceFilter) ?>" placeholder="switch_name (optional)">
+            <select name="device" data-auto-filter>
+                <option value="">All devices</option>
+                <?php foreach ($deviceOptions as $deviceOption): ?>
+                    <option value="<?= esc($deviceOption) ?>" <?= $deviceFilter === $deviceOption ? 'selected' : '' ?>>
+                        <?= esc($deviceOption) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
         </label>
 
         <label>
             Type
-            <select name="type">
+            <select name="type" data-auto-filter>
                 <option value="" <?= $typeFilter === '' ? 'selected' : '' ?>>All</option>
                 <option value="iface" <?= $typeFilter === 'iface' ? 'selected' : '' ?>>Interface</option>
                 <option value="device" <?= $typeFilter === 'device' ? 'selected' : '' ?>>Device reachability</option>
             </select>
         </label>
 
-        <button class="btn" type="submit">Apply</button>
         <button class="btn" type="submit" name="poll" value="1">Apply + Poll</button>
         <?php if ($deviceFilter !== ''): ?>
             <a class="btn" href="/devices/graphs?device=<?= urlencode($deviceFilter) ?>&window=3600" target="_blank" rel="noopener">Graphs</a>
@@ -593,5 +623,20 @@ $titleSuffix = $deviceFilter !== '' ? ' &bull; ' . esc($deviceFilter) : '';
         </div>
     <?php endif; ?>
 </div>
+<script>
+    (function () {
+        const form = document.querySelector('[data-auto-filter-form]');
+        if (!form) {
+            return;
+        }
+
+        const controls = Array.from(form.querySelectorAll('[data-auto-filter]'));
+        controls.forEach((control) => {
+            control.addEventListener('change', () => {
+                form.requestSubmit();
+            });
+        });
+    })();
+</script>
 </body>
 </html>
