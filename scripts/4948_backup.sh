@@ -52,7 +52,10 @@ proc fail_step {message code} {
 send_user "$step_prefix opening Telnet session to $switch_ip\n"
 spawn telnet $switch_ip
 expect {
-    -re {(?i)password:\s*$} {}
+    -re {(?i)password:\s*} {}
+    -re {(?i)(user access verification|escape character is.*)} {
+        exp_continue
+    }
     -re {(?i)(refused|unreachable|unknown host|no route to host|closed by foreign host)} {
         fail_step "telnet session failed before switch password prompt" 10
     }
@@ -66,7 +69,13 @@ set login_prompt ""
 expect {
     -re {> ?$} { set login_prompt ">" }
     -re {# ?$} { set login_prompt "#" }
-    -re {(?i)(password:\s*$|authentication failed|login invalid|denied|failed)} {
+    -re {(?i)(user access verification|escape character is.*|last login|warning.*|notice.*)} {
+        exp_continue
+    }
+    -re {(?i)(login|username)[: ]*$} {
+        fail_step "switch returned to a login prompt after device password submission" 13
+    }
+    -re {(?i)(password:\s*|authentication failed|login invalid|denied|failed)} {
         fail_step "switch rejected the device password" 13
     }
     timeout { fail_step "timed out waiting for switch prompt after password login" 14 }
@@ -77,10 +86,13 @@ if {$login_prompt eq ">"} {
     send_user "$step_prefix user exec prompt received; entering enable mode\n"
     send -- "enable\r"
     expect {
-        -re {(?i)password:\s*$} {}
+        -re {(?i)password:\s*} {}
         -re {# ?$} {
             send_user "$step_prefix privileged prompt received without an enable password challenge\n"
             set login_prompt "#"
+        }
+        -re {(?i)(warning.*|notice.*)} {
+            exp_continue
         }
         timeout { fail_step "timed out waiting for enable password prompt" 15 }
         eof { fail_step "telnet session closed before enable password prompt" 16 }
@@ -93,7 +105,10 @@ if {$login_prompt ne "#"} {
 
     expect {
         -re {# ?$} {}
-        -re {(?i)(password:\s*$|authentication failed|denied|failed)} {
+        -re {(?i)(warning.*|notice.*|last login)} {
+            exp_continue
+        }
+        -re {(?i)(password:\s*|authentication failed|denied|failed)} {
             fail_step "switch rejected the enable password" 17
         }
         timeout { fail_step "timed out waiting for privileged prompt after enable login" 18 }
