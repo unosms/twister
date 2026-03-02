@@ -27,7 +27,7 @@ class DebugController extends Controller
             ]
         );
 
-        return response()->json([
+        return $this->jsonResponse([
             'enabled' => (bool) $enabled,
         ]);
     }
@@ -48,7 +48,7 @@ class DebugController extends Controller
         }
 
         if (!file_exists($path)) {
-            return response()->json([
+            return $this->jsonResponse([
                 'enabled' => Cache::get('provisioning_log_enabled', false),
                 'lines' => [],
             ]);
@@ -63,11 +63,42 @@ class DebugController extends Controller
             array_shift($lines);
         }
         $lines = array_slice($lines, -$limit);
+        $lines = array_map([$this, 'sanitizeLogLine'], $lines);
 
-        return response()->json([
+        return $this->jsonResponse([
             'enabled' => Cache::get('provisioning_log_enabled', false),
             'lines' => $lines,
         ]);
+    }
+
+    private function jsonResponse(array $payload)
+    {
+        return response()->json($payload, 200, [], JSON_INVALID_UTF8_SUBSTITUTE);
+    }
+
+    private function sanitizeLogLine(string $line): string
+    {
+        if ($line === '') {
+            return '';
+        }
+
+        if (function_exists('mb_check_encoding') && mb_check_encoding($line, 'UTF-8')) {
+            return $line;
+        }
+
+        $sanitized = @iconv('UTF-8', 'UTF-8//IGNORE', $line);
+        if (is_string($sanitized) && $sanitized !== '') {
+            return $sanitized;
+        }
+
+        if (function_exists('mb_convert_encoding')) {
+            $sanitized = @mb_convert_encoding($line, 'UTF-8', 'UTF-8, ISO-8859-1, Windows-1252, ASCII');
+            if (is_string($sanitized)) {
+                return $sanitized;
+            }
+        }
+
+        return '';
     }
 
     private function writeProvisioningLog(string $message, array $context = []): void
