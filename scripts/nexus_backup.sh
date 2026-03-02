@@ -52,11 +52,11 @@ proc fail_step {message code} {
 send_user "$step_prefix opening Telnet session to $switch_ip\n"
 spawn telnet $switch_ip
 expect {
-    -re {(?i)(login|username)[: ]*$} {}
-    -re {(?i)(user access verification|escape character is.*)} {
+    -nocase -re {(login|username)[: ]*$} {}
+    -nocase -re {(user access verification|escape character is.*|nexus [0-9]+ switch)} {
         exp_continue
     }
-    -re {(?i)(refused|unreachable|unknown host|no route to host|closed by foreign host)} {
+    -nocase -re {(refused|unreachable|unknown host|no route to host|closed by foreign host)} {
         fail_step "telnet session failed before login prompt" 30
     }
     timeout { fail_step "timed out waiting for login prompt" 31 }
@@ -66,14 +66,14 @@ send_user "$step_prefix login prompt received; sending username\n"
 send -- "$username\r"
 
 expect {
-    -re {(?i)password:} {}
-    -re {(?i)(user access verification|escape character is.*)} {
+    -nocase -re {password:\s*} {}
+    -nocase -re {(user access verification|escape character is.*|nexus [0-9]+ switch)} {
         exp_continue
     }
-    -re {(?i)(login|username)[: ]*$} {
+    -nocase -re {(login|username)[: ]*$} {
         fail_step "switch returned to the Nexus login prompt after username submission" 33
     }
-    -re {(?i)(login invalid|login incorrect|authentication failed|denied|failed)} {
+    -nocase -re {(login invalid|login incorrect|authentication failed|denied|failed)} {
         fail_step "switch rejected the Nexus username" 33
     }
     timeout { fail_step "timed out waiting for password prompt after username" 33 }
@@ -86,16 +86,16 @@ set prompt ""
 expect {
     -re {# ?$} { set prompt "#" }
     -re {> ?$} { set prompt ">" }
-    -re {(?i)(last login|user access verification|warning.*|notice.*)} {
+    -nocase -re {(last login|user access verification|warning.*|notice.*|nexus [0-9]+ switch)} {
         exp_continue
     }
-    -re {(?i)(login|username)[: ]*$} {
+    -nocase -re {(login|username)[: ]*$} {
         fail_step "switch returned to the Nexus login prompt after password submission" 35
     }
-    -re {(?i)password:} {
+    -nocase -re {password:\s*} {
         fail_step "switch rejected the Nexus password" 35
     }
-    -re {(?i)(login invalid|login incorrect|authentication failed|denied|failed)} {
+    -nocase -re {(login invalid|login incorrect|authentication failed|denied|failed)} {
         fail_step "switch rejected the Nexus password" 35
     }
     timeout { fail_step "timed out waiting for Nexus prompt after password login" 36 }
@@ -110,7 +110,7 @@ send_user "$step_prefix privileged prompt received; requesting TFTP copy\n"
 send -- "terminal length 0\r"
 expect {
     -re {# ?$} {}
-    -re {(?i)(invalid command|permission denied|denied|failed)} {
+    -nocase -re {(invalid command|permission denied|denied|failed)} {
         fail_step "terminal length command was rejected by the switch" 38
     }
     timeout { fail_step "timed out waiting for prompt after terminal length command" 39 }
@@ -120,21 +120,21 @@ send_user "$step_prefix requesting TFTP copy to $location/$renamed_file\n"
 send -- "copy running-config tftp://$tftp_server/$location/$renamed_file\r"
 
 expect {
-    -re {(?i)enter vrf .*} {
+    -nocase -re {enter vrf .*} {
         send_user "$step_prefix VRF prompt received; accepting default VRF\n"
         send -- "\r"
         exp_continue
     }
-    -re {(?i)destination filename.*} {
+    -nocase -re {destination filename.*} {
         send_user "$step_prefix destination filename confirmation requested; accepting generated filename\n"
         send -- "\r"
         exp_continue
     }
-    -re {(?i)(copy complete|bytes copied|transferred successfully)} {
+    -nocase -re {(copy complete|bytes copied|transferred successfully)} {
         send_user "$step_prefix switch reported successful TFTP copy\n"
         exp_continue
     }
-    -re {(?i)(error|timed out|permission denied|unreachable|refused|failed|no such file|cannot access)} {
+    -nocase -re {(error|timed out|permission denied|unreachable|refused|failed|no such file|cannot access)} {
         fail_step "switch reported a Nexus TFTP copy failure" 41
     }
     -re {# ?$} {}
