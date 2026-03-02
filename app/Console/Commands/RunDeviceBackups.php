@@ -118,7 +118,22 @@ class RunDeviceBackups extends Command
         $username = $this->firstNonEmpty($cisco['username'] ?? null, $cisco['user'] ?? null);
         $enablePassword = $this->decryptValue($cisco['enable_password'] ?? null);
         $location = $this->resolveFolderLocation($device, $cisco);
-        $backupSnapshot = $this->snapshotBackupFiles($device);
+        $resolvedBackupDirectory = $this->prepareBackupDirectory($location);
+        if (!$resolvedBackupDirectory) {
+            $this->writeProvisioningLog('backup trace: scheduled backup failed - backup directory could not be prepared', $traceContext + [
+                'switch_model' => $switchModel !== '' ? $switchModel : null,
+                'is_nexus' => $isNexus,
+                'is_3560' => $is3560,
+                'switch_ip' => $ip,
+                'location' => $location,
+            ]);
+
+            return [
+                'status' => 'failed',
+                'message' => 'backup folder could not be prepared',
+            ];
+        }
+        $backupSnapshot = $this->snapshotBackupFiles($resolvedBackupDirectory);
 
         $this->writeProvisioningLog('backup trace: scheduled backup inputs resolved', $traceContext + [
             'switch_model' => $switchModel !== '' ? $switchModel : null,
@@ -230,16 +245,78 @@ class RunDeviceBackups extends Command
         return 'uno/' . ($slug !== '' ? $slug : 'device');
     }
 
-    private function snapshotBackupFiles(Device $device): array
+    private function snapshotBackupFiles(array $resolvedBackupDirectory): array
     {
-        $relative = trim(str_replace('\\', '/', $this->resolveFolderLocation($device, $this->normalizeMetadata($device->metadata)['cisco'] ?? [])), '/');
-        $absolute = '/srv/tftp/' . str_replace('/', DIRECTORY_SEPARATOR, $relative);
+        return [
+            'relative' => $resolvedBackupDirectory['relative'],
+            'absolute' => $resolvedBackupDirectory['absolute'],
+            'files' => $this->backupFileMap($resolvedBackupDirectory['absolute']),
+        ];
+    }
+
+    private function prepareBackupDirectory(string $relative): ?array
+    {
+        $relative = trim(str_replace('\\', '/', $relative), '/');
+        if ($relative === '' || str_contains($relative, '..')) {
+            return null;
+        }
+
+        $absolute = null;
+        foreach ($this->backupRoots() as $root) {
+            $candidate = rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relative);
+            if ($absolute === null) {
+                $absolute = $candidate;
+            }
+            if (is_dir(dirname($candidate)) || is_dir($root)) {
+                $absolute = $candidate;
+                break;
+            }
+        }
+
+        $absolute ??= base_path($relative);
+
+        try {
+            if (!is_dir($absolute)) {
+                File::ensureDirectoryExists($absolute);
+            }
+        } catch (\Throwable $e) {
+            return null;
+        }
 
         return [
             'relative' => $relative,
             'absolute' => $absolute,
-            'files' => $this->backupFileMap($absolute),
         ];
+    }
+
+    private function backupRoots(): array
+    {
+        $roots = [];
+
+        $configuredRoots = trim((string) env('BACKUP_ROOTS', ''));
+        if ($configuredRoots !== '') {
+            foreach (explode(',', $configuredRoots) as $root) {
+                $root = trim($root);
+                if ($root !== '') {
+                    $roots[] = $root;
+                }
+            }
+        }
+
+        $singleRoot = trim((string) env('BACKUP_ROOT', ''));
+        if ($singleRoot !== '') {
+            $roots[] = $singleRoot;
+        }
+
+        return array_values(array_unique(array_merge($roots, [
+            base_path(),
+            '/var/www/html',
+            '/srv/tftp',
+            '/srv/tftpboot',
+            '/var/lib/tftpboot',
+            '/var/tftpboot',
+            '/tftpboot',
+        ])));
     }
 
     private function backupFileMap(string $absolutePath): array

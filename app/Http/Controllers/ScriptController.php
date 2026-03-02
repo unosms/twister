@@ -998,7 +998,6 @@ class ScriptController extends Controller
             data_get($cisco, 'folder_location'),
             data_get($device->metadata ?? [], 'folder_location')
         );
-        $backupSnapshot = $this->snapshotBackupFiles($device);
         $usedFallbackLocation = false;
 
         if (!$location) {
@@ -1007,6 +1006,24 @@ class ScriptController extends Controller
             $location = 'uno/' . ($fallbackSlug !== '' ? $fallbackSlug : 'device');
             $usedFallbackLocation = true;
         }
+        $resolvedBackupDirectory = $this->prepareBackupDirectory($location);
+        if (!$resolvedBackupDirectory) {
+            ProvisioningTrace::log('backup trace: failed to prepare backup directory', $traceContext + [
+                'switch_model' => $switchModel !== '' ? $switchModel : null,
+                'is_nexus' => $isNexus,
+                'is_3560' => $is3560,
+                'switch_ip' => $ip,
+                'location' => $location,
+            ]);
+
+            return [
+                'ok' => false,
+                'status' => 500,
+                'message' => 'Backup folder could not be prepared.',
+                'output' => 'Backup folder could not be prepared.',
+            ];
+        }
+        $backupSnapshot = $this->snapshotBackupFiles($resolvedBackupDirectory);
 
         ProvisioningTrace::log('backup trace: resolved backup inputs', $traceContext + [
             'script_name' => $scriptName,
@@ -1167,16 +1184,8 @@ class ScriptController extends Controller
         ];
     }
 
-    private function snapshotBackupFiles(Device $device): array
+    private function snapshotBackupFiles(array $resolved): array
     {
-        $resolved = $this->resolveBackupDirectory($device);
-        if (!$resolved) {
-            return [
-                'resolved' => null,
-                'files' => [],
-            ];
-        }
-
         return [
             'resolved' => $resolved,
             'files' => $this->backupFileMap($resolved['absolute']),
@@ -1257,6 +1266,24 @@ class ScriptController extends Controller
             'message' => 'Backup script finished, but no new backup file was created.',
             'output' => trim(($processResult['output'] ?? '') . "\nBackup verification failed: no new backup file was created in {$resolved['relative']}."),
         ];
+    }
+
+    private function prepareBackupDirectory(string $relative): ?array
+    {
+        $resolved = $this->resolveBackupDirectoryFromRelative($relative);
+        if (!$resolved) {
+            return null;
+        }
+
+        try {
+            if (!is_dir($resolved['absolute'])) {
+                File::ensureDirectoryExists($resolved['absolute']);
+            }
+        } catch (\Throwable $e) {
+            return null;
+        }
+
+        return $resolved;
     }
 
     private function deviceTraceContext(Device $device, array $context = []): array
@@ -1472,6 +1499,11 @@ class ScriptController extends Controller
             $relative = 'uno/' . ($fallbackSlug !== '' ? $fallbackSlug : 'device');
         }
 
+        return $this->resolveBackupDirectoryFromRelative($relative);
+    }
+
+    private function resolveBackupDirectoryFromRelative(string $relative): ?array
+    {
         $relative = trim(str_replace('\\', '/', (string) $relative), '/');
         if ($relative === '' || str_contains($relative, '..')) {
             return null;
