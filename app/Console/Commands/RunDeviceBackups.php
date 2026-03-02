@@ -106,6 +106,7 @@ class RunDeviceBackups extends Command
 
         $switchModel = strtoupper((string) ($cisco['switch_model'] ?? ($meta['subtype'] ?? $device->model ?? '')));
         $isNexus = str_contains($switchModel, 'NEXUS');
+        $is3560 = str_contains($switchModel, '3560');
 
         $ip = $this->firstNonEmpty($cisco['ip_address'] ?? null, $device->ip_address);
         $password = $this->decryptValue($cisco['password'] ?? null);
@@ -116,6 +117,7 @@ class RunDeviceBackups extends Command
         $this->writeProvisioningLog('backup trace: scheduled backup inputs resolved', $traceContext + [
             'switch_model' => $switchModel !== '' ? $switchModel : null,
             'is_nexus' => $isNexus,
+            'is_3560' => $is3560,
             'switch_ip' => $ip,
             'location' => $location,
             'password_present' => $password !== null && $password !== '',
@@ -147,7 +149,7 @@ class RunDeviceBackups extends Command
             ];
         }
 
-        $script = $isNexus ? 'nexus_backup.sh' : '4948_backup.sh';
+        $script = $isNexus ? 'nexus_backup.sh' : ($is3560 ? '3560_backup.sh' : '4948_backup.sh');
         $scriptPath = base_path('scripts/' . $script);
         if (!is_file($scriptPath)) {
             $this->writeProvisioningLog('backup trace: scheduled backup script missing', $traceContext + [
@@ -159,13 +161,21 @@ class RunDeviceBackups extends Command
             ];
         }
 
-        $command = $isNexus
-            ? ['bash', $scriptPath, $ip, $username, $password, $location]
-            : ['bash', $scriptPath, $ip, $password, $enablePassword, $location];
+        if ($isNexus) {
+            $command = ['bash', $scriptPath, $ip, $username, $password, $location];
+        } elseif ($is3560) {
+            $command = ['bash', $scriptPath, $ip, $password, $enablePassword, $location];
+            if ($username) {
+                $command[] = $username;
+            }
+        } else {
+            $command = ['bash', $scriptPath, $ip, $password, $enablePassword, $location];
+        }
 
         $result = $this->runLoggedProcess($command, $traceContext + [
             'switch_model' => $switchModel !== '' ? $switchModel : null,
             'is_nexus' => $isNexus,
+            'is_3560' => $is3560,
             'switch_ip' => $ip,
             'location' => $location,
             'script_name' => $script,

@@ -950,7 +950,8 @@ class ScriptController extends Controller
         $cisco = data_get($device->metadata ?? [], 'cisco', []);
         $switchModel = $this->resolveSwitchModel($device, $cisco);
         $isNexus = $this->shouldUseNexus($device, $cisco, $switchModel);
-        $scriptName = $isNexus ? 'nexus_backup.sh' : '4948_backup.sh';
+        $scriptName = $this->resolveBackupScriptName($device, $cisco, $switchModel);
+        $is3560 = $scriptName === '3560_backup.sh';
         $traceContext = $this->deviceTraceContext($device, [
             'trace' => 'backup execution',
             'trigger' => $request->route()?->getName() ?: 'backup',
@@ -964,6 +965,7 @@ class ScriptController extends Controller
         ProvisioningTrace::log('backup trace: request received', $traceContext + [
             'switch_model' => $switchModel !== '' ? $switchModel : null,
             'is_nexus' => $isNexus,
+            'is_3560' => $is3560,
             'script_name' => $scriptName,
         ]);
 
@@ -1010,6 +1012,7 @@ class ScriptController extends Controller
             'script_path' => $scriptPath,
             'switch_model' => $switchModel !== '' ? $switchModel : null,
             'is_nexus' => $isNexus,
+            'is_3560' => $is3560,
             'switch_ip' => $ip,
             'location' => $location,
             'location_source' => $usedFallbackLocation ? 'fallback' : 'configured',
@@ -1068,6 +1071,27 @@ class ScriptController extends Controller
             ];
         }
 
+        if ($is3560) {
+            $command = ['bash', $scriptPath, $ip, $password, $enablePassword, $location];
+            if ($username) {
+                $command[] = $username;
+            }
+
+            return $this->runProcess($command, [], $traceContext + [
+                'label' => 'backup trace',
+                'line_prefix' => 'backup trace',
+                'script_name' => $scriptName,
+                'script_path' => $scriptPath,
+                'switch_model' => $switchModel !== '' ? $switchModel : null,
+                'is_nexus' => false,
+                'is_3560' => true,
+                'switch_ip' => $ip,
+                'location' => $location,
+                'command' => $this->redactBackupCommand($command, false),
+                'secret_values' => array_values(array_filter([$password, $enablePassword])),
+            ]);
+        }
+
         $command = ['bash', $scriptPath, $ip, $password, $enablePassword, $location];
 
         return $this->runProcess($command, [], $traceContext + [
@@ -1077,6 +1101,7 @@ class ScriptController extends Controller
             'script_path' => $scriptPath,
             'switch_model' => $switchModel !== '' ? $switchModel : null,
             'is_nexus' => false,
+            'is_3560' => false,
             'switch_ip' => $ip,
             'location' => $location,
             'command' => $this->redactBackupCommand($command, false),
@@ -1627,6 +1652,10 @@ class ScriptController extends Controller
         return str_contains(strtolower($model), 'nexus');
     }
 
+    private function is3560Model(string $model): bool
+    {
+        return str_contains(strtolower($model), '3560');
+    }
 
     private function shouldUseNexus(Device $device, array $cisco, string $switchModel): bool
     {
@@ -1652,6 +1681,24 @@ class ScriptController extends Controller
         ));
 
         return str_contains($nameHint, 'nexus');
+    }
+
+    private function resolveBackupScriptName(Device $device, array $cisco, string $switchModel): string
+    {
+        if ($this->isNexusModel($switchModel)) {
+            return 'nexus_backup.sh';
+        }
+
+        if ($this->is3560Model($switchModel)) {
+            return '3560_backup.sh';
+        }
+
+        $subtype = (string) data_get($device->metadata ?? [], 'subtype', '');
+        if ($this->is3560Model($subtype)) {
+            return '3560_backup.sh';
+        }
+
+        return '4948_backup.sh';
     }
     private function cleanupTransportNoise(string $output): string
     {
