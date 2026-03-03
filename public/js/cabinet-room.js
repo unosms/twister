@@ -275,7 +275,8 @@
                 return;
             }
 
-            const slotHeight = 38;
+            const slotHeight = this.resolveSlotHeight(cabinet.size_u);
+            const density = slotHeight <= 12 ? 'ultra-compact' : (slotHeight <= 18 ? 'compact' : 'regular');
             const facePlacements = placements
                 .filter((placement) => placement.face === face)
                 .sort((left, right) => right.start_u - left.start_u);
@@ -326,13 +327,20 @@
             this.root.innerHTML = `
                 <div class="cabinet-room-rack-frame">
                     <div class="cabinet-room-rack-rail"></div>
-                    <div class="cabinet-room-rack-bay" style="--rack-size-u:${cabinet.size_u};--slot-height:${slotHeight}px;">
+                    <div class="cabinet-room-rack-bay" data-density="${density}" style="--rack-size-u:${cabinet.size_u};--slot-height:${slotHeight}px;">
                         <div>${slots.join('')}</div>
                         <div class="cabinet-room-placement-layer">${devices}</div>
                     </div>
                     <div class="cabinet-room-rack-rail"></div>
                 </div>
             `;
+        }
+
+        resolveSlotHeight(sizeU) {
+            const viewport = this.root.closest('[data-rack-viewport]');
+            const availableHeight = Math.max((viewport?.clientHeight || 760) - 24, 320);
+            const fitted = Math.floor(availableHeight / Math.max(sizeU, 1));
+            return Math.max(10, Math.min(38, fitted));
         }
     }
 
@@ -538,6 +546,16 @@
         }
 
         bindControls() {
+            let resizeFrame = null;
+            window.addEventListener('resize', () => {
+                if (resizeFrame) {
+                    window.cancelAnimationFrame(resizeFrame);
+                }
+                resizeFrame = window.requestAnimationFrame(() => {
+                    this.render();
+                });
+            });
+
             this.roomSearch?.addEventListener('input', (event) => {
                 this.state.roomQuery = event.target.value || '';
                 this.render();

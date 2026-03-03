@@ -100,7 +100,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.72rem;
+            font-size: clamp(0.58rem, 1vw, 0.72rem);
             font-weight: 700;
             color: rgba(210, 219, 233, 0.8);
             border-right: 1px solid rgba(118, 134, 158, 0.18);
@@ -170,6 +170,40 @@
             justify-content: space-between;
             gap: 0.75rem;
             padding: 0.65rem 0.8rem;
+        }
+
+        .cabinet-room-rack-bay[data-density="compact"] .cabinet-room-device-body {
+            gap: 0.45rem;
+            padding: 0.35rem 0.5rem;
+        }
+
+        .cabinet-room-rack-bay[data-density="compact"] .cabinet-room-device-chip {
+            padding: 0.08rem 0.35rem;
+            font-size: 0.58rem;
+        }
+
+        .cabinet-room-rack-bay[data-density="compact"] .cabinet-room-device-body .text-sm {
+            font-size: 0.68rem;
+            line-height: 1rem;
+        }
+
+        .cabinet-room-rack-bay[data-density="compact"] .cabinet-room-device-body .text-xs,
+        .cabinet-room-rack-bay[data-density="compact"] .cabinet-room-device-body .text-\[10px\] {
+            font-size: 0.55rem;
+            line-height: 0.8rem;
+        }
+
+        .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-device-body {
+            padding: 0.25rem 0.4rem;
+        }
+
+        .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-device-body .text-xs,
+        .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-device-body .text-\[10px\] {
+            display: none;
+        }
+
+        .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-device-chip:nth-child(2) {
+            display: none;
         }
 
         .cabinet-room-device-led {
@@ -409,7 +443,7 @@
                                 </div>
                                 <div class="rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-slate-200" data-rack-face-badge>Front Face</div>
                             </div>
-                            <div class="cabinet-room-scrollbar h-[calc(100%-4rem)] overflow-auto pr-2">
+                            <div class="h-[calc(100%-4rem)] overflow-hidden pr-2" data-rack-viewport>
                                 <div data-rack-view></div>
                             </div>
                         </div>
