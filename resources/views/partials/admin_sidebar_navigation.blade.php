@@ -40,11 +40,6 @@
         <span class="text-sm" data-sidebar-label>Dashboard</span>
     </a>
 
-    <a class="flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors {{ $usersActive ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('users.index') }}" data-sidebar-item>
-        <span class="material-symbols-outlined text-[20px]">group</span>
-        <span class="text-sm" data-sidebar-label>Users</span>
-    </a>
-
     <div class="flex flex-col gap-1">
         <div class="flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors {{ $deviceNavActive ? 'bg-primary/10 text-primary' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" data-sidebar-item>
             <span class="material-symbols-outlined text-[20px]">devices</span>
@@ -77,6 +72,11 @@
             <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $logsActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('telemetry.index') }}">Logs</a>
         </div>
     </details>
+
+    <a class="flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors {{ $usersActive ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('users.index') }}" data-sidebar-item>
+        <span class="material-symbols-outlined text-[20px]">group</span>
+        <span class="text-sm" data-sidebar-label>Users</span>
+    </a>
 
     <a class="flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors {{ $settingsActive ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('settings.index') }}" data-sidebar-item>
         <span class="material-symbols-outlined text-[20px]">tune</span>
