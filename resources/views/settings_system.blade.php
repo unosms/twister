@@ -94,16 +94,21 @@ Refresh
 
 <section class="relative overflow-hidden rounded-3xl border border-slate-200/80 bg-white/95 px-6 py-6 shadow-xl shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900/85 dark:shadow-black/20 sm:px-8">
 <div class="absolute -right-16 -top-16 h-40 w-40 rounded-full bg-primary/10 blur-3xl"></div>
-<div class="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-<div class="max-w-2xl">
+<div class="relative flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+<div class="max-w-3xl">
 <p class="text-xs font-bold uppercase tracking-[0.24em] text-primary">System Settings</p>
-<h2 class="mt-3 text-3xl font-black tracking-tight text-slate-900 dark:text-white">Global Time Zone</h2>
+<h1 class="mt-3 text-3xl font-black tracking-tight text-slate-900 dark:text-white">Operations and Configuration</h1>
 <p class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
-Select the time zone the whole system should use for timestamps, human-readable relative times, dashboards,
-logs, and future data formatting across the admin interface.
+This page is organized around practical system tasks: change the timezone, run or clear backups, reset runtime data, and export or import the full configuration.
 </p>
+<div class="mt-5 flex flex-wrap gap-2">
+<a class="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:border-primary dark:hover:text-primary" href="#timezone-settings">Time Zone</a>
+<a class="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:border-primary dark:hover:text-primary" href="#backup-operations">Backups</a>
+<a class="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:border-primary dark:hover:text-primary" href="#system-cleanup">Cleanup</a>
+<a class="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:border-primary dark:hover:text-primary" href="#config-backup">Config Backup</a>
 </div>
-<div class="grid gap-3 sm:grid-cols-2 lg:w-[360px]">
+</div>
+<div class="grid gap-3 sm:grid-cols-2 xl:w-[400px]">
 <div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/70">
 <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Current Zone</p>
 <p class="mt-3 text-sm font-bold text-slate-900 dark:text-white">{{ $currentTimezone }}</p>
@@ -112,14 +117,28 @@ logs, and future data formatting across the admin interface.
 <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Local Preview</p>
 <p class="mt-3 text-sm font-bold text-slate-900 dark:text-white" id="local-preview-clock" data-timezone="{{ $currentTimezone }}">{{ $localNow->format('D, d M Y H:i:s') }}</p>
 </div>
+<div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/70">
+<p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Managed Devices</p>
+<p class="mt-3 text-2xl font-black text-slate-900 dark:text-white">{{ $maintenanceStats['device_count'] }}</p>
+</div>
+<div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-900/70">
+<p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Primary Backup Root</p>
+<p class="mt-3 text-sm font-bold text-slate-900 dark:text-white break-all">{{ $backupRootPrimary }}</p>
+</div>
 </div>
 </div>
 </section>
 
-<section class="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 sm:p-8">
+<div class="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
+<section class="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 sm:p-8" id="timezone-settings">
 <form class="space-y-6" method="POST" action="{{ route('settings.update') }}">
 @csrf
-<div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+<div class="flex flex-col gap-2">
+<p class="text-xs font-bold uppercase tracking-[0.24em] text-primary">Time Zone</p>
+<h2 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Global Time Zone</h2>
+<p class="text-sm leading-6 text-slate-600 dark:text-slate-300">Choose the timezone used for timestamps, dashboards, human-readable dates, and logs across the admin interface.</p>
+</div>
+<div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
 <div class="space-y-4">
 <div>
 <label class="block text-sm font-semibold text-slate-700 dark:text-slate-200" for="timezone-search">Search Time Zone or Country</label>
@@ -142,9 +161,9 @@ logs, and future data formatting across the admin interface.
 <div class="rounded-2xl border border-slate-200 bg-slate-50 p-5 dark:border-slate-800 dark:bg-slate-950/50">
 <p class="text-sm font-bold text-slate-900 dark:text-white">How it works</p>
 <ul class="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-300">
-<li>All admin requests load the saved time zone before controllers and views run.</li>
-<li>Formatted dates like `Y-m-d H:i:s` and relative times like `diffForHumans()` use the selected zone.</li>
-<li>The saved value is cached and reapplied automatically on future requests.</li>
+<li>All admin requests load the saved timezone before controllers and views run.</li>
+<li>Formatted dates and relative times use the selected zone automatically.</li>
+<li>The saved value is cached and reused on future requests.</li>
 </ul>
 </div>
 <div class="rounded-2xl border {{ $settingsReady ? 'border-emerald-200 bg-emerald-50 dark:border-emerald-900/50 dark:bg-emerald-950/30' : 'border-amber-200 bg-amber-50 dark:border-amber-900/50 dark:bg-amber-950/30' }} p-5">
@@ -170,71 +189,55 @@ Save Time Zone
 </form>
 </section>
 
-<section class="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 sm:p-8">
-<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-<div>
-<p class="text-xs font-bold uppercase tracking-[0.24em] text-primary">Maintenance</p>
-<h2 class="mt-2 text-2xl font-black tracking-tight text-slate-900 dark:text-white">Backups, Logs, and Notifications</h2>
-<p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
-Run backups for the full device fleet, clear stored backup artifacts, reset system logs, and clear alert notifications from one place.
-</p>
-</div>
-<div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-950/50">
-<p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Primary Backup Root</p>
-<p class="mt-2 text-sm font-bold text-slate-900 dark:text-white">{{ $backupRootPrimary }}</p>
-<p class="mt-1 text-xs text-slate-500">Laravel checks {{ count($backupRootOptions) }} backup root{{ count($backupRootOptions) === 1 ? '' : 's' }} in order.</p>
-</div>
+<section class="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 sm:p-8" id="backup-operations">
+<div class="flex flex-col gap-2">
+<p class="text-xs font-bold uppercase tracking-[0.24em] text-primary">Backups</p>
+<h2 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Backup Operations</h2>
+<p class="text-sm leading-6 text-slate-600 dark:text-slate-300">Use one section for fleet backup actions and one-off device cleanup.</p>
 </div>
 
-<div class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-<div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/50">
-<p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Devices</p>
-<p class="mt-3 text-2xl font-black text-slate-900 dark:text-white">{{ $maintenanceStats['device_count'] }}</p>
-</div>
+<div class="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
 <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/50">
 <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Backup Folders</p>
 <p class="mt-3 text-2xl font-black text-slate-900 dark:text-white">{{ $maintenanceStats['backup_device_count'] }}</p>
 </div>
 <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/50">
-<p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Alerts + Notifications</p>
-<p class="mt-3 text-2xl font-black text-slate-900 dark:text-white">{{ $maintenanceStats['alert_count'] + $maintenanceStats['notification_count'] }}</p>
-</div>
-<div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/50">
-<p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Telemetry Logs</p>
-<p class="mt-3 text-2xl font-black text-slate-900 dark:text-white">{{ $maintenanceStats['telemetry_count'] }}</p>
+<p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Scheduler</p>
+<p class="mt-3 text-sm font-bold text-slate-900 dark:text-white">Every 2 hours</p>
 </div>
 </div>
 
-<div class="mt-6 grid gap-6 xl:grid-cols-3">
+<div class="mt-6 space-y-4">
 <div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
-<p class="text-sm font-bold text-slate-900 dark:text-white">Run Backup Now</p>
-<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Run the same backup command used by the scheduler against every eligible device immediately.</p>
-<form class="mt-5" method="POST" action="{{ route('settings.backups.manage') }}" onsubmit="return confirm('Run backups for all devices now?');">
+<p class="text-sm font-bold text-slate-900 dark:text-white">Fleet Backup Actions</p>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Run all backups now or clear all existing backup files across every device folder.</p>
+<div class="mt-4 grid gap-4 md:grid-cols-2">
+<form class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/40" method="POST" action="{{ route('settings.backups.manage') }}" onsubmit="return confirm('Run backups for all devices now?');">
 @csrf
 <input type="hidden" name="operation" value="run_all"/>
-<button class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-primary/90" type="submit">
+<p class="text-sm font-bold text-slate-900 dark:text-white">Run Backup Now</p>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Starts the same fleet command used by the scheduler.</p>
+<button class="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-primary/90" type="submit">
 <span class="material-symbols-outlined text-[18px]">backup</span>
 Backup All Devices Now
 </button>
 </form>
-</div>
-
-<div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
-<p class="text-sm font-bold text-slate-900 dark:text-white">Clear All Backups</p>
-<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Delete every saved backup file inside each configured device backup folder while keeping the folders themselves.</p>
-<form class="mt-5" method="POST" action="{{ route('settings.backups.manage') }}" onsubmit="return confirm('Clear all saved backup files for every device?');">
+<form class="rounded-2xl border border-red-200 bg-red-50/70 p-4 dark:border-red-900/60 dark:bg-red-950/20" method="POST" action="{{ route('settings.backups.manage') }}" onsubmit="return confirm('Clear all saved backup files for every device?');">
 @csrf
 <input type="hidden" name="operation" value="clear_all"/>
-<button class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-300 bg-red-50 px-5 py-3 text-sm font-bold text-red-700 transition hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-300 dark:hover:bg-red-950/35" type="submit">
+<p class="text-sm font-bold text-slate-900 dark:text-white">Clear All Backups</p>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Deletes saved backup files but keeps the folder structure in place.</p>
+<button class="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-300 bg-red-50 px-5 py-3 text-sm font-bold text-red-700 transition hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-300 dark:hover:bg-red-950/35" type="submit">
 <span class="material-symbols-outlined text-[18px]">delete_sweep</span>
 Clear All Backups
 </button>
 </form>
 </div>
+</div>
 
 <div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
 <p class="text-sm font-bold text-slate-900 dark:text-white">Clear One Device Backup</p>
-<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Pick one device if you only want to reset one backup folder without touching the rest of the fleet.</p>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Reset one device backup folder without touching the rest of the fleet.</p>
 <form class="mt-5 space-y-4" method="POST" action="{{ route('settings.backups.manage') }}" onsubmit="return confirm('Clear backups for the selected device only?');">
 @csrf
 <input type="hidden" name="operation" value="clear_device"/>
@@ -244,7 +247,7 @@ Clear All Backups
 <option value="">Select a device</option>
 @foreach ($backupDevices as $backupDevice)
 <option value="{{ $backupDevice['id'] }}" @selected((string) $selectedBackupDeviceId === (string) $backupDevice['id'])>
-{{ $backupDevice['name'] }}{{ $backupDevice['model'] !== '' ? ' · ' . $backupDevice['model'] : '' }}{{ $backupDevice['folder'] ? ' · ' . $backupDevice['folder'] : '' }}
+{{ $backupDevice['name'] }}{{ $backupDevice['model'] !== '' ? ' | ' . $backupDevice['model'] : '' }}{{ $backupDevice['folder'] ? ' | ' . $backupDevice['folder'] : '' }}
 </option>
 @endforeach
 </select>
@@ -256,11 +259,24 @@ Clear Selected Device Backups
 </form>
 </div>
 </div>
+</section>
+
+<section class="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 sm:p-8 xl:col-span-2" id="system-cleanup">
+<div class="flex flex-col gap-2">
+<p class="text-xs font-bold uppercase tracking-[0.24em] text-primary">Cleanup</p>
+<h2 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Logs and Notifications</h2>
+<p class="text-sm leading-6 text-slate-600 dark:text-slate-300">Clear runtime data without affecting saved configuration.</p>
+</div>
 
 <div class="mt-6 grid gap-6 xl:grid-cols-2">
 <div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
+<div class="flex items-start justify-between gap-4">
+<div>
 <p class="text-sm font-bold text-slate-900 dark:text-white">Clear Logs</p>
-<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Reset application log files in `storage/logs` and delete telemetry log rows so fresh troubleshooting starts from a clean baseline.</p>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Reset application log files in `storage/logs` and delete telemetry rows for a clean troubleshooting baseline.</p>
+</div>
+<div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-400">{{ $maintenanceStats['telemetry_count'] }} telemetry</div>
+</div>
 <form class="mt-5" method="POST" action="{{ route('settings.logs.clear') }}" onsubmit="return confirm('Clear application and telemetry logs?');">
 @csrf
 <button class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-slate-50 px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" type="submit">
@@ -271,8 +287,13 @@ Clear Logs
 </div>
 
 <div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
+<div class="flex items-start justify-between gap-4">
+<div>
 <p class="text-sm font-bold text-slate-900 dark:text-white">Clear Notifications</p>
-<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Delete all current alert and notification records so the notifications page and menu start empty again.</p>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Delete current alert and notification records so the notifications area starts empty again.</p>
+</div>
+<div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-400">{{ $maintenanceStats['alert_count'] + $maintenanceStats['notification_count'] }} items</div>
+</div>
 <form class="mt-5" method="POST" action="{{ route('settings.notifications.clear') }}" onsubmit="return confirm('Delete all current alerts and notifications?');">
 @csrf
 <button class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-slate-50 px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" type="submit">
@@ -284,13 +305,13 @@ Clear Notifications
 </div>
 </section>
 
-<section class="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 sm:p-8">
+<section class="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 sm:p-8 xl:col-span-2" id="config-backup">
 <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
 <div class="max-w-3xl">
 <p class="text-xs font-bold uppercase tracking-[0.24em] text-primary">System Configuration Backup</p>
 <h2 class="mt-2 text-2xl font-black tracking-tight text-slate-900 dark:text-white">Export or Import Full Configuration</h2>
 <p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
-Export a JSON snapshot of users, devices, assignments, permissions, and system settings. Importing a snapshot replaces the current configuration and logs you out so the restored accounts can sign in cleanly.
+Export a JSON snapshot of users, devices, assignments, permissions, and system settings. Importing a snapshot replaces the current configuration and signs you out so the restored accounts can sign in cleanly.
 </p>
 </div>
 <div class="flex flex-wrap gap-2">
@@ -300,10 +321,18 @@ Export a JSON snapshot of users, devices, assignments, permissions, and system s
 </div>
 </div>
 
-<div class="mt-6 grid gap-6 xl:grid-cols-2">
+<div class="mt-6 grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
 <div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
 <p class="text-sm font-bold text-slate-900 dark:text-white">Export Snapshot</p>
 <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Download the current configuration as a portable JSON file for backup, migration, or rollback.</p>
+<div class="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/40">
+<p class="text-sm font-semibold text-slate-900 dark:text-white">Included in export</p>
+<ul class="mt-3 space-y-2 text-sm text-slate-600 dark:text-slate-300">
+@foreach ($configBackupTableLabels as $label)
+<li>{{ $label }}</li>
+@endforeach
+</ul>
+</div>
 <a class="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-primary/90" href="{{ route('settings.system-config.export') }}">
 <span class="material-symbols-outlined text-[18px]">download</span>
 Export Configuration Backup
@@ -331,6 +360,7 @@ Import Configuration Backup
 </div>
 </div>
 </section>
+</div>
 </div>
 </main>
 </div>
