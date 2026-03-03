@@ -203,7 +203,31 @@ Save Time Zone
 </div>
 <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/50">
 <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Scheduler</p>
-<p class="mt-3 text-sm font-bold text-slate-900 dark:text-white">Every 2 hours</p>
+<p class="mt-3 text-sm font-bold text-slate-900 dark:text-white">{{ $backupScheduleLabel }}</p>
+</div>
+</div>
+
+<div class="mt-6 rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
+<div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+<div class="max-w-2xl">
+<p class="text-sm font-bold text-slate-900 dark:text-white">Backup Scheduler</p>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Choose how often the fleet backup command should run. The cron job still runs every minute; this changes when `devices:run-backups` becomes due.</p>
+</div>
+<form class="grid gap-3 sm:grid-cols-[minmax(0,220px)_auto]" method="POST" action="{{ route('settings.backup-schedule.update') }}">
+@csrf
+<div>
+<label class="sr-only" for="backup_schedule_interval_hours">Backup Interval</label>
+<select class="h-11 w-full rounded-2xl border border-slate-300 bg-white px-4 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" id="backup_schedule_interval_hours" name="backup_schedule_interval_hours">
+@foreach ($backupScheduleOptions as $hours)
+<option value="{{ $hours }}" @selected((int) $backupScheduleIntervalHours === (int) $hours)>{{ $hours === 1 ? 'Every hour' : 'Every ' . $hours . ' hours' }}</option>
+@endforeach
+</select>
+</div>
+<button class="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" type="submit">
+<span class="material-symbols-outlined text-[18px]">schedule</span>
+Save Backup Schedule
+</button>
+</form>
 </div>
 </div>
 

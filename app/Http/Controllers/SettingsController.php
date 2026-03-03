@@ -9,6 +9,7 @@ use App\Models\Device;
 use App\Models\SystemNotification;
 use App\Models\TelemetryLog;
 use App\Models\User;
+use App\Support\BackupSchedule;
 use App\Support\ProvisioningTrace;
 use DateTimeZone;
 use Illuminate\Http\Request;
@@ -55,6 +56,9 @@ class SettingsController extends Controller
             'timezoneEntries' => $this->buildTimezoneEntries(),
             'countryOptions' => $this->buildCountryOptions(),
             'settingsReady' => $settingsReady,
+            'backupScheduleIntervalHours' => BackupSchedule::intervalHours(),
+            'backupScheduleOptions' => BackupSchedule::allowedIntervals(),
+            'backupScheduleLabel' => BackupSchedule::humanLabel(),
             'backupDevices' => $backupDevices,
             'backupRootOptions' => $this->backupRoots(),
             'maintenanceStats' => [
@@ -112,6 +116,28 @@ class SettingsController extends Controller
             'clear_all' => $this->clearBackupsForAllDevices(),
             'clear_device' => $this->clearBackupsForSingleDevice((int) $data['device_id']),
         };
+    }
+
+    public function updateBackupSchedule(Request $request)
+    {
+        if (!AppSetting::supportsStorage()) {
+            return back()->withErrors([
+                'backup_schedule' => 'The settings table is missing the required key/value columns. Run php artisan migrate first.',
+            ]);
+        }
+
+        $allowedIntervals = BackupSchedule::allowedIntervals();
+
+        $data = $request->validate([
+            'backup_schedule_interval_hours' => ['required', 'integer', Rule::in($allowedIntervals)],
+        ]);
+
+        $hours = (int) $data['backup_schedule_interval_hours'];
+        AppSetting::putValue('backup_schedule_interval_hours', $hours);
+
+        return redirect()
+            ->route('settings.index')
+            ->with('status', 'Backup scheduler updated to ' . BackupSchedule::humanLabel($hours) . '.');
     }
 
     public function clearLogs()

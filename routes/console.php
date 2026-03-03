@@ -3,6 +3,7 @@
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
+use App\Support\BackupSchedule;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -10,4 +11,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('devices:poll-status')->everyMinute()->withoutOverlapping();
 Schedule::command('events:poll')->everyMinute()->withoutOverlapping();
-Schedule::command('devices:run-backups')->everyTwoHours()->withoutOverlapping();
+BackupSchedule::applyTo(app(\Illuminate\Console\Scheduling\Schedule::class));
