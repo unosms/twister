@@ -1185,15 +1185,9 @@
 
     function buildEquipmentFacade(placement, density) {
         const equipmentKind = equipmentKindFor(placement.device);
-        const litPorts = equipmentKind === 'switch' ? 4 : 2;
 
         if (equipmentKind === 'switch') {
-            return `
-                <div class="cabinet-room-equipment-stack">
-                    ${renderPorts(24, litPorts)}
-                    ${renderSfps(4, 1)}
-                </div>
-            `;
+            return renderSwitchFacade(placement.device, density);
         }
 
         if (equipmentKind === 'server') {
@@ -1254,6 +1248,10 @@
         return `<div class="cabinet-room-port-bank">${Array.from({ length: count }, (_, index) => `<span class="cabinet-room-port ${index < litCount ? 'is-lit' : ''}"></span>`).join('')}</div>`;
     }
 
+    function renderPortRow(count, litCount, columns, extraClass = '') {
+        return `<div class="cabinet-room-port-row ${extraClass}" style="grid-template-columns: repeat(${columns}, minmax(0, 1fr));">${Array.from({ length: count }, (_, index) => `<span class="cabinet-room-port ${index < litCount ? 'is-lit' : ''} ${extraClass.includes('is-uplink') ? 'is-uplink' : ''}"></span>`).join('')}</div>`;
+    }
+
     function renderDriveBays(count) {
         return `<div class="cabinet-room-drive-bays">${Array.from({ length: count }, () => '<span class="cabinet-room-drive-bay"></span>').join('')}</div>`;
     }
@@ -1272,6 +1270,101 @@
 
     function renderModule() {
         return '<span class="cabinet-room-module"></span>';
+    }
+
+    function renderSwitchFacade(device, density) {
+        const spec = switchPanelSpec(device);
+        const rows = spec.rows.map((row) => renderPortRow(row.count, row.litCount, row.columns, row.uplink ? 'is-uplink' : '')).join('');
+        const uplinks = spec.uplinkCount > 0
+            ? renderPortRow(spec.uplinkCount, Math.min(2, spec.uplinkCount), spec.uplinkCount > 4 ? 4 : spec.uplinkCount, 'is-uplink')
+            : '';
+
+        return `
+            <div class="cabinet-room-switch-panel">
+                <div class="cabinet-room-switch-header">
+                    <span class="cabinet-room-switch-badge">${escapeHtml(spec.badge)}</span>
+                    <span class="cabinet-room-switch-label">${escapeHtml(spec.label)}</span>
+                </div>
+                <div class="cabinet-room-switch-rows">${rows}</div>
+                ${uplinks ? `<div class="cabinet-room-equipment-stack"><div class="cabinet-room-switch-label">Uplinks</div>${uplinks}</div>` : ''}
+            </div>
+        `;
+    }
+
+    function switchPanelSpec(device) {
+        const model = String(device?.model || '').trim();
+        const normalized = model.toLowerCase();
+        let totalPorts = parseSwitchPortCount(normalized);
+        let uplinkCount = 4;
+        let label = 'Switch Panel';
+        let badge = model || 'Switch';
+
+        if (normalized.includes('4948')) {
+            totalPorts = 48;
+            uplinkCount = 4;
+            label = 'Catalyst 4948';
+            badge = '48-Port';
+        } else if (normalized.includes('3560')) {
+            label = 'Catalyst 3560';
+            badge = totalPorts >= 48 ? '48-Port' : '24-Port';
+        } else if (normalized.includes('2960')) {
+            label = 'Catalyst 2960';
+            badge = totalPorts >= 48 ? '48-Port' : '24-Port';
+        } else if (normalized.includes('3750')) {
+            label = 'Catalyst 3750';
+            badge = totalPorts >= 48 ? '48-Port' : '24-Port';
+        } else if (normalized.includes('3850')) {
+            uplinkCount = 8;
+            label = 'Catalyst 3850';
+            badge = totalPorts >= 48 ? '48-Port' : '24-Port';
+        } else if (normalized.includes('9300')) {
+            uplinkCount = 8;
+            label = 'Catalyst 9300';
+            badge = totalPorts >= 48 ? '48-Port' : '24-Port';
+        } else if (normalized.includes('nexus') || normalized.includes('n3k') || normalized.includes('n5k') || normalized.includes('n9k')) {
+            totalPorts = totalPorts || 48;
+            uplinkCount = normalized.includes('n9k') ? 8 : 4;
+            label = 'Nexus Fabric';
+            badge = `${totalPorts}-Port`;
+        } else {
+            badge = totalPorts ? `${totalPorts}-Port` : 'Switch';
+            label = 'Switch Panel';
+        }
+
+        totalPorts = totalPorts || 24;
+        const rowSize = totalPorts >= 48 ? 24 : (totalPorts >= 24 ? 12 : totalPorts);
+        const rows = [];
+        let remaining = totalPorts;
+        while (remaining > 0) {
+            const count = Math.min(rowSize, remaining);
+            rows.push({
+                count,
+                columns: count,
+                litCount: Math.min(4, count),
+            });
+            remaining -= count;
+        }
+
+        return {
+            badge,
+            label,
+            rows,
+            uplinkCount,
+        };
+    }
+
+    function parseSwitchPortCount(normalizedModel) {
+        if (normalizedModel.includes('4948')) {
+            return 48;
+        }
+
+        const matches = normalizedModel.match(/(?:^|[^0-9])(8|12|16|24|32|48)(?:[^0-9]|$)/g) || [];
+        const values = matches
+            .map((match) => Number((match.match(/\d+/) || [])[0] || 0))
+            .filter(Boolean)
+            .sort((left, right) => right - left);
+
+        return values[0] || 0;
     }
 
     function statusTone(status) {

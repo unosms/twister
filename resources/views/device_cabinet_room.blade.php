@@ -338,6 +338,57 @@
             gap: 0.28rem;
         }
 
+        .cabinet-room-switch-panel {
+            display: grid;
+            width: 100%;
+            gap: 0.28rem;
+        }
+
+        .cabinet-room-switch-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.45rem;
+        }
+
+        .cabinet-room-switch-badge {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            padding: 0.08rem 0.42rem;
+            font-size: 0.55rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: rgba(226, 232, 240, 0.88);
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .cabinet-room-switch-label {
+            font-size: 0.52rem;
+            font-weight: 700;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: rgba(148, 163, 184, 0.78);
+        }
+
+        .cabinet-room-switch-rows {
+            display: grid;
+            gap: 0.18rem;
+        }
+
+        .cabinet-room-port-row {
+            display: grid;
+            gap: 0.18rem;
+        }
+
+        .cabinet-room-port-row.is-uplink .cabinet-room-port,
+        .cabinet-room-port.is-uplink {
+            background:
+                linear-gradient(180deg, rgba(160, 116, 36, 0.22), rgba(65, 45, 18, 0.92));
+            box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+        }
+
         .cabinet-room-device[data-equipment-kind="switch"] {
             background:
                 linear-gradient(180deg, rgba(31, 41, 59, 0.98), rgba(13, 17, 26, 0.98));
@@ -378,6 +429,11 @@
             grid-template-columns: minmax(5.5rem, 1fr) minmax(4.25rem, 0.95fr) auto;
         }
 
+        .cabinet-room-rack-bay[data-density="compact"] .cabinet-room-switch-badge,
+        .cabinet-room-rack-bay[data-density="compact"] .cabinet-room-switch-label {
+            font-size: 0.48rem;
+        }
+
         .cabinet-room-rack-bay[data-density="compact"] .cabinet-room-device-chip {
             padding: 0.08rem 0.35rem;
             font-size: 0.58rem;
@@ -401,6 +457,10 @@
         .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-device-face {
             grid-template-columns: minmax(4.25rem, 1fr) minmax(3.5rem, 0.85fr) auto;
             gap: 0.35rem;
+        }
+
+        .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-switch-header {
+            display: none;
         }
 
         .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-device-body .text-xs,
