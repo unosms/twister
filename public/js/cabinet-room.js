@@ -298,25 +298,35 @@
                 const selected = placement.id === selectedPlacementId;
                 const tone = statusTone(placement.device?.status);
                 const subtitle = [placement.device?.model, placement.device?.ip_address].filter(Boolean).join(' | ');
+                const equipmentKind = equipmentKindFor(placement.device);
+                const facade = buildEquipmentFacade(placement, density);
 
                 return `
-                    <button type="button" draggable="true" data-placement-id="${placement.id}" data-device-id="${placement.device_id}" data-height-u="${placement.height_u}" data-status-tone="${tone}" class="cabinet-room-device ${selected ? 'is-selected' : ''}" style="bottom:${bottom}px;height:${Math.max(height, slotHeight - 8)}px" aria-label="${escapeHtml(placement.device?.name || 'Rack device')}">
+                    <button type="button" draggable="true" data-placement-id="${placement.id}" data-device-id="${placement.device_id}" data-height-u="${placement.height_u}" data-status-tone="${tone}" data-equipment-kind="${equipmentKind}" class="cabinet-room-device ${selected ? 'is-selected' : ''}" style="bottom:${bottom}px;height:${Math.max(height, slotHeight - 8)}px" aria-label="${escapeHtml(placement.device?.name || 'Rack device')}">
                         <span class="cabinet-room-device-rail"></span>
                         <div class="cabinet-room-device-body">
-                            <div class="min-w-0">
-                                <div class="flex items-center gap-2">
-                                    <span class="cabinet-room-device-led"></span>
-                                    <span class="truncate text-sm font-semibold text-slate-100">${escapeHtml(placement.device?.name || 'Unnamed device')}</span>
+                            <div class="cabinet-room-device-face">
+                                <div class="cabinet-room-device-brand">
+                                    <div class="min-w-0">
+                                        <div class="flex items-center gap-2">
+                                            <span class="cabinet-room-device-led"></span>
+                                            <span class="truncate text-sm font-semibold text-slate-100">${escapeHtml(placement.device?.name || 'Unnamed device')}</span>
+                                        </div>
+                                        <div class="cabinet-room-device-model">${escapeHtml(subtitle || 'No device metadata')}</div>
+                                    </div>
+                                    <div class="mt-2 flex flex-wrap items-center gap-2">
+                                        <span class="cabinet-room-device-chip">${placement.height_u}U</span>
+                                        <span class="cabinet-room-device-chip">U${placement.start_u}-${placement.end_u}</span>
+                                    </div>
                                 </div>
-                                <div class="mt-2 truncate text-xs text-slate-400">${escapeHtml(subtitle || 'No device metadata')}</div>
-                                <div class="mt-3 flex flex-wrap items-center gap-2">
-                                    <span class="cabinet-room-device-chip">${placement.height_u}U</span>
-                                    <span class="cabinet-room-device-chip">U${placement.start_u}-${placement.end_u}</span>
+                                <div class="cabinet-room-device-facade">
+                                    ${facade}
                                 </div>
-                            </div>
-                            <div class="flex flex-col items-end justify-between">
-                                <span class="cabinet-room-device-chip">${escapeHtml((placement.device?.status || 'unknown').toUpperCase())}</span>
-                                <span class="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">${escapeHtml(face)}</span>
+                                <div class="cabinet-room-device-meta">
+                                    <span class="cabinet-room-device-chip">${escapeHtml((placement.device?.status || 'unknown').toUpperCase())}</span>
+                                    <span class="cabinet-room-device-chip">${escapeHtml((placement.device?.type || equipmentKind).toUpperCase())}</span>
+                                    <span class="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">${escapeHtml(face)}</span>
+                                </div>
                             </div>
                         </div>
                         <span class="cabinet-room-device-rail"></span>
@@ -1151,6 +1161,117 @@
                 <dd class="mt-1 text-sm font-medium text-slate-900">${escapeHtml(value)}</dd>
             </div>
         `;
+    }
+
+    function equipmentKindFor(device) {
+        const type = String(device?.type || '').trim().toUpperCase();
+        if (type === 'CISCO' || type === 'SWITCH') {
+            return 'switch';
+        }
+        if (type === 'SERVER') {
+            return 'server';
+        }
+        if (type === 'MIKROTIK' || type === 'ROUTER') {
+            return 'router';
+        }
+        if (type === 'OLT') {
+            return 'optical';
+        }
+        if (type === 'MIMOSA' || type === 'WIRELESS') {
+            return 'wireless';
+        }
+        return 'generic';
+    }
+
+    function buildEquipmentFacade(placement, density) {
+        const equipmentKind = equipmentKindFor(placement.device);
+        const litPorts = equipmentKind === 'switch' ? 4 : 2;
+
+        if (equipmentKind === 'switch') {
+            return `
+                <div class="cabinet-room-equipment-stack">
+                    ${renderPorts(24, litPorts)}
+                    ${renderSfps(4, 1)}
+                </div>
+            `;
+        }
+
+        if (equipmentKind === 'server') {
+            const bayCount = placement.height_u >= 2 ? 8 : 4;
+            return `
+                <div class="cabinet-room-equipment-stack">
+                    <div class="flex items-center gap-2">
+                        ${renderScreen()}
+                        <div class="w-full">${renderVents(6)}</div>
+                    </div>
+                    ${renderDriveBays(bayCount)}
+                </div>
+            `;
+        }
+
+        if (equipmentKind === 'router') {
+            return `
+                <div class="cabinet-room-equipment-stack">
+                    <div class="flex items-center gap-2">
+                        ${renderScreen()}
+                        ${renderModule()}
+                    </div>
+                    ${renderPorts(density === 'ultra-compact' ? 6 : 10, 2)}
+                </div>
+            `;
+        }
+
+        if (equipmentKind === 'optical') {
+            return `
+                <div class="cabinet-room-equipment-stack">
+                    ${renderSfps(density === 'ultra-compact' ? 4 : 8, 2)}
+                    ${renderPorts(density === 'ultra-compact' ? 4 : 8, 1)}
+                </div>
+            `;
+        }
+
+        if (equipmentKind === 'wireless') {
+            return `
+                <div class="cabinet-room-equipment-stack">
+                    <div class="flex items-center gap-2">
+                        ${renderScreen()}
+                        ${renderVents(5)}
+                    </div>
+                    ${renderPorts(density === 'ultra-compact' ? 4 : 6, 1)}
+                </div>
+            `;
+        }
+
+        return `
+            <div class="cabinet-room-equipment-stack">
+                ${renderVents(6)}
+                ${renderPorts(density === 'ultra-compact' ? 4 : 8, 1)}
+            </div>
+        `;
+    }
+
+    function renderPorts(count, litCount) {
+        return `<div class="cabinet-room-port-bank">${Array.from({ length: count }, (_, index) => `<span class="cabinet-room-port ${index < litCount ? 'is-lit' : ''}"></span>`).join('')}</div>`;
+    }
+
+    function renderDriveBays(count) {
+        return `<div class="cabinet-room-drive-bays">${Array.from({ length: count }, () => '<span class="cabinet-room-drive-bay"></span>').join('')}</div>`;
+    }
+
+    function renderSfps(count, litCount) {
+        return `<div class="cabinet-room-sfp-bank">${Array.from({ length: count }, (_, index) => `<span class="cabinet-room-sfp ${index < litCount ? 'is-lit' : ''}"></span>`).join('')}</div>`;
+    }
+
+    function renderVents(count) {
+        return `<div class="cabinet-room-vent-bank">${Array.from({ length: count }, () => '<span class="cabinet-room-vent"></span>').join('')}</div>`;
+    }
+
+    function renderScreen() {
+        return '<span class="cabinet-room-screen"></span>';
+    }
+
+    function renderModule() {
+        return '<span class="cabinet-room-module"></span>';
     }
 
     function statusTone(status) {

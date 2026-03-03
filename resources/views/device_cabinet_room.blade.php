@@ -148,6 +148,15 @@
                 0 8px 20px rgba(0, 0, 0, 0.24);
         }
 
+        .cabinet-room-device::before {
+            content: '';
+            position: absolute;
+            inset: 0.2rem;
+            border-radius: 0.55rem;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            pointer-events: none;
+        }
+
         .cabinet-room-device.is-selected {
             box-shadow:
                 inset 0 0 0 1px rgba(94, 163, 255, 0.5),
@@ -171,9 +180,202 @@
             padding: 0.65rem 0.8rem;
         }
 
+        .cabinet-room-device-face {
+            display: grid;
+            grid-template-columns: minmax(7rem, 1.15fr) minmax(6rem, 1fr) auto;
+            width: 100%;
+            align-items: stretch;
+            gap: 0.7rem;
+        }
+
+        .cabinet-room-device-brand {
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-width: 0;
+        }
+
+        .cabinet-room-device-model {
+            margin-top: 0.2rem;
+            font-size: 0.66rem;
+            color: rgba(186, 197, 214, 0.72);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .cabinet-room-device-facade {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 0;
+        }
+
+        .cabinet-room-device-meta {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            justify-content: space-between;
+            gap: 0.35rem;
+        }
+
+        .cabinet-room-port-bank,
+        .cabinet-room-drive-bays,
+        .cabinet-room-sfp-bank,
+        .cabinet-room-vent-bank {
+            display: grid;
+            width: 100%;
+            gap: 0.18rem;
+        }
+
+        .cabinet-room-port-bank {
+            grid-template-columns: repeat(12, minmax(0, 1fr));
+        }
+
+        .cabinet-room-port {
+            aspect-ratio: 1 / 1;
+            border-radius: 0.14rem;
+            background:
+                linear-gradient(180deg, rgba(164, 176, 194, 0.16), rgba(60, 71, 86, 0.92));
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+        }
+
+        .cabinet-room-port.is-lit {
+            box-shadow:
+                inset 0 -1px 0 rgba(255, 255, 255, 0.04),
+                0 0 0 1px rgba(34, 197, 94, 0.18);
+        }
+
+        .cabinet-room-port.is-lit::after,
+        .cabinet-room-sfp.is-lit::after {
+            content: '';
+            display: block;
+            width: 0.24rem;
+            height: 0.24rem;
+            margin: 0.05rem auto 0;
+            border-radius: 999px;
+            background: #22c55e;
+            box-shadow: 0 0 6px #22c55e;
+        }
+
+        .cabinet-room-drive-bays {
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+        }
+
+        .cabinet-room-drive-bay,
+        .cabinet-room-sfp,
+        .cabinet-room-screen,
+        .cabinet-room-module {
+            position: relative;
+            border-radius: 0.2rem;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            background: linear-gradient(180deg, rgba(53, 63, 78, 0.95), rgba(19, 25, 34, 0.95));
+        }
+
+        .cabinet-room-drive-bay {
+            min-height: 1.05rem;
+        }
+
+        .cabinet-room-drive-bay::before {
+            content: '';
+            position: absolute;
+            left: 0.18rem;
+            right: 0.18rem;
+            top: 0.18rem;
+            height: 0.16rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+        }
+
+        .cabinet-room-drive-bay::after {
+            content: '';
+            position: absolute;
+            width: 0.2rem;
+            height: 0.2rem;
+            right: 0.16rem;
+            bottom: 0.16rem;
+            border-radius: 999px;
+            background: rgba(148, 163, 184, 0.55);
+        }
+
+        .cabinet-room-sfp-bank {
+            grid-template-columns: repeat(8, minmax(0, 1fr));
+        }
+
+        .cabinet-room-sfp {
+            min-height: 0.78rem;
+        }
+
+        .cabinet-room-vent-bank {
+            grid-template-columns: repeat(6, minmax(0, 1fr));
+        }
+
+        .cabinet-room-vent {
+            min-height: 0.22rem;
+            border-radius: 999px;
+            background: rgba(148, 163, 184, 0.16);
+        }
+
+        .cabinet-room-screen {
+            min-width: 2rem;
+            min-height: 0.9rem;
+            background:
+                linear-gradient(180deg, rgba(35, 68, 95, 0.95), rgba(10, 26, 45, 0.95));
+            box-shadow: inset 0 0 0 1px rgba(110, 192, 255, 0.16);
+        }
+
+        .cabinet-room-module {
+            min-width: 2.2rem;
+            min-height: 1.2rem;
+            background:
+                linear-gradient(180deg, rgba(65, 76, 92, 0.95), rgba(24, 31, 43, 0.95));
+        }
+
+        .cabinet-room-equipment-stack {
+            display: grid;
+            width: 100%;
+            gap: 0.28rem;
+        }
+
+        .cabinet-room-device[data-equipment-kind="switch"] {
+            background:
+                linear-gradient(180deg, rgba(31, 41, 59, 0.98), rgba(13, 17, 26, 0.98));
+        }
+
+        .cabinet-room-device[data-equipment-kind="server"] {
+            background:
+                linear-gradient(180deg, rgba(43, 35, 28, 0.98), rgba(17, 15, 13, 0.98));
+        }
+
+        .cabinet-room-device[data-equipment-kind="router"] {
+            background:
+                linear-gradient(180deg, rgba(28, 44, 45, 0.98), rgba(12, 20, 22, 0.98));
+        }
+
+        .cabinet-room-device[data-equipment-kind="optical"] {
+            background:
+                linear-gradient(180deg, rgba(44, 34, 52, 0.98), rgba(17, 12, 23, 0.98));
+        }
+
+        .cabinet-room-device[data-equipment-kind="wireless"] {
+            background:
+                linear-gradient(180deg, rgba(34, 40, 56, 0.98), rgba(15, 18, 28, 0.98));
+        }
+
+        .cabinet-room-device[data-equipment-kind="generic"] {
+            background:
+                linear-gradient(180deg, rgba(37, 40, 46, 0.98), rgba(15, 18, 22, 0.98));
+        }
+
         .cabinet-room-rack-bay[data-density="compact"] .cabinet-room-device-body {
             gap: 0.45rem;
             padding: 0.35rem 0.5rem;
+        }
+
+        .cabinet-room-rack-bay[data-density="compact"] .cabinet-room-device-face {
+            gap: 0.45rem;
+            grid-template-columns: minmax(5.5rem, 1fr) minmax(4.25rem, 0.95fr) auto;
         }
 
         .cabinet-room-rack-bay[data-density="compact"] .cabinet-room-device-chip {
@@ -196,6 +398,11 @@
             padding: 0.25rem 0.4rem;
         }
 
+        .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-device-face {
+            grid-template-columns: minmax(4.25rem, 1fr) minmax(3.5rem, 0.85fr) auto;
+            gap: 0.35rem;
+        }
+
         .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-device-body .text-xs,
         .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-device-body .text-\[10px\] {
             display: none;
@@ -203,6 +410,14 @@
 
         .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-device-chip:nth-child(2) {
             display: none;
+        }
+
+        .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-port-bank {
+            grid-template-columns: repeat(8, minmax(0, 1fr));
+        }
+
+        .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-drive-bays {
+            grid-template-columns: repeat(3, minmax(0, 1fr));
         }
 
         .cabinet-room-device-led {
