@@ -338,9 +338,9 @@
 
         resolveSlotHeight(sizeU) {
             const viewport = this.root.closest('[data-rack-viewport]');
-            const availableHeight = Math.max((viewport?.clientHeight || 760) - 24, 320);
+            const availableHeight = Math.max((viewport?.clientHeight || 760) - 12, 220);
             const fitted = Math.floor(availableHeight / Math.max(sizeU, 1));
-            return Math.max(10, Math.min(38, fitted));
+            return Math.max(5, Math.min(38, fitted));
         }
     }
 

@@ -61,7 +61,7 @@
             display: grid;
             grid-template-columns: 28px minmax(240px, 1fr) 28px;
             gap: 0.75rem;
-            min-height: 420px;
+            align-items: stretch;
         }
 
         .cabinet-room-rack-rail {
@@ -78,7 +78,6 @@
         .cabinet-room-rack-bay {
             position: relative;
             height: calc(var(--rack-size-u) * var(--slot-height));
-            min-height: 420px;
             border-radius: 1rem;
             background:
                 linear-gradient(180deg, rgba(25, 33, 47, 0.98) 0%, rgba(10, 14, 21, 0.98) 100%);
@@ -444,7 +443,7 @@
                                 <div class="rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-slate-200" data-rack-face-badge>Front Face</div>
                             </div>
                             <div class="h-[calc(100%-4rem)] overflow-hidden pr-2" data-rack-viewport>
-                                <div data-rack-view></div>
+                                <div class="h-full" data-rack-view></div>
                             </div>
                         </div>
                     </div>
