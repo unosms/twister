@@ -158,6 +158,7 @@ class ProvisioningTrace
         $protocol = self::normalizeProtocol($context['protocol'] ?? self::inferProtocol($command));
         $trace = self::resolveTraceLabel($context['trace'] ?? $label);
         $layer = self::normalizeLayer($context['layer'] ?? 'process_execution');
+        $flushPromptFragments = (bool) ($options['flush_prompt_fragments'] ?? true);
 
         self::log($label . ': launching', $context + [
             'timeout_seconds' => $process->getTimeout(),
@@ -182,34 +183,11 @@ class ProvisioningTrace
 
         try {
             if ($logOutput) {
-                $process->run(function (string $type, string $buffer) use (&$partialLines, $secretValues, $context, $linePrefix, $protocol, $trace): void {
+                $process->run(function (string $type, string $buffer) use (&$partialLines, $secretValues, $context, $linePrefix, $protocol, $trace, $flushPromptFragments): void {
                     $stream = $type === Process::ERR ? 'stderr' : 'stdout';
                     $partialLines[$stream] .= self::redactText($buffer, $secretValues);
-                    $normalized = str_replace(["\r\n", "\r"], "\n", $partialLines[$stream]);
-                    $lines = explode("\n", $normalized);
-                    $partialLines[$stream] = array_pop($lines);
-
-                    foreach ($lines as $line) {
-                        $line = trim($line);
-                        if ($line === '') {
-                            continue;
-                        }
-
-                        self::log("{$linePrefix} {$stream}: {$line}", $context);
-
-                        if (self::allowsTraceLevel('trace')) {
-                            self::communication("{$linePrefix} {$stream}: {$line}", $context + [
-                                'trace' => $trace,
-                                'layer' => 'process_output',
-                                'protocol' => $protocol,
-                                'state' => $stream === 'stderr' ? 'warning' : 'running',
-                                'response' => [
-                                    'status' => $stream,
-                                    'summary' => self::summarizeText($line),
-                                ],
-                            ]);
-                        }
-                    }
+                    $lines = self::flushProcessBuffer($partialLines, $stream, $flushPromptFragments);
+                    self::writeProcessOutputLines($lines, $stream, $linePrefix, $context, $protocol, $trace);
                 });
             } else {
                 $process->run();
@@ -251,20 +229,7 @@ class ProvisioningTrace
                     continue;
                 }
 
-                self::log("{$linePrefix} {$stream}: {$line}", $context);
-
-                if (self::allowsTraceLevel('trace')) {
-                    self::communication("{$linePrefix} {$stream}: {$line}", $context + [
-                        'trace' => $trace,
-                        'layer' => 'process_output',
-                        'protocol' => $protocol,
-                        'state' => $stream === 'stderr' ? 'warning' : 'running',
-                        'response' => [
-                            'status' => $stream,
-                            'summary' => self::summarizeText($line),
-                        ],
-                    ]);
-                }
+                self::writeProcessOutputLines([$line], $stream, $linePrefix, $context, $protocol, $trace);
             }
         }
 
@@ -308,6 +273,56 @@ class ProvisioningTrace
             'stdout' => $stdout,
             'stderr' => $stderr,
         ];
+    }
+
+    private static function flushProcessBuffer(array &$partialLines, string $stream, bool $flushPromptFragments): array
+    {
+        $normalized = str_replace(["\r\n", "\r"], "\n", $partialLines[$stream]);
+        $lines = explode("\n", $normalized);
+        $partialLines[$stream] = array_pop($lines);
+
+        $flushed = [];
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line !== '') {
+                $flushed[] = $line;
+            }
+        }
+
+        if ($flushPromptFragments && self::looksLikeInteractivePrompt($partialLines[$stream])) {
+            $fragment = trim($partialLines[$stream]);
+            if ($fragment !== '') {
+                $flushed[] = $fragment;
+                $partialLines[$stream] = '';
+            }
+        }
+
+        return $flushed;
+    }
+
+    private static function writeProcessOutputLines(array $lines, string $stream, string $linePrefix, array $context, string $protocol, string $trace): void
+    {
+        foreach ($lines as $line) {
+            $line = trim((string) $line);
+            if ($line === '') {
+                continue;
+            }
+
+            self::log("{$linePrefix} {$stream}: {$line}", $context);
+
+            if (self::allowsTraceLevel('trace')) {
+                self::communication("{$linePrefix} {$stream}: {$line}", $context + [
+                    'trace' => $trace,
+                    'layer' => 'process_output',
+                    'protocol' => $protocol,
+                    'state' => $stream === 'stderr' ? 'warning' : 'running',
+                    'response' => [
+                        'status' => $stream,
+                        'summary' => self::summarizeText($line),
+                    ],
+                ]);
+            }
+        }
     }
 
     public static function withoutSecrets(array $context): array
@@ -395,7 +410,7 @@ class ProvisioningTrace
             'protocol' => $protocol,
             'device_id' => isset($event['device_id']) ? (int) $event['device_id'] : null,
             'device_name' => self::summarizeText($event['device_name'] ?? null, 255),
-            'device_ip' => self::summarizeText($event['device_ip'] ?? null, 255),
+            'device_ip' => self::summarizeText($event['device_ip'] ?? $event['switch_ip'] ?? null, 255),
             'device_hostname' => self::summarizeText($event['device_hostname'] ?? null, 255),
             'script_name' => self::summarizeText($event['script_name'] ?? null, 255),
             'request' => $request,
@@ -611,5 +626,15 @@ class ProvisioningTrace
             str_contains($haystack, 'snmp') => 'SNMP',
             default => 'LOCAL_PROCESS',
         };
+    }
+
+    private static function looksLikeInteractivePrompt(string $buffer): bool
+    {
+        $buffer = trim($buffer);
+        if ($buffer === '' || strlen($buffer) > 320) {
+            return false;
+        }
+
+        return preg_match('/((P|p)assword:|(?:U|u)sername:|(?:L|l)ogin:|Press RETURN to get started|Address or name of remote host.*\?|Destination filename.*\?|Source filename.*\?|Enter vrf.*:|Overwrite.*\?|[A-Za-z0-9._-]+[>#]\s*|[!?]+)$/', $buffer) === 1;
     }
 }

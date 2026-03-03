@@ -485,76 +485,22 @@ class RunDeviceBackups extends Command
         $process = new Process($command, base_path());
         $process->setTimeout(180);
         $process->setEnv(array_merge($_ENV, $_SERVER, ProvisioningTrace::childProcessEnv()));
-        $startedAt = microtime(true);
-        $logContext = $this->withoutProvisioningSecrets($traceContext);
         $secretValues = array_values(array_filter($traceContext['secret_values'] ?? []));
-        $partialLines = ['stdout' => '', 'stderr' => ''];
-
-        $this->writeProvisioningLog('backup trace: launching process', $logContext + [
-            'timeout_seconds' => 180,
-        ]);
-
-        try {
-            $process->run(function (string $type, string $buffer) use (&$partialLines, $secretValues, $logContext): void {
-                $stream = $type === Process::ERR ? 'stderr' : 'stdout';
-                $partialLines[$stream] .= $this->redactProvisioningText($buffer, $secretValues);
-                $normalized = str_replace(["\r\n", "\r"], "\n", $partialLines[$stream]);
-                $lines = explode("\n", $normalized);
-                $partialLines[$stream] = array_pop($lines);
-
-                foreach ($lines as $line) {
-                    $line = trim($line);
-                    if ($line === '') {
-                        continue;
-                    }
-
-                    $this->writeProvisioningLog("backup trace {$stream}: {$line}", $logContext);
-                }
-            });
-        } catch (\Throwable $e) {
-            $this->writeProvisioningLog('backup trace: process threw an exception', $logContext + [
-                'duration_ms' => (int) round((microtime(true) - $startedAt) * 1000),
-                'error' => $e->getMessage(),
-            ]);
-
-            return [
-                'ok' => false,
-                'output' => $e->getMessage(),
-            ];
-        }
-
-        foreach ($partialLines as $stream => $line) {
-            $line = trim($line);
-            if ($line === '') {
-                continue;
-            }
-
-            $this->writeProvisioningLog("backup trace {$stream}: {$line}", $logContext);
-        }
-
-        $payload = trim($this->redactProvisioningText($process->getOutput() . "\n" . $process->getErrorOutput(), $secretValues));
-        $durationMs = (int) round((microtime(true) - $startedAt) * 1000);
-
-        if (!$process->isSuccessful()) {
-            $this->writeProvisioningLog('backup trace: process failed', $logContext + [
-                'duration_ms' => $durationMs,
-                'exit_code' => $process->getExitCode(),
-            ]);
-
-            return [
-                'ok' => false,
-                'output' => $payload,
-            ];
-        }
-
-        $this->writeProvisioningLog('backup trace: process completed', $logContext + [
-            'duration_ms' => $durationMs,
-            'exit_code' => $process->getExitCode(),
+        $traceResult = ProvisioningTrace::runProcess($process, [
+            'label' => 'backup trace',
+            'line_prefix' => 'backup trace',
+            'context' => $this->withoutProvisioningSecrets($traceContext + [
+                'layer' => $traceContext['layer'] ?? 'process_execution',
+                'protocol' => $traceContext['protocol'] ?? 'TELNET',
+                'device_ip' => $traceContext['device_ip'] ?? $traceContext['switch_ip'] ?? null,
+            ]),
+            'secret_values' => $secretValues,
+            'log_output' => true,
         ]);
 
         return [
-            'ok' => true,
-            'output' => $payload,
+            'ok' => (bool) ($traceResult['ok'] ?? false),
+            'output' => (string) ($traceResult['output'] ?? ''),
         ];
     }
 

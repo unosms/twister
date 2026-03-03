@@ -816,13 +816,21 @@ class ScriptController extends Controller
         $result = $this->runProcess(['bash', $scriptPath], $env, $traceContext + [
             'label' => 'command trace',
             'line_prefix' => 'command trace',
+            'layer' => 'process_execution',
+            'protocol' => strtoupper((string) ($device->type ?? '')) === 'CISCO' ? 'TELNET' : 'LOCAL_PROCESS',
             'script_name' => $command['script'],
             'script_path' => $scriptPath,
+            'device_ip' => $ip,
             'switch_ip' => $ip,
             'command' => ['bash', $scriptPath],
             'secret_values' => array_values(array_filter([$password, $enablePassword])),
         ]);
-        if (isset($result['output']) && is_string($result['output']) && $cmdKey !== 'showlog') {
+        if (
+            isset($result['output'])
+            && is_string($result['output'])
+            && $cmdKey !== 'showlog'
+            && !ProvisioningTrace::enabled()
+        ) {
             $result['output'] = $this->cleanupTransportNoise($result['output']);
         }
 
@@ -852,10 +860,16 @@ class ScriptController extends Controller
         return $this->runProcess(['bash', '-lc', $scriptCode], $env, $this->deviceTraceContext($device, [
             'trace' => 'command execution',
             'trigger' => $request->route()?->getName() ?: 'scripts.exec',
+            'layer' => 'process_execution',
+            'protocol' => strtoupper((string) ($device->type ?? '')) === 'CISCO' ? 'TELNET' : 'LOCAL_PROCESS',
             'command_key' => $cmdKey,
             'template_id' => $template->id,
             'template_name' => $template->name,
             'script_source' => 'inline_code',
+            'device_ip' => $this->firstNonEmpty(
+                data_get($device->metadata ?? [], 'cisco.ip_address'),
+                $device->ip_address
+            ),
             'command' => ['bash', '-lc', '[INLINE SCRIPT REDACTED]'],
             'label' => 'command trace',
             'line_prefix' => 'command trace',
@@ -877,10 +891,16 @@ class ScriptController extends Controller
         return $this->runProcess(['bash', $scriptPath], $env, $this->deviceTraceContext($device, [
             'trace' => 'command execution',
             'trigger' => $request->route()?->getName() ?: 'scripts.exec',
+            'layer' => 'process_execution',
+            'protocol' => strtoupper((string) ($device->type ?? '')) === 'CISCO' ? 'TELNET' : 'LOCAL_PROCESS',
             'command_key' => $cmdKey,
             'template_id' => $template->id,
             'template_name' => $template->name,
             'script_source' => 'custom_script',
+            'device_ip' => $this->firstNonEmpty(
+                data_get($device->metadata ?? [], 'cisco.ip_address'),
+                $device->ip_address
+            ),
             'script_path' => $scriptPath,
             'command' => ['bash', $scriptPath],
             'label' => 'command trace',
@@ -1067,10 +1087,13 @@ class ScriptController extends Controller
             $result = $this->runProcess($command, [], $traceContext + [
                 'label' => 'backup trace',
                 'line_prefix' => 'backup trace',
+                'layer' => 'process_execution',
+                'protocol' => 'TELNET',
                 'script_name' => $scriptName,
                 'script_path' => $scriptPath,
                 'switch_model' => $switchModel !== '' ? $switchModel : null,
                 'is_nexus' => true,
+                'device_ip' => $ip,
                 'switch_ip' => $ip,
                 'location' => $location,
                 'command' => $this->redactBackupCommand($command, true),
@@ -1108,11 +1131,14 @@ class ScriptController extends Controller
             $result = $this->runProcess($command, [], $traceContext + [
                 'label' => 'backup trace',
                 'line_prefix' => 'backup trace',
+                'layer' => 'process_execution',
+                'protocol' => 'TELNET',
                 'script_name' => $scriptName,
                 'script_path' => $scriptPath,
                 'switch_model' => $switchModel !== '' ? $switchModel : null,
                 'is_nexus' => false,
                 'is_3560' => true,
+                'device_ip' => $ip,
                 'switch_ip' => $ip,
                 'location' => $location,
                 'command' => $this->redactBackupCommand($command, false),
@@ -1135,11 +1161,14 @@ class ScriptController extends Controller
         $result = $this->runProcess($command, [], $traceContext + [
             'label' => 'backup trace',
             'line_prefix' => 'backup trace',
+            'layer' => 'process_execution',
+            'protocol' => 'TELNET',
             'script_name' => $scriptName,
             'script_path' => $scriptPath,
             'switch_model' => $switchModel !== '' ? $switchModel : null,
             'is_nexus' => false,
             'is_3560' => false,
+            'device_ip' => $ip,
             'switch_ip' => $ip,
             'location' => $location,
             'command' => $this->redactBackupCommand($command, false),
