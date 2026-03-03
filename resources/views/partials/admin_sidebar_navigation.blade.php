@@ -40,16 +40,17 @@
         <span class="text-sm" data-sidebar-label>Dashboard</span>
     </a>
 
-    <div class="flex flex-col gap-1">
-        <div class="flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors {{ $deviceNavActive ? 'bg-primary/10 text-primary' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" data-sidebar-item>
+    <details class="sidebar-collapsible-group flex flex-col gap-1" {{ $deviceNavActive ? 'open' : '' }}>
+        <summary class="flex cursor-pointer list-none items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors {{ $deviceNavActive ? 'bg-primary/10 text-primary' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" data-sidebar-item>
             <span class="material-symbols-outlined text-[20px]">devices</span>
             <span class="text-sm" data-sidebar-label>Devices</span>
-        </div>
+            <span class="material-symbols-outlined ml-auto text-[18px] sidebar-collapsible-icon">expand_more</span>
+        </summary>
         <div class="sidebar-subnav ml-10 flex flex-col gap-1">
             <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $deviceControlActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.index') }}">Device Management</a>
             <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $deviceDetailsActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.details') }}">Devices List</a>
         </div>
-    </div>
+    </details>
 
     <a class="flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors {{ $assignmentsActive ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.wizard') }}" data-sidebar-item>
         <span class="material-symbols-outlined text-[20px]">assignment</span>
