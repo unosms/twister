@@ -307,8 +307,8 @@
             </div>
         </header>
 
-        <section class="flex-1 overflow-hidden p-6">
-            <div class="grid h-full gap-6 xl:grid-cols-[22rem_minmax(0,1fr)_24rem]">
+        <section class="flex-1 overflow-hidden p-4">
+            <div class="grid h-full gap-4 xl:grid-cols-[18rem_minmax(0,1.75fr)_19rem] 2xl:grid-cols-[19rem_minmax(0,2.15fr)_20rem]">
                 <aside class="cabinet-room-panel flex min-h-0 flex-col overflow-hidden">
                     <div class="border-b border-slate-200 px-5 py-4">
                         <h2 class="text-lg font-semibold text-slate-900">Rooms and Cabinets</h2>
@@ -432,17 +432,17 @@
                             </div>
                         </div>
                     </div>
-                    <div class="flex-1 overflow-hidden p-6">
+                    <div class="flex-1 overflow-hidden p-4">
                         <div class="hidden rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" data-page-error></div>
-                        <div class="mt-4 h-full overflow-hidden rounded-[1.5rem] bg-slate-950/95 p-5 text-white shadow-2xl shadow-slate-900/25">
-                            <div class="mb-4 flex items-center justify-between gap-4">
+                        <div class="mt-3 h-full overflow-hidden rounded-[1.5rem] bg-slate-950/95 p-4 text-white shadow-2xl shadow-slate-900/25">
+                            <div class="mb-3 flex items-center justify-between gap-4">
                                 <div>
                                     <p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Rack Visualizer</p>
                                     <p class="mt-1 text-sm text-slate-300">Drop unplaced devices into the selected face. Drag placed equipment to move it. Rack numbering starts at U1 on the bottom.</p>
                                 </div>
                                 <div class="rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-slate-200" data-rack-face-badge>Front Face</div>
                             </div>
-                            <div class="h-[calc(100%-4rem)] overflow-hidden pr-2" data-rack-viewport>
+                            <div class="h-[calc(100%-3.25rem)] overflow-hidden pr-1" data-rack-viewport>
                                 <div class="h-full" data-rack-view></div>
                             </div>
                         </div>
