@@ -76,6 +76,11 @@ Route::middleware(['admin.auth', 'audit.log'])->group(function () {
     Route::post('/notifications/investigate', [NotificationController::class, 'investigate'])->name('notifications.investigate');
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
     Route::post('/settings', [SettingsController::class, 'update'])->name('settings.update');
+    Route::post('/settings/backups', [SettingsController::class, 'manageBackups'])->name('settings.backups.manage');
+    Route::post('/settings/logs/clear', [SettingsController::class, 'clearLogs'])->name('settings.logs.clear');
+    Route::post('/settings/notifications/clear', [SettingsController::class, 'clearNotifications'])->name('settings.notifications.clear');
+    Route::get('/settings/system-config/export', [SettingsController::class, 'exportSystemConfiguration'])->name('settings.system-config.export');
+    Route::post('/settings/system-config/import', [SettingsController::class, 'importSystemConfiguration'])->name('settings.system-config.import');
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
     Route::get('/support', [SupportController::class, 'index'])->name('support.index');
     Route::post('/support/auto-debug', [SupportController::class, 'autoDebug'])->name('support.auto-debug');

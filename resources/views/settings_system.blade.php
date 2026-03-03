@@ -49,6 +49,8 @@ $settingsActive = request()->routeIs('settings.*');
 $profileName = session('auth.role') === 'admin' ? 'Admin' : 'User';
 $localNow = now()->copy()->timezone($currentTimezone);
 $selectedTimezone = old('timezone', $currentTimezone);
+$backupRootPrimary = $backupRootOptions[0] ?? '/srv/tftp';
+$selectedBackupDeviceId = old('device_id', $selectedBackupDeviceId ?? '');
 @endphp
 
 <div class="flex h-screen overflow-hidden">
@@ -166,6 +168,168 @@ Save Time Zone
 </button>
 </div>
 </form>
+</section>
+
+<section class="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 sm:p-8">
+<div class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+<div>
+<p class="text-xs font-bold uppercase tracking-[0.24em] text-primary">Maintenance</p>
+<h2 class="mt-2 text-2xl font-black tracking-tight text-slate-900 dark:text-white">Backups, Logs, and Notifications</h2>
+<p class="mt-2 max-w-3xl text-sm leading-6 text-slate-600 dark:text-slate-300">
+Run backups for the full device fleet, clear stored backup artifacts, reset system logs, and clear alert notifications from one place.
+</p>
+</div>
+<div class="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-950/50">
+<p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Primary Backup Root</p>
+<p class="mt-2 text-sm font-bold text-slate-900 dark:text-white">{{ $backupRootPrimary }}</p>
+<p class="mt-1 text-xs text-slate-500">Laravel checks {{ count($backupRootOptions) }} backup root{{ count($backupRootOptions) === 1 ? '' : 's' }} in order.</p>
+</div>
+</div>
+
+<div class="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+<div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/50">
+<p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Devices</p>
+<p class="mt-3 text-2xl font-black text-slate-900 dark:text-white">{{ $maintenanceStats['device_count'] }}</p>
+</div>
+<div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/50">
+<p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Backup Folders</p>
+<p class="mt-3 text-2xl font-black text-slate-900 dark:text-white">{{ $maintenanceStats['backup_device_count'] }}</p>
+</div>
+<div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/50">
+<p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Alerts + Notifications</p>
+<p class="mt-3 text-2xl font-black text-slate-900 dark:text-white">{{ $maintenanceStats['alert_count'] + $maintenanceStats['notification_count'] }}</p>
+</div>
+<div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/50">
+<p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-400">Telemetry Logs</p>
+<p class="mt-3 text-2xl font-black text-slate-900 dark:text-white">{{ $maintenanceStats['telemetry_count'] }}</p>
+</div>
+</div>
+
+<div class="mt-6 grid gap-6 xl:grid-cols-3">
+<div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
+<p class="text-sm font-bold text-slate-900 dark:text-white">Run Backup Now</p>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Run the same backup command used by the scheduler against every eligible device immediately.</p>
+<form class="mt-5" method="POST" action="{{ route('settings.backups.manage') }}" onsubmit="return confirm('Run backups for all devices now?');">
+@csrf
+<input type="hidden" name="operation" value="run_all"/>
+<button class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-primary/90" type="submit">
+<span class="material-symbols-outlined text-[18px]">backup</span>
+Backup All Devices Now
+</button>
+</form>
+</div>
+
+<div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
+<p class="text-sm font-bold text-slate-900 dark:text-white">Clear All Backups</p>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Delete every saved backup file inside each configured device backup folder while keeping the folders themselves.</p>
+<form class="mt-5" method="POST" action="{{ route('settings.backups.manage') }}" onsubmit="return confirm('Clear all saved backup files for every device?');">
+@csrf
+<input type="hidden" name="operation" value="clear_all"/>
+<button class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-300 bg-red-50 px-5 py-3 text-sm font-bold text-red-700 transition hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-300 dark:hover:bg-red-950/35" type="submit">
+<span class="material-symbols-outlined text-[18px]">delete_sweep</span>
+Clear All Backups
+</button>
+</form>
+</div>
+
+<div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
+<p class="text-sm font-bold text-slate-900 dark:text-white">Clear One Device Backup</p>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Pick one device if you only want to reset one backup folder without touching the rest of the fleet.</p>
+<form class="mt-5 space-y-4" method="POST" action="{{ route('settings.backups.manage') }}" onsubmit="return confirm('Clear backups for the selected device only?');">
+@csrf
+<input type="hidden" name="operation" value="clear_device"/>
+<div>
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-200" for="settings-backup-device">Device</label>
+<select class="mt-2 h-11 w-full rounded-2xl border border-slate-300 bg-white px-4 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" id="settings-backup-device" name="device_id" required>
+<option value="">Select a device</option>
+@foreach ($backupDevices as $backupDevice)
+<option value="{{ $backupDevice['id'] }}" @selected((string) $selectedBackupDeviceId === (string) $backupDevice['id'])>
+{{ $backupDevice['name'] }}{{ $backupDevice['model'] !== '' ? ' · ' . $backupDevice['model'] : '' }}{{ $backupDevice['folder'] ? ' · ' . $backupDevice['folder'] : '' }}
+</option>
+@endforeach
+</select>
+</div>
+<button class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-5 py-3 text-sm font-bold text-amber-800 transition hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-300 dark:hover:bg-amber-950/35" type="submit">
+<span class="material-symbols-outlined text-[18px]">folder_delete</span>
+Clear Selected Device Backups
+</button>
+</form>
+</div>
+</div>
+
+<div class="mt-6 grid gap-6 xl:grid-cols-2">
+<div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
+<p class="text-sm font-bold text-slate-900 dark:text-white">Clear Logs</p>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Reset application log files in `storage/logs` and delete telemetry log rows so fresh troubleshooting starts from a clean baseline.</p>
+<form class="mt-5" method="POST" action="{{ route('settings.logs.clear') }}" onsubmit="return confirm('Clear application and telemetry logs?');">
+@csrf
+<button class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-slate-50 px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" type="submit">
+<span class="material-symbols-outlined text-[18px]">cleaning_services</span>
+Clear Logs
+</button>
+</form>
+</div>
+
+<div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
+<p class="text-sm font-bold text-slate-900 dark:text-white">Clear Notifications</p>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Delete all current alert and notification records so the notifications page and menu start empty again.</p>
+<form class="mt-5" method="POST" action="{{ route('settings.notifications.clear') }}" onsubmit="return confirm('Delete all current alerts and notifications?');">
+@csrf
+<button class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-slate-50 px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" type="submit">
+<span class="material-symbols-outlined text-[18px]">notifications_off</span>
+Clear Notifications
+</button>
+</form>
+</div>
+</div>
+</section>
+
+<section class="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 sm:p-8">
+<div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+<div class="max-w-3xl">
+<p class="text-xs font-bold uppercase tracking-[0.24em] text-primary">System Configuration Backup</p>
+<h2 class="mt-2 text-2xl font-black tracking-tight text-slate-900 dark:text-white">Export or Import Full Configuration</h2>
+<p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">
+Export a JSON snapshot of users, devices, assignments, permissions, and system settings. Importing a snapshot replaces the current configuration and logs you out so the restored accounts can sign in cleanly.
+</p>
+</div>
+<div class="flex flex-wrap gap-2">
+@foreach ($configBackupTableLabels as $label)
+<span class="inline-flex items-center rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600 dark:border-slate-700 dark:text-slate-300">{{ $label }}</span>
+@endforeach
+</div>
+</div>
+
+<div class="mt-6 grid gap-6 xl:grid-cols-2">
+<div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
+<p class="text-sm font-bold text-slate-900 dark:text-white">Export Snapshot</p>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Download the current configuration as a portable JSON file for backup, migration, or rollback.</p>
+<a class="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-primary/90" href="{{ route('settings.system-config.export') }}">
+<span class="material-symbols-outlined text-[18px]">download</span>
+Export Configuration Backup
+</a>
+</div>
+
+<div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
+<p class="text-sm font-bold text-slate-900 dark:text-white">Import Snapshot</p>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Upload a previously exported JSON file to replace the current users, devices, assignments, permissions, and saved settings.</p>
+<form class="mt-5 space-y-4" method="POST" action="{{ route('settings.system-config.import') }}" enctype="multipart/form-data" onsubmit="return confirm('Importing a configuration backup replaces the current configuration and signs you out. Continue?');">
+@csrf
+<div>
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-200" for="configuration_backup">Configuration Backup File</label>
+<input class="mt-2 block w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 file:mr-4 file:rounded-xl file:border-0 file:bg-slate-100 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-700 hover:file:bg-slate-200 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:file:bg-slate-800 dark:file:text-slate-200 dark:hover:file:bg-slate-700" id="configuration_backup" name="configuration_backup" type="file" accept=".json,application/json" required/>
+</div>
+<label class="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-200">
+<input class="mt-1 rounded border-amber-400 text-primary focus:ring-primary" type="checkbox" name="replace_existing" value="1" required/>
+<span>I understand this replaces the current system configuration and will require signing in again after the import completes.</span>
+</label>
+<button class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-5 py-3 text-sm font-bold text-amber-800 transition hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-300 dark:hover:bg-amber-950/35" type="submit">
+<span class="material-symbols-outlined text-[18px]">upload</span>
+Import Configuration Backup
+</button>
+</form>
+</div>
+</div>
 </section>
 </div>
 </main>

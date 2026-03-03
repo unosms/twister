@@ -3,14 +3,26 @@
 namespace App\Http\Controllers;
 
 use App\Http\Middleware\ApplySystemTimezone;
+use App\Models\Alert;
 use App\Models\AppSetting;
+use App\Models\Device;
+use App\Models\SystemNotification;
+use App\Models\TelemetryLog;
+use App\Models\User;
+use App\Support\ProvisioningTrace;
 use DateTimeZone;
 use Illuminate\Http\Request;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class SettingsController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $settingsReady = AppSetting::supportsStorage();
         $currentTimezone = $settingsReady
@@ -21,11 +33,40 @@ class SettingsController extends Controller
             ? $currentTimezone
             : (string) config('app.timezone', 'UTC');
 
+        $backupDevices = Device::query()
+            ->orderBy('name')
+            ->get(['id', 'name', 'type', 'model', 'metadata'])
+            ->map(function (Device $device): array {
+                $resolved = $this->resolveBackupDirectory($device);
+
+                return [
+                    'id' => $device->id,
+                    'name' => (string) $device->name,
+                    'type' => (string) ($device->type ?? ''),
+                    'model' => (string) ($device->model ?? ''),
+                    'folder' => $resolved['relative'] ?? null,
+                ];
+            })
+            ->values()
+            ->all();
+
         return view('settings_system', [
             'currentTimezone' => $currentTimezone,
             'timezoneEntries' => $this->buildTimezoneEntries(),
             'countryOptions' => $this->buildCountryOptions(),
             'settingsReady' => $settingsReady,
+            'backupDevices' => $backupDevices,
+            'backupRootOptions' => $this->backupRoots(),
+            'maintenanceStats' => [
+                'device_count' => Device::count(),
+                'backup_device_count' => count($backupDevices),
+                'alert_count' => $this->tableCount('alerts'),
+                'notification_count' => $this->tableCount('notifications'),
+                'telemetry_count' => $this->tableCount('telemetry_logs'),
+            ],
+            'configBackupTableLabels' => $this->configurationBackupTableLabels(),
+            'selectedBackupDeviceId' => old('device_id'),
+            'importRequiresConfirmation' => true,
         ]);
     }
 
@@ -52,6 +93,153 @@ class SettingsController extends Controller
         return redirect()
             ->route('settings.index')
             ->with('status', "System timezone updated to {$data['timezone']}.");
+    }
+
+    public function manageBackups(Request $request)
+    {
+        $data = $request->validate([
+            'operation' => ['required', 'string', Rule::in(['run_all', 'clear_all', 'clear_device'])],
+            'device_id' => [
+                Rule::requiredIf(static fn () => $request->input('operation') === 'clear_device'),
+                'nullable',
+                'integer',
+                'exists:devices,id',
+            ],
+        ]);
+
+        return match ($data['operation']) {
+            'run_all' => $this->runAllBackups(),
+            'clear_all' => $this->clearBackupsForAllDevices(),
+            'clear_device' => $this->clearBackupsForSingleDevice((int) $data['device_id']),
+        };
+    }
+
+    public function clearLogs()
+    {
+        try {
+            $telemetryDeleted = Schema::hasTable('telemetry_logs')
+                ? TelemetryLog::query()->delete()
+                : 0;
+
+            $logPaths = [];
+            if (File::isDirectory(storage_path('logs'))) {
+                foreach (File::files(storage_path('logs')) as $file) {
+                    if ($file->getFilename() === '.gitignore') {
+                        continue;
+                    }
+
+                    $logPaths[] = $file->getPathname();
+                }
+            }
+
+            $logPaths[] = ProvisioningTrace::rawLogPath();
+            $logPaths[] = ProvisioningTrace::eventLogPath();
+            $logPaths = array_values(array_unique(array_filter($logPaths, static fn ($path): bool => is_string($path) && $path !== '')));
+
+            $clearedFiles = 0;
+            foreach ($logPaths as $path) {
+                try {
+                    $directory = dirname($path);
+                    if (!File::isDirectory($directory)) {
+                        File::ensureDirectoryExists($directory);
+                    }
+                    File::put($path, '');
+                    $clearedFiles++;
+                } catch (\Throwable) {
+                    // Ignore individual file reset failures and keep clearing the remaining logs.
+                }
+            }
+
+            return redirect()
+                ->route('settings.index')
+                ->with('status', "Cleared {$telemetryDeleted} telemetry row(s) and reset {$clearedFiles} log file(s).");
+        } catch (\Throwable $exception) {
+            return back()->withErrors([
+                'logs' => 'Could not clear logs: ' . $exception->getMessage(),
+            ]);
+        }
+    }
+
+    public function clearNotifications()
+    {
+        try {
+            $notificationCount = $this->tableCount('notifications');
+            $alertCount = $this->tableCount('alerts');
+
+            DB::transaction(function (): void {
+                if (Schema::hasTable('notifications')) {
+                    SystemNotification::query()->delete();
+                }
+
+                if (Schema::hasTable('alerts')) {
+                    Alert::query()->delete();
+                }
+            });
+
+            return redirect()
+                ->route('settings.index')
+                ->with('status', "Cleared {$alertCount} alert(s) and {$notificationCount} notification record(s).");
+        } catch (\Throwable $exception) {
+            return back()->withErrors([
+                'notifications' => 'Could not clear notifications: ' . $exception->getMessage(),
+            ]);
+        }
+    }
+
+    public function exportSystemConfiguration(Request $request)
+    {
+        $actor = User::find($request->session()->get('auth.user_id'));
+        $payload = [
+            'type' => 'device-control-system-config',
+            'version' => 1,
+            'exported_at' => now()->toIso8601String(),
+            'exported_by' => [
+                'user_id' => $actor?->id,
+                'name' => $actor?->name,
+                'email' => $actor?->email,
+            ],
+            'tables' => $this->configurationBackupTableLabels(),
+            'datasets' => $this->configurationBackupDatasets(),
+        ];
+
+        $fileName = 'system-configuration-backup-' . now()->format('Y-m-d_H-i-s') . '.json';
+
+        return response()->streamDownload(function () use ($payload): void {
+            echo json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        }, $fileName, [
+            'Content-Type' => 'application/json; charset=UTF-8',
+        ]);
+    }
+
+    public function importSystemConfiguration(Request $request)
+    {
+        $data = $request->validate([
+            'configuration_backup' => ['required', 'file', 'max:20480'],
+            'replace_existing' => ['required', 'accepted'],
+        ]);
+
+        try {
+            $payload = $this->decodeConfigurationBackup($data['configuration_backup']);
+            $datasets = $payload['datasets'] ?? null;
+
+            if (!is_array($datasets)) {
+                throw new \RuntimeException('The uploaded file does not contain any configuration datasets.');
+            }
+
+            $imported = $this->importConfigurationDatasets($datasets);
+            ApplySystemTimezone::flushCache();
+
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+
+            return redirect()
+                ->route('auth.login')
+                ->with('status', 'System configuration imported successfully. Imported ' . $imported . '. Please sign in again.');
+        } catch (\Throwable $exception) {
+            return back()->withErrors([
+                'configuration_backup' => 'Could not import configuration backup: ' . $exception->getMessage(),
+            ]);
+        }
     }
 
     private function buildTimezoneEntries(): array
@@ -149,5 +337,415 @@ class SettingsController extends Controller
         }
 
         return $countryCode;
+    }
+
+    private function runAllBackups()
+    {
+        try {
+            $exitCode = Artisan::call('devices:run-backups');
+            $output = trim((string) Artisan::output());
+            $summary = $this->summarizeBackupCommandOutput($output);
+
+            if ($exitCode === 0) {
+                return redirect()
+                    ->route('settings.index')
+                    ->with('status', $summary !== '' ? $summary : 'Backups started for all devices.');
+            }
+
+            return back()->withErrors([
+                'backups' => $summary !== '' ? $summary : 'The all-device backup run failed.',
+            ]);
+        } catch (\Throwable $exception) {
+            return back()->withErrors([
+                'backups' => 'Could not run all-device backups: ' . $exception->getMessage(),
+            ]);
+        }
+    }
+
+    private function clearBackupsForAllDevices()
+    {
+        try {
+            $result = $this->clearBackupDirectories(
+                Device::query()->orderBy('id')->get(['id', 'name', 'metadata'])
+            );
+
+            return redirect()
+                ->route('settings.index')
+                ->with('status', "Cleared {$result['files_deleted']} backup file(s) across {$result['directories_touched']} device folder(s).");
+        } catch (\Throwable $exception) {
+            return back()->withErrors([
+                'backups' => 'Could not clear backups for all devices: ' . $exception->getMessage(),
+            ]);
+        }
+    }
+
+    private function clearBackupsForSingleDevice(int $deviceId)
+    {
+        try {
+            $device = Device::query()->findOrFail($deviceId, ['id', 'name', 'metadata']);
+            $result = $this->clearBackupDirectories([$device]);
+
+            return redirect()
+                ->route('settings.index')
+                ->with('status', "Cleared {$result['files_deleted']} backup file(s) for {$device->name}.");
+        } catch (\Throwable $exception) {
+            return back()->withErrors([
+                'backups' => 'Could not clear device backups: ' . $exception->getMessage(),
+            ])->withInput();
+        }
+    }
+
+    private function clearBackupDirectories(iterable $devices): array
+    {
+        $directories = [];
+
+        foreach ($devices as $device) {
+            if (!$device instanceof Device) {
+                continue;
+            }
+
+            $resolved = $this->resolveBackupDirectory($device);
+            if (!$resolved || empty($resolved['absolute'])) {
+                continue;
+            }
+
+            $directories[$resolved['absolute']] = $resolved;
+        }
+
+        $filesDeleted = 0;
+        $directoriesTouched = 0;
+
+        foreach ($directories as $resolved) {
+            $absolute = $resolved['absolute'];
+            if (!File::isDirectory($absolute)) {
+                continue;
+            }
+
+            $directoriesTouched++;
+            foreach (File::allFiles($absolute) as $file) {
+                if (!$file->isFile()) {
+                    continue;
+                }
+
+                File::delete($file->getPathname());
+                $filesDeleted++;
+            }
+
+            $this->removeEmptyChildDirectories($absolute);
+        }
+
+        return [
+            'directories_touched' => $directoriesTouched,
+            'files_deleted' => $filesDeleted,
+        ];
+    }
+
+    private function removeEmptyChildDirectories(string $absolute): void
+    {
+        if (!File::isDirectory($absolute)) {
+            return;
+        }
+
+        $directories = collect(File::allDirectories($absolute))
+            ->sortByDesc(static fn (string $path): int => strlen($path))
+            ->values();
+
+        foreach ($directories as $directory) {
+            if (File::isDirectory($directory) && count(File::files($directory)) === 0 && count(File::directories($directory)) === 0) {
+                File::deleteDirectory($directory);
+            }
+        }
+    }
+
+    private function summarizeBackupCommandOutput(string $output): string
+    {
+        if ($output === '') {
+            return '';
+        }
+
+        $lines = preg_split('/\r\n|\r|\n/', $output) ?: [];
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if (Str::startsWith($line, 'Backups attempted:')) {
+                return $line;
+            }
+        }
+
+        return trim((string) collect($lines)->filter()->last());
+    }
+
+    private function configurationBackupDatasets(): array
+    {
+        $datasets = [];
+
+        foreach (array_keys($this->configurationBackupTableLabels()) as $table) {
+            if (!Schema::hasTable($table)) {
+                continue;
+            }
+
+            $query = DB::table($table);
+            if (Schema::hasColumn($table, 'id')) {
+                $query->orderBy('id');
+            } elseif (Schema::hasColumn($table, 'key')) {
+                $query->orderBy('key');
+            }
+
+            $datasets[$table] = $query
+                ->get()
+                ->map(static fn ($row): array => (array) $row)
+                ->all();
+        }
+
+        return $datasets;
+    }
+
+    private function configurationBackupTableLabels(): array
+    {
+        return [
+            'users' => 'Users',
+            'devices' => 'Devices',
+            'device_assignments' => 'Device assignments',
+            'device_permissions' => 'Device permissions',
+            'app_settings' => 'App settings',
+        ];
+    }
+
+    private function decodeConfigurationBackup(UploadedFile $file): array
+    {
+        $content = File::get($file->getRealPath());
+        $payload = json_decode($content, true);
+
+        if (!is_array($payload)) {
+            throw new \RuntimeException('The uploaded file is not valid JSON.');
+        }
+
+        if (($payload['type'] ?? null) !== 'device-control-system-config') {
+            throw new \RuntimeException('The uploaded file is not a system configuration backup from this application.');
+        }
+
+        return $payload;
+    }
+
+    private function importConfigurationDatasets(array $datasets): string
+    {
+        $managedTables = array_keys($this->configurationBackupTableLabels());
+        $resetTables = [
+            'notifications',
+            'alerts',
+            'telemetry_logs',
+            'device_assignments',
+            'device_permissions',
+            'devices',
+            'app_settings',
+            'password_reset_tokens',
+            'sessions',
+            'users',
+        ];
+
+        $foreignKeyChecksDisabled = $this->setForeignKeyChecks(false);
+
+        try {
+            DB::beginTransaction();
+
+            foreach ($resetTables as $table) {
+                if (Schema::hasTable($table)) {
+                    DB::table($table)->delete();
+                }
+            }
+
+            $importCounts = [];
+            foreach ($managedTables as $table) {
+                if (!Schema::hasTable($table)) {
+                    continue;
+                }
+
+                $rows = $this->normalizeImportRows($table, $datasets[$table] ?? []);
+                $importCounts[$table] = count($rows);
+
+                if ($rows !== []) {
+                    foreach (array_chunk($rows, 250) as $chunk) {
+                        DB::table($table)->insert($chunk);
+                    }
+                }
+            }
+
+            DB::commit();
+        } catch (\Throwable $exception) {
+            DB::rollBack();
+            $this->setForeignKeyChecks(true, $foreignKeyChecksDisabled);
+            throw $exception;
+        }
+
+        $this->setForeignKeyChecks(true, $foreignKeyChecksDisabled);
+
+        return collect($importCounts)
+            ->map(static fn (int $count, string $table): string => "{$count} {$table}")
+            ->implode(', ');
+    }
+
+    private function normalizeImportRows(string $table, mixed $rows): array
+    {
+        if (!is_array($rows)) {
+            return [];
+        }
+
+        $columns = array_flip(Schema::getColumnListing($table));
+
+        return collect($rows)
+            ->map(static function ($row) use ($columns): array {
+                $data = is_array($row) ? $row : (is_object($row) ? (array) $row : []);
+                $normalized = [];
+
+                foreach ($data as $key => $value) {
+                    if (!is_string($key) || !isset($columns[$key])) {
+                        continue;
+                    }
+
+                    if (is_array($value) || is_object($value)) {
+                        $value = json_encode($value);
+                    }
+
+                    $normalized[$key] = $value;
+                }
+
+                return $normalized;
+            })
+            ->filter(static fn (array $row): bool => $row !== [])
+            ->values()
+            ->all();
+    }
+
+    private function setForeignKeyChecks(bool $enabled, ?bool $applied = null): bool
+    {
+        if ($applied === false) {
+            return false;
+        }
+
+        $driver = DB::getDriverName();
+
+        try {
+            if ($driver === 'mysql') {
+                DB::statement('SET FOREIGN_KEY_CHECKS=' . ($enabled ? '1' : '0'));
+                return true;
+            }
+
+            if ($driver === 'sqlite') {
+                DB::statement('PRAGMA foreign_keys = ' . ($enabled ? 'ON' : 'OFF'));
+                return true;
+            }
+        } catch (\Throwable) {
+            return false;
+        }
+
+        return false;
+    }
+
+    private function tableCount(string $table): int
+    {
+        if (!Schema::hasTable($table)) {
+            return 0;
+        }
+
+        return (int) DB::table($table)->count();
+    }
+
+    private function resolveBackupDirectory(Device $device): ?array
+    {
+        $meta = $device->metadata ?? [];
+        $cisco = data_get($meta, 'cisco', []);
+        $relative = $this->firstNonEmpty(
+            data_get($cisco, 'folder_location'),
+            data_get($meta, 'folder_location')
+        );
+
+        if (!$relative) {
+            $fallbackName = $this->firstNonEmpty(data_get($cisco, 'name'), $device->name, 'device');
+            $fallbackSlug = preg_replace('/\s+/', '_', (string) $fallbackName);
+            $relative = 'uno/' . ($fallbackSlug !== '' ? $fallbackSlug : 'device');
+        }
+
+        return $this->resolveBackupDirectoryFromRelative($relative);
+    }
+
+    private function resolveBackupDirectoryFromRelative(string $relative): ?array
+    {
+        $relative = trim(str_replace('\\', '/', (string) $relative), '/');
+        if ($relative === '' || str_contains($relative, '..')) {
+            return null;
+        }
+
+        $roots = $this->backupRoots();
+        $firstCandidate = null;
+
+        foreach ($roots as $root) {
+            $candidate = rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relative);
+            if ($firstCandidate === null) {
+                $firstCandidate = $candidate;
+            }
+
+            if (is_dir($candidate)) {
+                return [
+                    'relative' => $relative,
+                    'absolute' => $candidate,
+                ];
+            }
+        }
+
+        return [
+            'relative' => $relative,
+            'absolute' => $firstCandidate ?: base_path($relative),
+        ];
+    }
+
+    private function backupRoots(): array
+    {
+        $roots = [];
+
+        $configuredRoots = trim((string) env('BACKUP_ROOTS', ''));
+        if ($configuredRoots !== '') {
+            foreach (explode(',', $configuredRoots) as $root) {
+                $root = trim($root);
+                if ($root !== '') {
+                    $roots[] = $root;
+                }
+            }
+        }
+
+        $singleRoot = trim((string) env('BACKUP_ROOT', ''));
+        if ($singleRoot !== '') {
+            $roots[] = $singleRoot;
+        }
+
+        return array_values(array_unique(array_map(
+            static fn (string $root): string => rtrim(str_replace('\\', '/', $root), '/'),
+            array_filter(array_merge($roots, [
+                '/srv/tftp',
+                '/srv/tftpboot',
+                '/var/lib/tftpboot',
+                '/var/tftpboot',
+                '/tftpboot',
+                base_path(),
+                '/var/www/html',
+            ]))
+        )));
+    }
+
+    private function firstNonEmpty(...$values): ?string
+    {
+        foreach ($values as $value) {
+            if (!is_string($value)) {
+                if ($value !== null && $value !== '') {
+                    return (string) $value;
+                }
+                continue;
+            }
+
+            $trimmed = trim($value);
+            if ($trimmed !== '') {
+                return $trimmed;
+            }
+        }
+
+        return null;
     }
 }
