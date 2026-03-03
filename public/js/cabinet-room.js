@@ -1192,13 +1192,24 @@
 
         if (equipmentKind === 'server') {
             const bayCount = placement.height_u >= 2 ? 8 : 4;
+            const psuCount = placement.height_u >= 2 ? 2 : 1;
             return `
                 <div class="cabinet-room-equipment-stack">
+                    ${renderPanelStrip({
+                        leds: [
+                            { label: 'Status', lit: true },
+                            { label: 'Drive', lit: true, tone: 'amber' },
+                            { label: 'ID', lit: placement.height_u >= 2, tone: 'blue' },
+                        ],
+                        sockets: ['usb', 'console'],
+                        buttons: ['power', 'reset'],
+                    })}
                     <div class="flex items-center gap-2">
                         ${renderScreen()}
                         <div class="w-full">${renderVents(6)}</div>
+                        ${renderPowerSupplies(psuCount)}
                     </div>
-                    ${renderDriveBays(bayCount)}
+                    ${renderPortGroup('Drive bays', renderDriveBays(bayCount, Math.min(2, bayCount)))}
                 </div>
             `;
         }
@@ -1206,11 +1217,20 @@
         if (equipmentKind === 'router') {
             return `
                 <div class="cabinet-room-equipment-stack">
+                    ${renderPanelStrip({
+                        leds: [
+                            { label: 'PWR', lit: true },
+                            { label: 'ACT', lit: true, tone: 'amber' },
+                            { label: 'VPN', lit: true, tone: 'blue' },
+                        ],
+                        sockets: ['console', 'usb', 'mgmt'],
+                        buttons: ['power', 'reset'],
+                    })}
                     <div class="flex items-center gap-2">
                         ${renderScreen()}
                         ${renderModule()}
                     </div>
-                    ${renderPorts(density === 'ultra-compact' ? 6 : 10, 2)}
+                    ${renderPortGroup('WAN / LAN', renderPorts(density === 'ultra-compact' ? 6 : 10, 2))}
                 </div>
             `;
         }
@@ -1218,8 +1238,17 @@
         if (equipmentKind === 'optical') {
             return `
                 <div class="cabinet-room-equipment-stack">
-                    ${renderSfps(density === 'ultra-compact' ? 4 : 8, 2)}
-                    ${renderPorts(density === 'ultra-compact' ? 4 : 8, 1)}
+                    ${renderPanelStrip({
+                        leds: [
+                            { label: 'PON', lit: true },
+                            { label: 'LOS', lit: false, tone: 'amber' },
+                            { label: 'ALM', lit: false, tone: 'amber' },
+                        ],
+                        sockets: ['console', 'mgmt'],
+                        buttons: ['power'],
+                    })}
+                    ${renderPortGroup('Optical cages', renderSfps(density === 'ultra-compact' ? 4 : 8, 2))}
+                    ${renderPortGroup('Service ports', renderPorts(density === 'ultra-compact' ? 4 : 8, 1))}
                 </div>
             `;
         }
@@ -1227,19 +1256,36 @@
         if (equipmentKind === 'wireless') {
             return `
                 <div class="cabinet-room-equipment-stack">
+                    ${renderPanelStrip({
+                        leds: [
+                            { label: 'PWR', lit: true },
+                            { label: 'RF', lit: true, tone: 'blue' },
+                            { label: 'LAN', lit: true },
+                        ],
+                        sockets: ['mgmt'],
+                        buttons: ['power'],
+                    })}
                     <div class="flex items-center gap-2">
                         ${renderScreen()}
                         ${renderVents(5)}
                     </div>
-                    ${renderPorts(density === 'ultra-compact' ? 4 : 6, 1)}
+                    ${renderPortGroup('Ethernet', renderPorts(density === 'ultra-compact' ? 4 : 6, 1))}
                 </div>
             `;
         }
 
         return `
             <div class="cabinet-room-equipment-stack">
+                ${renderPanelStrip({
+                    leds: [
+                        { label: 'Status', lit: true },
+                        { label: 'Alarm', lit: false, tone: 'amber' },
+                    ],
+                    sockets: ['console'],
+                    buttons: ['power'],
+                })}
                 ${renderVents(6)}
-                ${renderPorts(density === 'ultra-compact' ? 4 : 8, 1)}
+                ${renderPortGroup('Interfaces', renderPorts(density === 'ultra-compact' ? 4 : 8, 1))}
             </div>
         `;
     }
@@ -1252,8 +1298,8 @@
         return `<div class="cabinet-room-port-row ${extraClass}" style="grid-template-columns: repeat(${columns}, minmax(0, 1fr));">${Array.from({ length: count }, (_, index) => `<span class="cabinet-room-port ${index < litCount ? 'is-lit' : ''} ${extraClass.includes('is-uplink') ? 'is-uplink' : ''}"></span>`).join('')}</div>`;
     }
 
-    function renderDriveBays(count) {
-        return `<div class="cabinet-room-drive-bays">${Array.from({ length: count }, () => '<span class="cabinet-room-drive-bay"></span>').join('')}</div>`;
+    function renderDriveBays(count, litCount = 0) {
+        return `<div class="cabinet-room-drive-bays">${Array.from({ length: count }, (_, index) => `<span class="cabinet-room-drive-bay ${index < litCount ? 'is-lit' : ''}"></span>`).join('')}</div>`;
     }
 
     function renderSfps(count, litCount) {
@@ -1272,6 +1318,53 @@
         return '<span class="cabinet-room-module"></span>';
     }
 
+    function renderPortGroup(label, content) {
+        return `
+            <div class="cabinet-room-port-group">
+                <div class="cabinet-room-port-legend">${escapeHtml(label)}</div>
+                ${content}
+            </div>
+        `;
+    }
+
+    function renderPanelStrip(config) {
+        return `
+            <div class="cabinet-room-panel-strip">
+                ${renderLedBank(config.leds || [])}
+                ${renderSocketBank(config.sockets || [])}
+                ${renderButtonBank(config.buttons || [])}
+            </div>
+        `;
+    }
+
+    function renderLedBank(leds) {
+        if (!leds.length) {
+            return '';
+        }
+
+        return `<div class="cabinet-room-led-bank">${leds.map((led) => `<span class="cabinet-room-mini-led ${led.lit ? 'is-lit' : ''} ${led.tone ? `is-${led.tone}` : ''}" title="${escapeHtml(led.label || 'Indicator')}"></span>`).join('')}</div>`;
+    }
+
+    function renderSocketBank(sockets) {
+        if (!sockets.length) {
+            return '';
+        }
+
+        return `<div class="cabinet-room-socket-bank">${sockets.map((socket) => `<span class="cabinet-room-socket is-${socket}" title="${escapeHtml(socket.toUpperCase())}"></span>`).join('')}</div>`;
+    }
+
+    function renderButtonBank(buttons) {
+        if (!buttons.length) {
+            return '';
+        }
+
+        return `<div class="cabinet-room-button-bank">${buttons.map((button) => `<span class="cabinet-room-button is-${button}" title="${escapeHtml(button.toUpperCase())}"></span>`).join('')}</div>`;
+    }
+
+    function renderPowerSupplies(count) {
+        return `<div class="cabinet-room-power-supplies">${Array.from({ length: count }, () => '<span class="cabinet-room-psu"></span>').join('')}</div>`;
+    }
+
     function renderSwitchFacade(device, density) {
         const spec = switchPanelSpec(device);
         const rows = spec.rows.map((row) => renderPortRow(row.count, row.litCount, row.columns, row.uplink ? 'is-uplink' : '')).join('');
@@ -1285,8 +1378,13 @@
                     <span class="cabinet-room-switch-badge">${escapeHtml(spec.badge)}</span>
                     <span class="cabinet-room-switch-label">${escapeHtml(spec.label)}</span>
                 </div>
-                <div class="cabinet-room-switch-rows">${rows}</div>
-                ${uplinks ? `<div class="cabinet-room-equipment-stack"><div class="cabinet-room-switch-label">Uplinks</div>${uplinks}</div>` : ''}
+                ${renderPanelStrip({
+                    leds: spec.leds,
+                    sockets: spec.sockets,
+                    buttons: spec.buttons,
+                })}
+                ${renderPortGroup(spec.accessLabel, `<div class="cabinet-room-switch-rows">${rows}</div>`)}
+                ${uplinks ? renderPortGroup(spec.uplinkLabel, uplinks) : ''}
             </div>
         `;
     }
@@ -1298,34 +1396,60 @@
         let uplinkCount = 4;
         let label = 'Switch Panel';
         let badge = model || 'Switch';
+        let accessLabel = 'Access ports';
+        let uplinkLabel = 'Uplinks';
+        let sockets = ['console', 'usb'];
+        let buttons = ['power', 'reset'];
+        let leds = [
+            { label: 'PWR', lit: true },
+            { label: 'STAT', lit: true },
+            { label: 'SYS', lit: true, tone: 'amber' },
+        ];
 
         if (normalized.includes('4948')) {
             totalPorts = 48;
             uplinkCount = 4;
             label = 'Catalyst 4948';
             badge = '48-Port';
+            accessLabel = 'Gigabit copper';
+            uplinkLabel = 'SFP uplinks';
         } else if (normalized.includes('3560')) {
             label = 'Catalyst 3560';
             badge = totalPorts >= 48 ? '48-Port' : '24-Port';
+            accessLabel = 'Fast/Gigabit access';
         } else if (normalized.includes('2960')) {
             label = 'Catalyst 2960';
             badge = totalPorts >= 48 ? '48-Port' : '24-Port';
+            accessLabel = 'Access stack';
         } else if (normalized.includes('3750')) {
             label = 'Catalyst 3750';
             badge = totalPorts >= 48 ? '48-Port' : '24-Port';
+            accessLabel = 'Stack members';
         } else if (normalized.includes('3850')) {
             uplinkCount = 8;
             label = 'Catalyst 3850';
             badge = totalPorts >= 48 ? '48-Port' : '24-Port';
+            accessLabel = 'Access / PoE';
+            uplinkLabel = 'Modular uplinks';
         } else if (normalized.includes('9300')) {
             uplinkCount = 8;
             label = 'Catalyst 9300';
             badge = totalPorts >= 48 ? '48-Port' : '24-Port';
+            accessLabel = 'Access / stack';
+            uplinkLabel = 'Network module';
         } else if (normalized.includes('nexus') || normalized.includes('n3k') || normalized.includes('n5k') || normalized.includes('n9k')) {
             totalPorts = totalPorts || 48;
             uplinkCount = normalized.includes('n9k') ? 8 : 4;
             label = 'Nexus Fabric';
             badge = `${totalPorts}-Port`;
+            accessLabel = 'Leaf interfaces';
+            uplinkLabel = 'Fabric uplinks';
+            sockets = ['console', 'mgmt', 'usb'];
+            leds = [
+                { label: 'PWR', lit: true },
+                { label: 'STAT', lit: true },
+                { label: 'FAN', lit: true, tone: 'blue' },
+            ];
         } else {
             badge = totalPorts ? `${totalPorts}-Port` : 'Switch';
             label = 'Switch Panel';
@@ -1350,6 +1474,11 @@
             label,
             rows,
             uplinkCount,
+            accessLabel,
+            uplinkLabel,
+            sockets,
+            buttons,
+            leds,
         };
     }
 

@@ -233,12 +233,24 @@
         }
 
         .cabinet-room-port {
+            position: relative;
             aspect-ratio: 1 / 1;
             border-radius: 0.14rem;
             background:
                 linear-gradient(180deg, rgba(164, 176, 194, 0.16), rgba(60, 71, 86, 0.92));
             border: 1px solid rgba(255, 255, 255, 0.05);
             box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+        }
+
+        .cabinet-room-port::before {
+            content: '';
+            position: absolute;
+            left: 0.16rem;
+            right: 0.16rem;
+            top: 0.2rem;
+            bottom: 0.16rem;
+            border-radius: 0.08rem;
+            background: rgba(15, 23, 42, 0.6);
         }
 
         .cabinet-room-port.is-lit {
@@ -299,12 +311,28 @@
             background: rgba(148, 163, 184, 0.55);
         }
 
+        .cabinet-room-drive-bay.is-lit::after {
+            background: #22c55e;
+            box-shadow: 0 0 7px rgba(34, 197, 94, 0.72);
+        }
+
         .cabinet-room-sfp-bank {
             grid-template-columns: repeat(8, minmax(0, 1fr));
         }
 
         .cabinet-room-sfp {
             min-height: 0.78rem;
+        }
+
+        .cabinet-room-sfp::before {
+            content: '';
+            position: absolute;
+            left: 0.14rem;
+            right: 0.14rem;
+            top: 0.18rem;
+            bottom: 0.18rem;
+            border-radius: 0.08rem;
+            background: rgba(15, 23, 42, 0.52);
         }
 
         .cabinet-room-vent-bank {
@@ -336,6 +364,173 @@
             display: grid;
             width: 100%;
             gap: 0.28rem;
+        }
+
+        .cabinet-room-panel-strip,
+        .cabinet-room-button-bank,
+        .cabinet-room-led-bank,
+        .cabinet-room-socket-bank,
+        .cabinet-room-power-supplies {
+            display: flex;
+            align-items: center;
+            gap: 0.22rem;
+            min-width: 0;
+            flex-wrap: wrap;
+        }
+
+        .cabinet-room-panel-strip {
+            justify-content: space-between;
+        }
+
+        .cabinet-room-port-group {
+            display: grid;
+            gap: 0.16rem;
+        }
+
+        .cabinet-room-port-legend {
+            font-size: 0.48rem;
+            font-weight: 800;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+            color: rgba(148, 163, 184, 0.76);
+        }
+
+        .cabinet-room-mini-led {
+            position: relative;
+            width: 0.38rem;
+            height: 0.38rem;
+            border-radius: 999px;
+            background: rgba(100, 116, 139, 0.42);
+            box-shadow: 0 0 8px rgba(100, 116, 139, 0.28);
+        }
+
+        .cabinet-room-mini-led.is-lit {
+            background: #22c55e;
+            box-shadow: 0 0 10px rgba(34, 197, 94, 0.75);
+        }
+
+        .cabinet-room-mini-led.is-amber.is-lit {
+            background: #f59e0b;
+            box-shadow: 0 0 10px rgba(245, 158, 11, 0.75);
+        }
+
+        .cabinet-room-mini-led.is-blue.is-lit {
+            background: #38bdf8;
+            box-shadow: 0 0 10px rgba(56, 189, 248, 0.72);
+        }
+
+        .cabinet-room-button,
+        .cabinet-room-socket,
+        .cabinet-room-psu {
+            position: relative;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background: linear-gradient(180deg, rgba(67, 78, 94, 0.95), rgba(24, 31, 43, 0.95));
+        }
+
+        .cabinet-room-button {
+            width: 0.78rem;
+            height: 0.78rem;
+            border-radius: 999px;
+            box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.08);
+        }
+
+        .cabinet-room-button::after {
+            content: '';
+            position: absolute;
+            inset: 0.22rem;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.18);
+        }
+
+        .cabinet-room-button.is-power::before {
+            content: '';
+            position: absolute;
+            left: 50%;
+            top: 0.12rem;
+            width: 0.12rem;
+            height: 0.28rem;
+            transform: translateX(-50%);
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.5);
+        }
+
+        .cabinet-room-button.is-reset {
+            width: 0.62rem;
+            height: 0.62rem;
+        }
+
+        .cabinet-room-socket {
+            width: 0.88rem;
+            height: 0.62rem;
+            border-radius: 0.18rem;
+        }
+
+        .cabinet-room-socket::before {
+            content: '';
+            position: absolute;
+            inset: 0.16rem;
+            border-radius: 0.1rem;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .cabinet-room-socket.is-console::after,
+        .cabinet-room-socket.is-usb::after,
+        .cabinet-room-socket.is-mgmt::after,
+        .cabinet-room-socket.is-power::after {
+            position: absolute;
+            inset: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.34rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            color: rgba(226, 232, 240, 0.84);
+        }
+
+        .cabinet-room-socket.is-console::after {
+            content: 'C';
+        }
+
+        .cabinet-room-socket.is-usb::after {
+            content: 'U';
+        }
+
+        .cabinet-room-socket.is-mgmt::after {
+            content: 'M';
+        }
+
+        .cabinet-room-socket.is-power::after {
+            content: 'P';
+        }
+
+        .cabinet-room-psu {
+            min-width: 1.15rem;
+            min-height: 0.72rem;
+            border-radius: 0.22rem;
+        }
+
+        .cabinet-room-psu::before {
+            content: '';
+            position: absolute;
+            left: 0.12rem;
+            right: 0.12rem;
+            top: 0.16rem;
+            height: 0.16rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.12);
+        }
+
+        .cabinet-room-psu::after {
+            content: '';
+            position: absolute;
+            right: 0.14rem;
+            bottom: 0.14rem;
+            width: 0.18rem;
+            height: 0.18rem;
+            border-radius: 999px;
+            background: #22c55e;
+            box-shadow: 0 0 7px rgba(34, 197, 94, 0.72);
         }
 
         .cabinet-room-switch-panel {
@@ -450,6 +645,16 @@
             line-height: 0.8rem;
         }
 
+        .cabinet-room-rack-bay[data-density="compact"] .cabinet-room-port-legend {
+            font-size: 0.42rem;
+        }
+
+        .cabinet-room-rack-bay[data-density="compact"] .cabinet-room-button,
+        .cabinet-room-rack-bay[data-density="compact"] .cabinet-room-socket {
+            transform: scale(0.92);
+            transform-origin: left center;
+        }
+
         .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-device-body {
             padding: 0.25rem 0.4rem;
         }
@@ -478,6 +683,13 @@
 
         .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-drive-bays {
             grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-port-legend,
+        .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-button-bank,
+        .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-socket-bank,
+        .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-power-supplies {
+            display: none;
         }
 
         .cabinet-room-device-led {
