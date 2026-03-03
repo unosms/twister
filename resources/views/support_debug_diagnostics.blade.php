@@ -322,7 +322,7 @@ data-provisioning-events
 data-provisioning-stream-endpoint="{{ route('debug.provisioning-log.stream') }}"
 data-provisioning-events-empty="No structured provisioning events available yet."
 >
-@forelse ($provisioningEvents as $event)
+@forelse (array_reverse($provisioningEvents) as $event)
 <article class="grid gap-3 px-5 py-4 text-sm text-slate-700 dark:text-slate-200" data-provisioning-event>
 <div class="flex flex-wrap items-center gap-2">
 <span class="inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold {{ ($event['state'] ?? '') === 'success' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300' : (($event['state'] ?? '') === 'warning' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300' : (($event['state'] ?? '') === 'failure' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-300' : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-300')) }}">{{ strtoupper($event['state'] ?? 'INFO') }}</span>

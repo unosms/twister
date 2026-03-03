@@ -2768,8 +2768,13 @@
         return;
       }
 
+      const previousScrollTop = eventsList.scrollTop;
+      const previousScrollHeight = eventsList.scrollHeight;
+      const pinnedToTop = previousScrollTop <= 8;
+      const displayEvents = Array.isArray(events) ? [...events].reverse() : [];
+
       eventsList.innerHTML = '';
-      if (!events.length) {
+      if (!displayEvents.length) {
         const empty = document.createElement('div');
         empty.className = 'px-5 py-4 text-sm text-slate-400';
         empty.textContent = eventsEmptyMessage;
@@ -2778,7 +2783,7 @@
       }
 
       const fragment = document.createDocumentFragment();
-      events.forEach((event) => {
+      displayEvents.forEach((event) => {
         const article = document.createElement('article');
         article.dataset.provisioningEvent = '';
         article.className = 'grid gap-3 px-5 py-4 text-sm text-slate-700 dark:text-slate-200';
@@ -2854,7 +2859,15 @@
       });
 
       eventsList.appendChild(fragment);
-      eventsList.scrollTop = eventsList.scrollHeight;
+
+      if (pinnedToTop) {
+        eventsList.scrollTop = 0;
+        return;
+      }
+
+      const newScrollHeight = eventsList.scrollHeight;
+      const heightDelta = newScrollHeight - previousScrollHeight;
+      eventsList.scrollTop = Math.max(0, previousScrollTop + heightDelta);
     };
 
     const applyState = (enabled, hasLines = false) => {
