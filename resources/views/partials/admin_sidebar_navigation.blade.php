@@ -10,6 +10,7 @@
     $usersActive = request()->routeIs('users.*');
     $deviceNavActive = request()->routeIs('devices.*') && !request()->routeIs('devices.wizard');
     $deviceControlActive = request()->routeIs('devices.index') || request()->routeIs('devices.create');
+    $deviceCabinetActive = request()->routeIs('devices.cabinet-room.*');
     $deviceDetailsActive = request()->routeIs('devices.details')
         || request()->routeIs('devices.backups.*')
         || request()->routeIs('devices.events.*')
@@ -48,6 +49,7 @@
         </summary>
         <div class="sidebar-subnav ml-10 flex flex-col gap-1">
             <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $deviceControlActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.index') }}">Device Management</a>
+            <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $deviceCabinetActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.cabinet-room.index') }}">Cabinet Room</a>
             <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $deviceDetailsActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.details') }}">Devices List</a>
         </div>
     </details>

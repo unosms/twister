@@ -68,6 +68,11 @@ class Device extends Model
         return $this->hasMany(TelemetryLog::class);
     }
 
+    public function cabinetPlacement()
+    {
+        return $this->hasOne(CabinetPlacement::class);
+    }
+
     public function permittedUsers()
     {
         return $this->belongsToMany(User::class, 'device_permissions')

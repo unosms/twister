@@ -122,6 +122,10 @@ class DeviceController extends Controller
 
     public function index(Request $request)
     {
+        if ($request->boolean('unplaced')) {
+            return $this->unplacedDevicesResponse($request);
+        }
+
         $statusFilter = strtolower(trim((string) $request->query('status', 'all')));
         $allowedStatuses = ['all', 'online', 'warning', 'offline', 'error'];
         if (!in_array($statusFilter, $allowedStatuses, true)) {
@@ -310,6 +314,58 @@ class DeviceController extends Controller
         }
 
         return response()->json(['devices' => $payload])
+            ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    }
+
+    private function unplacedDevicesResponse(Request $request)
+    {
+        $search = trim((string) $request->query('search', ''));
+        $limit = max(0, min((int) $request->query('limit', 0), 1000));
+
+        $query = Device::query()
+            ->whereDoesntHave('cabinetPlacement')
+            ->orderBy('name')
+            ->orderBy('id');
+
+        if ($search !== '') {
+            $like = '%' . $search . '%';
+            $query->where(function ($subQuery) use ($like) {
+                $subQuery->where('name', 'like', $like)
+                    ->orWhere('ip_address', 'like', $like)
+                    ->orWhere('serial_number', 'like', $like)
+                    ->orWhere('model', 'like', $like)
+                    ->orWhere('type', 'like', $like)
+                    ->orWhere('location', 'like', $like);
+            });
+        }
+
+        if ($limit > 0) {
+            $query->limit($limit);
+        }
+
+        $devices = $query->get()->map(function (Device $device): array {
+            $meta = $this->normalizeMetadata($device->metadata);
+
+            return [
+                'id' => $device->id,
+                'name' => $device->name,
+                'type' => $device->type,
+                'model' => $device->model,
+                'status' => $device->status ?? 'offline',
+                'ip_address' => $device->ip_address ?: $this->normalizeOptionalString(
+                    data_get($meta, 'cisco.ip_address')
+                    ?? data_get($meta, 'server.ip_address')
+                    ?? data_get($meta, 'mikrotik.ip_address')
+                    ?? data_get($meta, 'olt.ip_address')
+                    ?? data_get($meta, 'mimosa.ip')
+                ),
+                'serial_number' => $device->serial_number,
+                'location' => $device->location,
+                'default_height_u' => $this->resolveRackHeight($meta),
+            ];
+        })->values();
+
+        return response()->json(['devices' => $devices])
             ->header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
     }
 
@@ -1858,6 +1914,23 @@ class DeviceController extends Controller
             'signal' => $signal !== '' ? $signal : '-',
             'battery' => $battery !== '' ? $battery : '-',
         ];
+    }
+
+    private function resolveRackHeight(array $meta): int
+    {
+        foreach ([
+            data_get($meta, 'rack.height_u'),
+            data_get($meta, 'rack_height_u'),
+            data_get($meta, 'server.height_u'),
+            data_get($meta, 'cisco.height_u'),
+            data_get($meta, 'mikrotik.height_u'),
+        ] as $value) {
+            if (is_numeric($value) && (int) $value >= 1 && (int) $value <= 8) {
+                return (int) $value;
+            }
+        }
+
+        return 1;
     }
 
     private function firstMetricValue(array $candidates): mixed

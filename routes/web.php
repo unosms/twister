@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ActionController;
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\CabinetRoomController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DebugController;
 use App\Http\Controllers\DeviceController;
@@ -43,6 +44,7 @@ Route::middleware(['admin.auth', 'audit.log'])->group(function () {
     Route::get('/devices', [DeviceController::class, 'index'])->name('devices.index');
     Route::get('/devices/create', [DeviceController::class, 'create'])->name('devices.create');
     Route::get('/devices/details', [DeviceController::class, 'details'])->name('devices.details');
+    Route::get('/devices/cabinet-room', [CabinetRoomController::class, 'index'])->name('devices.cabinet-room.index');
     Route::get('/devices/status-snapshot', [DeviceController::class, 'statusSnapshot'])->name('devices.statusSnapshot');
     Route::post('/devices/status-snapshot', [DeviceController::class, 'statusSnapshot'])->name('devices.statusSnapshot.post');
     Route::get('/devices/{device}/probe', [DeviceController::class, 'probeDevice'])->name('devices.probe');
@@ -97,6 +99,16 @@ Route::middleware(['admin.auth', 'audit.log'])->group(function () {
     Route::get('/devices/{device}/backups/{file}', [ScriptController::class, 'downloadBackup'])
         ->where('file', '[^/]+')
         ->name('devices.backups.download');
+    Route::get('/rooms', [CabinetRoomController::class, 'rooms'])->name('devices.cabinet-room.rooms.index');
+    Route::post('/rooms', [CabinetRoomController::class, 'storeRoom'])->name('devices.cabinet-room.rooms.store');
+    Route::get('/rooms/{room}/cabinets', [CabinetRoomController::class, 'cabinets'])->name('devices.cabinet-room.cabinets.index');
+    Route::post('/rooms/{room}/cabinets', [CabinetRoomController::class, 'storeCabinet'])->name('devices.cabinet-room.cabinets.store');
+    Route::get('/cabinets/{cabinet}/placements', [CabinetRoomController::class, 'placements'])->name('devices.cabinet-room.placements.index');
+    Route::post('/cabinets/{cabinet}/placements', [CabinetRoomController::class, 'storePlacement'])->name('devices.cabinet-room.placements.store');
+    Route::patch('/placements/{placement}', [CabinetRoomController::class, 'updatePlacement'])->name('devices.cabinet-room.placements.update');
+    Route::delete('/placements/{placement}', [CabinetRoomController::class, 'destroyPlacement'])->name('devices.cabinet-room.placements.delete');
+    Route::get('/cabinet-room/devices/{device}', [CabinetRoomController::class, 'deviceDetails'])->name('devices.cabinet-room.devices.show');
+    Route::get('/cabinet-room/devices/{device}/stream', [CabinetRoomController::class, 'streamDeviceDetails'])->name('devices.cabinet-room.devices.stream');
     Route::post('/debug/provisioning-log', [DebugController::class, 'toggleProvisioningLog'])->name('debug.provisioning-log');
     Route::get('/debug/provisioning-log', [DebugController::class, 'viewProvisioningLog'])->name('debug.provisioning-log.view');
     Route::get('/debug/provisioning-log/stream', [DebugController::class, 'streamProvisioningLog'])->name('debug.provisioning-log.stream');
