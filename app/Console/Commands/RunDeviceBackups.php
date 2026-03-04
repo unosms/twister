@@ -13,7 +13,7 @@ class RunDeviceBackups extends Command
 {
     protected $signature = 'devices:run-backups {--device=} {--limit=}';
 
-    protected $description = 'Run config backups for Cisco devices.';
+    protected $description = 'Run config backups for Cisco and OLT devices.';
 
     public function handle(): int
     {
@@ -83,6 +83,7 @@ class RunDeviceBackups extends Command
     {
         $meta = $this->normalizeMetadata($device->metadata);
         $cisco = data_get($meta, 'cisco', []);
+        $olt = data_get($meta, 'olt', []);
         $traceContext = $this->backupTraceContext($device, [
             'trigger' => 'devices:run-backups',
         ]);
@@ -90,11 +91,30 @@ class RunDeviceBackups extends Command
         $this->writeProvisioningLog('backup trace: scheduled backup evaluation started', $traceContext);
 
         $type = strtoupper((string) ($device->type ?? ''));
-        if ($type !== 'CISCO' || !is_array($cisco) || empty($cisco)) {
+        $isOlt = $type === 'OLT';
+        if ($type !== 'CISCO' && !$isOlt) {
+            $this->writeProvisioningLog('backup trace: scheduled backup skipped - unsupported device type', $traceContext + [
+                'device_type' => $type !== '' ? $type : null,
+            ]);
+            return [
+                'status' => 'skipped',
+                'message' => 'not a backup-supported device type',
+            ];
+        }
+
+        if (!$isOlt && (!is_array($cisco) || empty($cisco))) {
             $this->writeProvisioningLog('backup trace: scheduled backup skipped - invalid Cisco metadata', $traceContext);
             return [
                 'status' => 'skipped',
-                'message' => 'not a Cisco device or missing Cisco metadata',
+                'message' => 'missing Cisco metadata',
+            ];
+        }
+
+        if ($isOlt && (!is_array($olt) || empty($olt))) {
+            $this->writeProvisioningLog('backup trace: scheduled backup skipped - invalid OLT metadata', $traceContext);
+            return [
+                'status' => 'skipped',
+                'message' => 'missing OLT metadata',
             ];
         }
 
@@ -106,25 +126,37 @@ class RunDeviceBackups extends Command
             ];
         }
 
-        $switchModel = strtoupper((string) $this->firstNonEmpty(
-            $cisco['switch_model'] ?? null,
-            $meta['subtype'] ?? null,
-            $device->model
-        ));
-        $isNexus = str_contains($switchModel, 'NEXUS');
-        $is3560 = str_contains($switchModel, '3560');
+        $switchModel = strtoupper((string) ($isOlt
+            ? $this->firstNonEmpty(
+                $olt['model'] ?? null,
+                $device->model
+            )
+            : $this->firstNonEmpty(
+                $cisco['switch_model'] ?? null,
+                $meta['subtype'] ?? null,
+                $device->model
+            )));
+        $isNexus = !$isOlt && str_contains($switchModel, 'NEXUS');
+        $is3560 = !$isOlt && str_contains($switchModel, '3560');
 
-        $ip = $this->firstNonEmpty($cisco['ip_address'] ?? null, $device->ip_address);
-        $password = $this->decryptValue($cisco['password'] ?? null);
-        $username = $this->firstNonEmpty($cisco['username'] ?? null, $cisco['user'] ?? null);
-        $enablePassword = $this->decryptValue($cisco['enable_password'] ?? null);
-        $location = $this->resolveFolderLocation($device, $cisco);
+        $ip = $this->firstNonEmpty(
+            $isOlt ? ($olt['ip_address'] ?? null) : ($cisco['ip_address'] ?? null),
+            $device->ip_address
+        );
+        $password = $this->decryptValue($isOlt ? ($olt['password'] ?? null) : ($cisco['password'] ?? null));
+        $username = $this->firstNonEmpty(
+            $isOlt ? ($olt['username'] ?? null) : ($cisco['username'] ?? null),
+            $isOlt ? ($olt['user'] ?? null) : ($cisco['user'] ?? null)
+        );
+        $enablePassword = $isOlt ? null : $this->decryptValue($cisco['enable_password'] ?? null);
+        $location = $this->resolveFolderLocation($device, $cisco, $olt, $isOlt);
         $resolvedBackupDirectory = $this->prepareBackupDirectory($location);
         if (!$resolvedBackupDirectory) {
             $this->writeProvisioningLog('backup trace: scheduled backup failed - backup directory could not be prepared', $traceContext + [
                 'switch_model' => $switchModel !== '' ? $switchModel : null,
                 'is_nexus' => $isNexus,
                 'is_3560' => $is3560,
+                'is_olt' => $isOlt,
                 'switch_ip' => $ip,
                 'location' => $location,
             ]);
@@ -140,6 +172,7 @@ class RunDeviceBackups extends Command
             'switch_model' => $switchModel !== '' ? $switchModel : null,
             'is_nexus' => $isNexus,
             'is_3560' => $is3560,
+            'is_olt' => $isOlt,
             'switch_ip' => $ip,
             'location' => $location,
             'password_present' => $password !== null && $password !== '',
@@ -155,6 +188,14 @@ class RunDeviceBackups extends Command
             ];
         }
 
+        if ($isOlt && !$username) {
+            $this->writeProvisioningLog('backup trace: scheduled backup failed validation - missing OLT username', $traceContext);
+            return [
+                'status' => 'failed',
+                'message' => 'missing username for OLT backup',
+            ];
+        }
+
         if ($isNexus && !$username) {
             $this->writeProvisioningLog('backup trace: scheduled backup failed validation - missing Nexus username', $traceContext);
             return [
@@ -163,7 +204,7 @@ class RunDeviceBackups extends Command
             ];
         }
 
-        if (!$isNexus && !$enablePassword) {
+        if (!$isOlt && !$isNexus && !$enablePassword) {
             $this->writeProvisioningLog('backup trace: scheduled backup failed validation - missing enable password', $traceContext);
             return [
                 'status' => 'failed',
@@ -171,7 +212,7 @@ class RunDeviceBackups extends Command
             ];
         }
 
-        $script = $isNexus ? 'nexus_backup.sh' : ($is3560 ? '3560_backup.sh' : '4948_backup.sh');
+        $script = $isOlt ? 'olt_backup.sh' : ($isNexus ? 'nexus_backup.sh' : ($is3560 ? '3560_backup.sh' : '4948_backup.sh'));
         $scriptPath = base_path('scripts/' . $script);
         if (!is_file($scriptPath)) {
             $this->writeProvisioningLog('backup trace: scheduled backup script missing', $traceContext + [
@@ -183,7 +224,9 @@ class RunDeviceBackups extends Command
             ];
         }
 
-        if ($isNexus) {
+        if ($isOlt) {
+            $command = ['bash', $scriptPath, $ip, $username, $password, $resolvedBackupDirectory['absolute']];
+        } elseif ($isNexus) {
             $command = ['bash', $scriptPath, $ip, $username, $password, $location];
         } elseif ($is3560) {
             $command = ['bash', $scriptPath, $ip, $password, $enablePassword, $location];
@@ -198,18 +241,20 @@ class RunDeviceBackups extends Command
             'switch_model' => $switchModel !== '' ? $switchModel : null,
             'is_nexus' => $isNexus,
             'is_3560' => $is3560,
+            'is_olt' => $isOlt,
             'switch_ip' => $ip,
             'location' => $location,
             'script_name' => $script,
             'script_path' => $scriptPath,
             'command' => $this->redactBackupCommand($command, $isNexus),
-            'secret_values' => array_values(array_filter($isNexus ? [$password] : [$password, $enablePassword])),
+            'secret_values' => array_values(array_filter($isOlt ? [$username, $password] : ($isNexus ? [$password] : [$password, $enablePassword]))),
         ]);
 
         $result = $this->verifyBackupArtifact($device, $result, $backupSnapshot, $traceContext + [
             'switch_model' => $switchModel !== '' ? $switchModel : null,
             'is_nexus' => $isNexus,
             'is_3560' => $is3560,
+            'is_olt' => $isOlt,
             'switch_ip' => $ip,
             'location' => $location,
             'script_name' => $script,
@@ -229,18 +274,29 @@ class RunDeviceBackups extends Command
         ];
     }
 
-    private function resolveFolderLocation(Device $device, array $cisco): string
+    private function resolveFolderLocation(Device $device, array $cisco, array $olt, bool $isOlt): string
     {
-        $location = $this->firstNonEmpty(
-            $cisco['folder_location'] ?? null,
-            data_get($device->metadata, 'folder_location')
-        );
+        $location = $isOlt
+            ? $this->firstNonEmpty(
+                $olt['folder_location'] ?? null,
+                $cisco['folder_location'] ?? null,
+                data_get($device->metadata, 'folder_location')
+            )
+            : $this->firstNonEmpty(
+                $cisco['folder_location'] ?? null,
+                $olt['folder_location'] ?? null,
+                data_get($device->metadata, 'folder_location')
+            );
 
         if ($location) {
             return $location;
         }
 
-        $baseName = $this->firstNonEmpty($cisco['name'] ?? null, $device->name, 'device');
+        $baseName = $this->firstNonEmpty(
+            $isOlt ? ($olt['model'] ?? null) : ($cisco['name'] ?? null),
+            $device->name,
+            'device'
+        );
         $slug = preg_replace('/\s+/', '_', trim((string) $baseName));
 
         return 'uno/' . ($slug !== '' ? $slug : 'device');

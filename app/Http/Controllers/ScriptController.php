@@ -967,11 +967,17 @@ class ScriptController extends Controller
 
     private function executeBackup(Device $device, Request $request): array
     {
-        $cisco = data_get($device->metadata ?? [], 'cisco', []);
-        $switchModel = $this->resolveSwitchModel($device, $cisco);
-        $isNexus = $this->shouldUseNexus($device, $cisco, $switchModel);
-        $scriptName = $this->resolveBackupScriptName($device, $cisco, $switchModel);
-        $is3560 = $scriptName === '3560_backup.sh';
+        $meta = $device->metadata ?? [];
+        $type = strtoupper((string) ($device->type ?? ''));
+        $cisco = data_get($meta, 'cisco', []);
+        $olt = data_get($meta, 'olt', []);
+        $isOlt = $type === 'OLT';
+        $switchModel = $isOlt
+            ? (string) $this->firstNonEmpty(data_get($olt, 'model'), $device->model, '')
+            : $this->resolveSwitchModel($device, $cisco);
+        $isNexus = !$isOlt && $this->shouldUseNexus($device, $cisco, $switchModel);
+        $scriptName = $isOlt ? 'olt_backup.sh' : $this->resolveBackupScriptName($device, $cisco, $switchModel);
+        $is3560 = !$isOlt && $scriptName === '3560_backup.sh';
         $traceContext = $this->deviceTraceContext($device, [
             'trace' => 'backup execution',
             'trigger' => $request->route()?->getName() ?: 'backup',
@@ -986,6 +992,7 @@ class ScriptController extends Controller
             'switch_model' => $switchModel !== '' ? $switchModel : null,
             'is_nexus' => $isNexus,
             'is_3560' => $is3560,
+            'is_olt' => $isOlt,
             'script_name' => $scriptName,
         ]);
 
@@ -1003,25 +1010,33 @@ class ScriptController extends Controller
             ];
         }
 
-        $ip = $this->firstNonEmpty(
-            data_get($cisco, 'ip_address'),
-            $device->ip_address
-        );
-        $password = $this->decryptValue(data_get($cisco, 'password'));
-        $enablePassword = $this->decryptValue(data_get($cisco, 'enable_password'));
+        $ip = $isOlt
+            ? $this->firstNonEmpty(data_get($olt, 'ip_address'), $device->ip_address)
+            : $this->firstNonEmpty(data_get($cisco, 'ip_address'), $device->ip_address);
+        $password = $this->decryptValue($isOlt ? data_get($olt, 'password') : data_get($cisco, 'password'));
+        $enablePassword = $isOlt ? null : $this->decryptValue(data_get($cisco, 'enable_password'));
         $username = $this->firstNonEmpty(
             $request->query('username'),
-            data_get($cisco, 'username'),
-            data_get($cisco, 'user')
+            $isOlt ? data_get($olt, 'username') : data_get($cisco, 'username'),
+            $isOlt ? data_get($olt, 'user') : data_get($cisco, 'user')
         );
-        $location = $this->firstNonEmpty(
-            data_get($cisco, 'folder_location'),
-            data_get($device->metadata ?? [], 'folder_location')
-        );
+        $location = $isOlt
+            ? $this->firstNonEmpty(
+                data_get($olt, 'folder_location'),
+                data_get($cisco, 'folder_location'),
+                data_get($meta, 'folder_location')
+            )
+            : $this->firstNonEmpty(
+                data_get($cisco, 'folder_location'),
+                data_get($olt, 'folder_location'),
+                data_get($meta, 'folder_location')
+            );
         $usedFallbackLocation = false;
 
         if (!$location) {
-            $fallbackName = data_get($cisco, 'name') ?? $device->name ?? 'device';
+            $fallbackName = $isOlt
+                ? (data_get($olt, 'model') ?? $device->name ?? 'device')
+                : (data_get($cisco, 'name') ?? $device->name ?? 'device');
             $fallbackSlug = preg_replace('/\s+/', '_', trim((string) $fallbackName));
             $location = 'uno/' . ($fallbackSlug !== '' ? $fallbackSlug : 'device');
             $usedFallbackLocation = true;
@@ -1032,6 +1047,7 @@ class ScriptController extends Controller
                 'switch_model' => $switchModel !== '' ? $switchModel : null,
                 'is_nexus' => $isNexus,
                 'is_3560' => $is3560,
+                'is_olt' => $isOlt,
                 'switch_ip' => $ip,
                 'location' => $location,
             ]);
@@ -1051,6 +1067,7 @@ class ScriptController extends Controller
             'switch_model' => $switchModel !== '' ? $switchModel : null,
             'is_nexus' => $isNexus,
             'is_3560' => $is3560,
+            'is_olt' => $isOlt,
             'switch_ip' => $ip,
             'location' => $location,
             'location_source' => $usedFallbackLocation ? 'fallback' : 'configured',
@@ -1068,6 +1085,50 @@ class ScriptController extends Controller
                 'message' => 'Missing device IP or password.',
                 'output' => '',
             ];
+        }
+
+        if ($isOlt && !$username) {
+            ProvisioningTrace::log('backup trace: validation failed - missing OLT username', $traceContext);
+
+            return [
+                'ok' => false,
+                'status' => 400,
+                'message' => 'Missing OLT username for backup.',
+                'output' => '',
+            ];
+        }
+
+        if ($isOlt) {
+            $command = ['bash', $scriptPath, $ip, $username, $password, $resolvedBackupDirectory['absolute']];
+
+            $result = $this->runProcess($command, [], $traceContext + [
+                'label' => 'backup trace',
+                'line_prefix' => 'backup trace',
+                'layer' => 'process_execution',
+                'protocol' => 'TELNET',
+                'script_name' => $scriptName,
+                'script_path' => $scriptPath,
+                'switch_model' => $switchModel !== '' ? $switchModel : null,
+                'is_nexus' => false,
+                'is_3560' => false,
+                'is_olt' => true,
+                'device_ip' => $ip,
+                'switch_ip' => $ip,
+                'location' => $location,
+                'command' => $this->redactBackupCommand($command, false),
+                'secret_values' => array_values(array_filter([$username, $password])),
+            ]);
+
+            return $this->verifyBackupArtifact($device, $result, $backupSnapshot, $traceContext + [
+                'script_name' => $scriptName,
+                'script_path' => $scriptPath,
+                'switch_model' => $switchModel !== '' ? $switchModel : null,
+                'is_nexus' => false,
+                'is_3560' => false,
+                'is_olt' => true,
+                'switch_ip' => $ip,
+                'location' => $location,
+            ]);
         }
 
         if ($isNexus) {
@@ -1106,6 +1167,7 @@ class ScriptController extends Controller
                 'switch_model' => $switchModel !== '' ? $switchModel : null,
                 'is_nexus' => true,
                 'is_3560' => false,
+                'is_olt' => false,
                 'switch_ip' => $ip,
                 'location' => $location,
             ]);
@@ -1151,6 +1213,7 @@ class ScriptController extends Controller
                 'switch_model' => $switchModel !== '' ? $switchModel : null,
                 'is_nexus' => false,
                 'is_3560' => true,
+                'is_olt' => false,
                 'switch_ip' => $ip,
                 'location' => $location,
             ]);
@@ -1181,6 +1244,7 @@ class ScriptController extends Controller
             'switch_model' => $switchModel !== '' ? $switchModel : null,
             'is_nexus' => false,
             'is_3560' => false,
+            'is_olt' => false,
             'switch_ip' => $ip,
             'location' => $location,
         ]);
@@ -1523,13 +1587,27 @@ class ScriptController extends Controller
     {
         $meta = $device->metadata ?? [];
         $cisco = data_get($meta, 'cisco', []);
-        $relative = $this->firstNonEmpty(
-            data_get($cisco, 'folder_location'),
-            data_get($meta, 'folder_location')
-        );
+        $olt = data_get($meta, 'olt', []);
+        $isOlt = strtoupper((string) ($device->type ?? '')) === 'OLT';
+        $relative = $isOlt
+            ? $this->firstNonEmpty(
+                data_get($olt, 'folder_location'),
+                data_get($cisco, 'folder_location'),
+                data_get($meta, 'folder_location')
+            )
+            : $this->firstNonEmpty(
+                data_get($cisco, 'folder_location'),
+                data_get($olt, 'folder_location'),
+                data_get($meta, 'folder_location')
+            );
 
         if (!$relative) {
-            $fallbackName = $this->firstNonEmpty(data_get($cisco, 'name'), $device->name, 'device');
+            $fallbackName = $this->firstNonEmpty(
+                data_get($cisco, 'name'),
+                data_get($olt, 'model'),
+                $device->name,
+                'device'
+            );
             $fallbackSlug = preg_replace('/\s+/', '_', (string) $fallbackName);
             $relative = 'uno/' . ($fallbackSlug !== '' ? $fallbackSlug : 'device');
         }
@@ -1875,6 +1953,10 @@ class ScriptController extends Controller
 
     private function resolveBackupScriptName(Device $device, array $cisco, string $switchModel): string
     {
+        if (strtoupper((string) ($device->type ?? '')) === 'OLT') {
+            return 'olt_backup.sh';
+        }
+
         if ($this->isNexusModel($switchModel)) {
             return 'nexus_backup.sh';
         }
