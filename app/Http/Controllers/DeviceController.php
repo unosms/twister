@@ -465,6 +465,7 @@ class DeviceController extends Controller
             'olt_snmp_community' => ['nullable', 'string', 'max:255'],
             'olt_model' => ['nullable', 'string', 'max:255'],
             'olt_number_of_ports' => ['nullable', 'integer', 'min:1', 'max:4096'],
+            'olt_folder_location' => ['nullable', 'string', 'max:500'],
             'mikrotik_ip_address' => ['nullable', 'string', 'max:255'],
             'mikrotik_username' => ['nullable', 'string', 'max:255'],
             'mikrotik_password' => ['nullable', 'string', 'max:255'],
@@ -643,6 +644,7 @@ class DeviceController extends Controller
                 'web_address' => $this->normalizeOptionalString($data['olt_web_address'] ?? null),
                 'username' => $this->normalizeOptionalString($data['olt_username'] ?? null),
                 'snmp_community' => $snmpCommunity,
+                'folder_location' => $this->normalizeOptionalString($data['olt_folder_location'] ?? null),
             ];
 
             if (!empty($data['olt_password'])) {
@@ -764,6 +766,7 @@ class DeviceController extends Controller
             'olt_snmp_community' => ['nullable', 'string', 'max:255', 'required_if:type,OLT'],
             'olt_model' => ['nullable', 'string', 'max:255', 'required_if:type,OLT'],
             'olt_number_of_ports' => ['nullable', 'integer', 'min:1', 'max:4096', 'required_if:type,OLT'],
+            'olt_folder_location' => ['nullable', 'string', 'max:500'],
             'mikrotik_ip_address' => ['nullable', 'string', 'max:255', 'required_if:type,MIKROTIK'],
             'mikrotik_username' => ['nullable', 'string', 'max:255', 'required_if:type,MIKROTIK'],
             'mikrotik_password' => ['nullable', 'string', 'max:255'],
@@ -924,6 +927,7 @@ class DeviceController extends Controller
             $olt['web_address'] = $this->normalizeOptionalString($data['olt_web_address'] ?? null);
             $olt['username'] = $this->normalizeOptionalString($data['olt_username'] ?? null);
             $olt['snmp_community'] = $snmpCommunity;
+            $olt['folder_location'] = $this->normalizeOptionalString($data['olt_folder_location'] ?? null);
             if (!empty($data['olt_password'])) {
                 $olt['password'] = encrypt($data['olt_password']);
             }

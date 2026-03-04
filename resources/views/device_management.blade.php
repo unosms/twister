@@ -588,6 +588,10 @@ $oldServerServices = array_values(array_filter(array_map(
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Web Address *</label>
 <input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="olt_web_address" placeholder="e.g., http://192.168.1.20" type="text" data-olt-required disabled/>
 </div>
+<div class="flex flex-col gap-2">
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Folder Location</label>
+<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="olt_folder_location" placeholder="e.g., uno/OLT-01" type="text" disabled/>
+</div>
 </div>
 </div>
 <div class="border-t border-[#e7ebf3] dark:border-gray-800 pt-6 hidden" data-mikrotik-fields>
@@ -964,6 +968,10 @@ $legacyServerVncIp = data_get($device->metadata, 'server.vnc_address_port');
 <div class="flex flex-col gap-2">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Web Address</label>
 <input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="olt_web_address" type="text" value="{{ data_get($device->metadata, 'olt.web_address') ?? '' }}" data-device-edit-olt-required/>
+</div>
+<div class="flex flex-col gap-2">
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Folder Location</label>
+<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="olt_folder_location" type="text" value="{{ data_get($device->metadata, 'olt.folder_location') ?? '' }}"/>
 </div>
 <div class="flex flex-col gap-2 order-last">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">SNMP Port</label>
