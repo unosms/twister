@@ -637,6 +637,14 @@ class DeviceController extends Controller
             $oltNumberOfPorts = isset($data['olt_number_of_ports']) && is_numeric($data['olt_number_of_ports'])
                 ? (int) $data['olt_number_of_ports']
                 : null;
+            $oltFolderLocation = $this->normalizeOptionalString($data['olt_folder_location'] ?? null);
+            if ($oltFolderLocation === null) {
+                $oltName = $this->normalizeOptionalString($data['name'] ?? null);
+                if ($oltName !== null) {
+                    $oltSlug = preg_replace('/\s+/', '_', trim($oltName));
+                    $oltFolderLocation = $oltSlug !== '' ? 'uno/' . $oltSlug : null;
+                }
+            }
             $olt = [
                 'ip_address' => $ipAddress,
                 'model' => $oltModel,
@@ -644,7 +652,7 @@ class DeviceController extends Controller
                 'web_address' => $this->normalizeOptionalString($data['olt_web_address'] ?? null),
                 'username' => $this->normalizeOptionalString($data['olt_username'] ?? null),
                 'snmp_community' => $snmpCommunity,
-                'folder_location' => $this->normalizeOptionalString($data['olt_folder_location'] ?? null),
+                'folder_location' => $oltFolderLocation,
             ];
 
             if (!empty($data['olt_password'])) {
@@ -919,6 +927,15 @@ class DeviceController extends Controller
                 $olt = [];
             }
 
+            $oltFolderLocation = $this->normalizeOptionalString($data['olt_folder_location'] ?? null);
+            if ($oltFolderLocation === null) {
+                $oltName = $this->normalizeOptionalString($data['name'] ?? $device->name);
+                if ($oltName !== null) {
+                    $oltSlug = preg_replace('/\s+/', '_', trim($oltName));
+                    $oltFolderLocation = $oltSlug !== '' ? 'uno/' . $oltSlug : null;
+                }
+            }
+
             $olt['ip_address'] = $ipAddress;
             $olt['model'] = $this->normalizeOptionalString($data['olt_model'] ?? null);
             $olt['number_of_ports'] = isset($data['olt_number_of_ports']) && is_numeric($data['olt_number_of_ports'])
@@ -927,7 +944,7 @@ class DeviceController extends Controller
             $olt['web_address'] = $this->normalizeOptionalString($data['olt_web_address'] ?? null);
             $olt['username'] = $this->normalizeOptionalString($data['olt_username'] ?? null);
             $olt['snmp_community'] = $snmpCommunity;
-            $olt['folder_location'] = $this->normalizeOptionalString($data['olt_folder_location'] ?? null);
+            $olt['folder_location'] = $oltFolderLocation;
             if (!empty($data['olt_password'])) {
                 $olt['password'] = encrypt($data['olt_password']);
             }

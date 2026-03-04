@@ -1015,6 +1015,8 @@
     const serverRequired = serverFields ? Array.from(serverFields.querySelectorAll('[data-server-required]')) : [];
     const oltInputs = oltFields ? Array.from(oltFields.querySelectorAll('input, select, textarea')) : [];
     const oltRequired = oltFields ? Array.from(oltFields.querySelectorAll('[data-olt-required]')) : [];
+    const oltName = oltFields ? oltFields.querySelector('input[name="name"]') : null;
+    const oltFolderLocation = oltFields ? oltFields.querySelector('input[name="olt_folder_location"]') : null;
     const mikrotikInputs = mikrotikFields ? Array.from(mikrotikFields.querySelectorAll('input, select, textarea')) : [];
     const mikrotikRequired = mikrotikFields ? Array.from(mikrotikFields.querySelectorAll('[data-mikrotik-required]')) : [];
     const serverDefaults = new Map();
@@ -1061,6 +1063,32 @@
       field.dataset.auto = 'true';
       field.addEventListener('input', () => markManual(field));
     });
+
+    if (oltFolderLocation) {
+      oltFolderLocation.dataset.auto = oltFolderLocation.value ? 'false' : 'true';
+      oltFolderLocation.addEventListener('input', () => markManual(oltFolderLocation));
+    }
+
+    const normalizeFolderName = (value) =>
+      String(value || '')
+        .trim()
+        .replace(/[\\/]+/g, '-')
+        .replace(/\s+/g, '_');
+
+    const updateOltFolderLocation = () => {
+      if (!oltName || !oltFolderLocation) {
+        return;
+      }
+
+      const isAuto = oltFolderLocation.dataset.auto !== 'false';
+      if (!isAuto) {
+        return;
+      }
+
+      const normalizedName = normalizeFolderName(oltName.value);
+      oltFolderLocation.value = normalizedName ? `uno/${normalizedName}` : '';
+      oltFolderLocation.dataset.auto = 'true';
+    };
 
     const updateAutoFields = () => {
       if (!ciscoName) {
@@ -1324,6 +1352,9 @@
         }
         field.value = defaultValue;
       });
+      if (oltFolderLocation) {
+        oltFolderLocation.dataset.auto = oltFolderLocation.value ? 'false' : 'true';
+      }
     };
 
     const hideOltFields = (reset = false) => {
@@ -1353,6 +1384,7 @@
       oltRequired.forEach((field) => {
         field.required = true;
       });
+      updateOltFolderLocation();
     };
 
     const resetMikrotikInputs = () => {
@@ -1434,6 +1466,9 @@
 
     if (ciscoName) {
       ciscoName.addEventListener('input', updateAutoFields);
+    }
+    if (oltName) {
+      oltName.addEventListener('input', updateOltFolderLocation);
     }
     if (ciscoSwitchModel) {
       ciscoSwitchModel.addEventListener('change', toggleCiscoUsernameFields);
@@ -1810,6 +1845,8 @@
       const oltFields = form.querySelector('[data-device-edit-olt-fields]');
       const mikrotikFields = form.querySelector('[data-device-edit-mikrotik-fields]');
       const commonNameField = form.querySelector('[data-device-edit-common-name-field]');
+      const commonNameInput = commonNameField ? commonNameField.querySelector('input[name="name"]') : null;
+      const oltFolderLocationInput = oltFields ? oltFields.querySelector('input[name="olt_folder_location"]') : null;
       const serverTypeSelect = form.querySelector('[data-device-edit-server-type]');
       const serverServiceSelect = form.querySelector('select[data-device-edit-server-service]');
       const serverServiceCheckboxes = Array.from(form.querySelectorAll('[data-device-edit-server-service-option]'));
@@ -1820,6 +1857,34 @@
       const snmpPortField = form.querySelector('[data-device-edit-snmp-port-field]');
       const ciscoUsernameFields = Array.from(form.querySelectorAll('[data-device-edit-cisco-username-field]'));
       const ciscoModel = String(ciscoFields?.dataset.deviceEditCiscoModel || '');
+
+      const normalizeFolderName = (value) =>
+        String(value || '')
+          .trim()
+          .replace(/[\\/]+/g, '-')
+          .replace(/\s+/g, '_');
+
+      const updateEditOltFolderLocation = (isOlt) => {
+        if (!isOlt || !commonNameInput || !oltFolderLocationInput) {
+          return;
+        }
+
+        const isAuto = oltFolderLocationInput.dataset.auto !== 'false';
+        if (!isAuto) {
+          return;
+        }
+
+        const normalizedName = normalizeFolderName(commonNameInput.value);
+        oltFolderLocationInput.value = normalizedName ? `uno/${normalizedName}` : '';
+        oltFolderLocationInput.dataset.auto = 'true';
+      };
+
+      if (oltFolderLocationInput) {
+        oltFolderLocationInput.dataset.auto = oltFolderLocationInput.value ? 'false' : 'true';
+        oltFolderLocationInput.addEventListener('input', () => {
+          oltFolderLocationInput.dataset.auto = 'false';
+        });
+      }
 
       const toggleServerStandalone = (serverVisible) => {
         const selectedType = String(serverTypeSelect?.value || 'virtual_server').toLowerCase();
@@ -1886,6 +1951,7 @@
         toggleCiscoUsername(isCisco);
         toggleServerStandalone(isServer);
         toggleServerServiceFields(isServer);
+        updateEditOltFolderLocation(isOlt);
         toggleGroup(commonNameField, showCommonName, 'data-device-edit-common-name-required');
 
         if (genericIpField) {
@@ -1910,6 +1976,12 @@
       };
 
       typeSelect.addEventListener('change', updateType);
+      if (commonNameInput) {
+        commonNameInput.addEventListener('input', () => {
+          const isOlt = (typeSelect.value || '').toUpperCase() === 'OLT';
+          updateEditOltFolderLocation(isOlt);
+        });
+      }
       if (serverTypeSelect) {
         serverTypeSelect.addEventListener('change', () => {
           const isServer = (typeSelect.value || '').toUpperCase() === 'SERVER';
