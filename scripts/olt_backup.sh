@@ -78,23 +78,23 @@ set FILENAME $env(FILENAME)
 set prompt {.*[>#\]] ?$}
 
 proc fail_step {message code} {
-    send_user "[backup-step] $message\n"
+    send_user "\\[backup-step\\] $message\n"
     exit $code
 }
 
-send_user "[backup-step] opening Telnet session to $OLT_IP\n"
+send_user "\\[backup-step\\] opening Telnet session to $OLT_IP\n"
 spawn telnet $OLT_IP
 
 set logged 0
 while {!$logged} {
     expect {
         -re {(?i)(user ?name|login)\s*:?\s*$} {
-            send_user "[backup-step] login prompt received; sending username\n"
+            send_user "\\[backup-step\\] login prompt received; sending username\n"
             send -- "$OLT_USER\r"
             exp_continue
         }
         -re {(?i)password\s*:?\s*$} {
-            send_user "[backup-step] password prompt received; sending password\n"
+            send_user "\\[backup-step\\] password prompt received; sending password\n"
             send -- "$OLT_PASS\r"
             exp_continue
         }
@@ -110,7 +110,7 @@ while {!$logged} {
     }
 }
 
-send_user "[backup-step] login complete; starting backup command\n"
+send_user "\\[backup-step\\] login complete; starting backup command\n"
 send -- "backup configuration tftp $TFTP_SERVER $FILENAME\r"
 
 set finished 0
@@ -158,7 +158,7 @@ if {!$finished} {
     fail_step "backup did not report completion" 14
 }
 
-send_user "[backup-step] backup command completed; closing session\n"
+send_user "\\[backup-step\\] backup command completed; closing session\n"
 send -- "quit\r"
 expect eof
 EOF
