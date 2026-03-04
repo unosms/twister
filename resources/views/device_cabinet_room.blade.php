@@ -347,11 +347,16 @@
         .cabinet-room-port {
             position: relative;
             aspect-ratio: 1 / 1;
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            overflow: hidden;
             border-radius: 0.14rem;
             background:
                 linear-gradient(180deg, rgba(164, 176, 194, 0.16), rgba(60, 71, 86, 0.92));
             border: 1px solid rgba(255, 255, 255, 0.05);
             box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+            transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
         }
 
         .cabinet-room-port::before {
@@ -371,6 +376,27 @@
                 0 0 0 1px rgba(34, 197, 94, 0.18);
         }
 
+        .cabinet-room-port:hover {
+            transform: translateY(-1px);
+            border-color: rgba(191, 219, 254, 0.35);
+            box-shadow:
+                inset 0 -1px 0 rgba(255, 255, 255, 0.04),
+                0 0 0 1px rgba(96, 165, 250, 0.28);
+        }
+
+        .cabinet-room-port[data-status-tone="online"] {
+            border-color: rgba(34, 197, 94, 0.18);
+        }
+
+        .cabinet-room-port[data-status-tone="offline"] {
+            border-color: rgba(148, 163, 184, 0.18);
+            opacity: 0.88;
+        }
+
+        .cabinet-room-port[data-status-tone="unknown"] {
+            border-color: rgba(148, 163, 184, 0.14);
+        }
+
         .cabinet-room-port.is-lit::after,
         .cabinet-room-sfp.is-lit::after {
             content: '';
@@ -381,6 +407,42 @@
             border-radius: 999px;
             background: #22c55e;
             box-shadow: 0 0 6px #22c55e;
+        }
+
+        .cabinet-room-port-label {
+            position: relative;
+            z-index: 1;
+            margin-bottom: 0.08rem;
+            font-size: 0.34rem;
+            font-weight: 800;
+            line-height: 1;
+            letter-spacing: 0.01em;
+            color: rgba(226, 232, 240, 0.92);
+            text-shadow: 0 1px 1px rgba(2, 6, 23, 0.9);
+            pointer-events: none;
+        }
+
+        .cabinet-room-port-link {
+            position: absolute;
+            top: 0.16rem;
+            right: 0.16rem;
+            width: 0.18rem;
+            height: 0.18rem;
+            border-radius: 999px;
+            background: rgba(100, 116, 139, 0.5);
+            box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.4);
+            pointer-events: none;
+        }
+
+        .cabinet-room-port[data-status-tone="online"] .cabinet-room-port-link {
+            background: #22c55e;
+            box-shadow:
+                0 0 0 1px rgba(15, 23, 42, 0.4),
+                0 0 6px rgba(34, 197, 94, 0.82);
+        }
+
+        .cabinet-room-port[data-status-tone="offline"] .cabinet-room-port-link {
+            background: rgba(148, 163, 184, 0.7);
         }
 
         .cabinet-room-drive-bays {
@@ -696,6 +758,82 @@
             box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.04);
         }
 
+        .cabinet-room-hover-card {
+            position: fixed;
+            z-index: 80;
+            max-width: 18rem;
+            pointer-events: none;
+            border-radius: 1rem;
+            border: 1px solid rgba(148, 163, 184, 0.22);
+            background: rgba(15, 23, 42, 0.96);
+            box-shadow: 0 18px 42px rgba(2, 6, 23, 0.32);
+            padding: 0.85rem 0.95rem;
+            color: #e2e8f0;
+            backdrop-filter: blur(10px);
+        }
+
+        .cabinet-room-hover-card[hidden] {
+            display: none !important;
+        }
+
+        .cabinet-room-hover-card-title {
+            font-size: 0.82rem;
+            font-weight: 800;
+            line-height: 1.2;
+            color: #f8fafc;
+        }
+
+        .cabinet-room-hover-card-part {
+            margin-top: 0.28rem;
+            font-size: 0.74rem;
+            font-weight: 700;
+            color: #cbd5e1;
+        }
+
+        .cabinet-room-hover-card-meta {
+            margin-top: 0.4rem;
+            font-size: 0.68rem;
+            line-height: 1.4;
+            color: rgba(203, 213, 225, 0.88);
+        }
+
+        .cabinet-room-hover-card-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            margin-top: 0.55rem;
+            border-radius: 999px;
+            padding: 0.28rem 0.55rem;
+            font-size: 0.68rem;
+            font-weight: 800;
+            letter-spacing: 0.02em;
+            background: rgba(255, 255, 255, 0.08);
+            color: #e2e8f0;
+        }
+
+        .cabinet-room-hover-card-status-dot {
+            width: 0.5rem;
+            height: 0.5rem;
+            border-radius: 999px;
+            background: #94a3b8;
+            box-shadow: 0 0 8px rgba(148, 163, 184, 0.5);
+        }
+
+        .cabinet-room-hover-card-status[data-tone="online"] .cabinet-room-hover-card-status-dot {
+            background: #22c55e;
+            box-shadow: 0 0 8px rgba(34, 197, 94, 0.75);
+        }
+
+        .cabinet-room-hover-card-status[data-tone="warning"] .cabinet-room-hover-card-status-dot {
+            background: #f59e0b;
+            box-shadow: 0 0 8px rgba(245, 158, 11, 0.75);
+        }
+
+        .cabinet-room-hover-card-status[data-tone="error"] .cabinet-room-hover-card-status-dot {
+            background: #ef4444;
+            box-shadow: 0 0 8px rgba(239, 68, 68, 0.72);
+        }
+
         .cabinet-room-device[data-equipment-kind="switch"] {
             background:
                 linear-gradient(180deg, rgba(31, 41, 59, 0.98), rgba(13, 17, 26, 0.98));
@@ -761,6 +899,10 @@
             font-size: 0.42rem;
         }
 
+        .cabinet-room-rack-bay[data-density="compact"] .cabinet-room-port-label {
+            font-size: 0.3rem;
+        }
+
         .cabinet-room-rack-bay[data-density="compact"] .cabinet-room-button,
         .cabinet-room-rack-bay[data-density="compact"] .cabinet-room-socket {
             transform: scale(0.92);
@@ -791,6 +933,10 @@
 
         .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-port-bank {
             grid-template-columns: repeat(8, minmax(0, 1fr));
+        }
+
+        .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-port-label {
+            display: none;
         }
 
         .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-drive-bays {
@@ -1128,5 +1274,6 @@
         </section>
     </main>
 </div>
+<div class="cabinet-room-hover-card" data-rack-hover-card hidden></div>
 </body>
 </html>

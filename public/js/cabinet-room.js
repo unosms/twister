@@ -541,6 +541,7 @@
             this.cabinetFree = document.querySelector('[data-cabinet-free]');
             this.cabinetPlacementCount = document.querySelector('[data-cabinet-placement-count]');
             this.rackFaceBadge = document.querySelector('[data-rack-face-badge]');
+            this.rackHoverCard = document.querySelector('[data-rack-hover-card]');
 
             this.roomList = new RoomList(this, document.querySelector('[data-room-list]'));
             this.cabinetList = new CabinetList(this, document.querySelector('[data-cabinet-list]'));
@@ -644,8 +645,23 @@
                 button.addEventListener('click', () => {
                     this.state.selectedFace = button.dataset.face || 'front';
                     this.state.dragPreview = null;
+                    this.hideRackHoverCard();
                     this.render();
                 });
+            });
+
+            this.rackView.root?.addEventListener('mousemove', (event) => {
+                const target = event.target.closest('[data-rack-hover]');
+                if (!target || !this.rackView.root.contains(target)) {
+                    this.hideRackHoverCard();
+                    return;
+                }
+
+                this.showRackHoverCard(target, event.clientX, event.clientY);
+            });
+
+            this.rackView.root?.addEventListener('mouseleave', () => {
+                this.hideRackHoverCard();
             });
         }
 
@@ -1054,6 +1070,7 @@
             const room = this.selectedRoom();
             const cabinet = this.selectedCabinet();
             this.state.selectedCabinet = cabinet;
+            this.hideRackHoverCard();
 
             this.statsRooms.textContent = String(this.state.rooms.length);
             this.statsCabinets.textContent = String(this.state.rooms.reduce((carry, item) => carry + (item.cabinets?.length || 0), 0));
@@ -1107,6 +1124,59 @@
 
             this.pageError.classList.add('hidden');
             this.pageError.textContent = '';
+        }
+
+        showRackHoverCard(target, clientX, clientY) {
+            if (!this.rackHoverCard) {
+                return;
+            }
+
+            const title = target.dataset.hoverTitle || '';
+            const part = target.dataset.hoverPart || '';
+            const status = target.dataset.hoverStatus || '';
+            const tone = target.dataset.hoverTone || 'unknown';
+            const meta = target.dataset.hoverMeta || '';
+
+            if (!title && !part && !status) {
+                this.hideRackHoverCard();
+                return;
+            }
+
+            this.rackHoverCard.innerHTML = `
+                <div class="cabinet-room-hover-card-title">${escapeHtml(title || 'Device')}</div>
+                ${part ? `<div class="cabinet-room-hover-card-part">${escapeHtml(part)}</div>` : ''}
+                ${meta ? `<div class="cabinet-room-hover-card-meta">${escapeHtml(meta)}</div>` : ''}
+                ${status ? `
+                    <div class="cabinet-room-hover-card-status" data-tone="${escapeHtml(tone)}">
+                        <span class="cabinet-room-hover-card-status-dot"></span>
+                        <span>${escapeHtml(status)}</span>
+                    </div>
+                ` : ''}
+            `;
+
+            this.rackHoverCard.hidden = false;
+
+            const offsetX = 18;
+            const offsetY = 18;
+            const rect = this.rackHoverCard.getBoundingClientRect();
+            const maxLeft = Math.max(window.innerWidth - rect.width - 12, 12);
+            const maxTop = Math.max(window.innerHeight - rect.height - 12, 12);
+            const left = Math.min(clientX + offsetX, maxLeft);
+            const top = Math.min(clientY + offsetY, maxTop);
+
+            this.rackHoverCard.style.left = `${Math.max(left, 12)}px`;
+            this.rackHoverCard.style.top = `${Math.max(top, 12)}px`;
+        }
+
+        hideRackHoverCard() {
+            if (!this.rackHoverCard) {
+                return;
+            }
+
+            this.rackHoverCard.hidden = true;
+            this.rackHoverCard.innerHTML = '';
+            this.rackHoverCard.style.left = '';
+            this.rackHoverCard.style.top = '';
         }
 
         async requestJson(url, options = {}) {
@@ -1461,6 +1531,30 @@
 
     function renderSwitchFacade(device, density) {
         const spec = switchPanelSpec(device);
+        const livePorts = normalizeRackInterfaces(device?.rack_interfaces);
+
+        if (livePorts.length) {
+            const accessPorts = livePorts.filter((port) => port.family !== 'uplink');
+            const uplinkPorts = livePorts.filter((port) => port.family === 'uplink');
+            const onlineCount = livePorts.filter((port) => port.statusTone === 'online').length;
+
+            return `
+                <div class="cabinet-room-switch-panel">
+                    <div class="cabinet-room-switch-header">
+                        <span class="cabinet-room-switch-badge">${escapeHtml(`${livePorts.length}-Port`)}</span>
+                        <span class="cabinet-room-switch-label">${escapeHtml(`${spec.label} • ${onlineCount}/${livePorts.length} up`)}</span>
+                    </div>
+                    ${renderPanelStrip({
+                        leds: spec.leds,
+                        sockets: spec.sockets,
+                        buttons: spec.buttons,
+                    })}
+                    ${accessPorts.length ? renderPortGroup(spec.accessLabel, renderLivePortRows(device, accessPorts, density)) : ''}
+                    ${uplinkPorts.length ? renderPortGroup(spec.uplinkLabel, renderLivePortRows(device, uplinkPorts, density, true)) : ''}
+                </div>
+            `;
+        }
+
         const rows = spec.rows.map((row) => renderPortRow(row.count, row.litCount, row.columns, row.uplink ? 'is-uplink' : '')).join('');
         const uplinks = spec.uplinkCount > 0
             ? renderPortRow(spec.uplinkCount, Math.min(2, spec.uplinkCount), spec.uplinkCount > 4 ? 4 : spec.uplinkCount, 'is-uplink')
@@ -1481,6 +1575,106 @@
                 ${uplinks ? renderPortGroup(spec.uplinkLabel, uplinks) : ''}
             </div>
         `;
+    }
+
+    function normalizeRackInterfaces(interfaces) {
+        if (!Array.isArray(interfaces)) {
+            return [];
+        }
+
+        return interfaces
+            .filter((port) => port && port.name)
+            .map((port) => ({
+                name: String(port.name),
+                shortName: String(port.short_name || port.name),
+                family: String(port.family || 'access'),
+                status: String(port.status || 'Unknown'),
+                statusTone: statusTone(port.status_tone || port.status || ''),
+                description: String(port.description || ''),
+                alias: String(port.alias || ''),
+                speedBps: Number(port.speed_bps || 0) || 0,
+            }));
+    }
+
+    function renderLivePortRows(device, ports, density, uplink = false) {
+        if (!ports.length) {
+            return '';
+        }
+
+        const rowSize = resolveLivePortRowSize(ports.length, density, uplink);
+        const rows = [];
+
+        for (let index = 0; index < ports.length; index += rowSize) {
+            const slice = ports.slice(index, index + rowSize);
+            rows.push(`
+                <div class="cabinet-room-port-row ${uplink ? 'is-uplink' : ''}" style="grid-template-columns: repeat(${slice.length}, minmax(0, 1fr));">
+                    ${slice.map((port) => renderLivePortCell(device, port, uplink)).join('')}
+                </div>
+            `);
+        }
+
+        return `<div class="cabinet-room-switch-rows">${rows.join('')}</div>`;
+    }
+
+    function resolveLivePortRowSize(portCount, density, uplink) {
+        if (uplink) {
+            return portCount >= 8 ? 4 : Math.max(portCount, 1);
+        }
+
+        if (portCount >= 48) {
+            return 24;
+        }
+
+        if (portCount >= 24) {
+            return 12;
+        }
+
+        if (density === 'ultra-compact') {
+            return Math.min(portCount, 8);
+        }
+
+        return Math.min(portCount, 12);
+    }
+
+    function renderLivePortCell(device, port, uplink) {
+        const metaParts = [port.alias, port.description, formatPortSpeed(port.speedBps)].filter(Boolean);
+
+        return `
+            <span
+                class="cabinet-room-port ${port.statusTone === 'online' ? 'is-lit' : ''} ${uplink ? 'is-uplink' : ''}"
+                data-status-tone="${escapeHtml(port.statusTone)}"
+                data-rack-hover
+                data-hover-title="${escapeHtml(device?.name || 'Cisco device')}"
+                data-hover-part="${escapeHtml(port.name)}"
+                data-hover-status="${escapeHtml(port.status)}"
+                data-hover-tone="${escapeHtml(port.statusTone)}"
+                ${metaParts.length ? `data-hover-meta="${escapeHtml(metaParts.join(' • '))}"` : ''}
+                title="${escapeHtml(`${device?.name || 'Device'} | ${port.name} | ${port.status}`)}"
+            >
+                <span class="cabinet-room-port-link"></span>
+                <span class="cabinet-room-port-label">${escapeHtml(port.shortName)}</span>
+            </span>
+        `;
+    }
+
+    function formatPortSpeed(speedBps) {
+        if (!speedBps || !Number.isFinite(speedBps)) {
+            return '';
+        }
+
+        if (speedBps >= 100000000000) {
+            return `${Math.round(speedBps / 1000000000)}G`;
+        }
+
+        if (speedBps >= 1000000000) {
+            return `${Math.round(speedBps / 1000000000)}G`;
+        }
+
+        if (speedBps >= 1000000) {
+            return `${Math.round(speedBps / 1000000)}M`;
+        }
+
+        return `${speedBps}bps`;
     }
 
     function switchPanelSpec(device) {

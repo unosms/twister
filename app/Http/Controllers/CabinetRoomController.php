@@ -9,12 +9,18 @@ use App\Models\Room;
 use App\Models\TelemetryLog;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CabinetRoomController extends Controller
 {
     private const ALLOWED_FACES = ['front', 'back'];
+
+    private ?bool $interfacesTableAvailable = null;
+
+    private array $rackInterfaceCache = [];
 
     public function index(Request $request)
     {
@@ -311,6 +317,7 @@ class CabinetRoomController extends Controller
                 'ip_address' => $device->ip_address ?: data_get($meta, 'cisco.ip_address'),
                 'serial_number' => $device->serial_number,
                 'default_height_u' => $this->defaultDeviceHeight($device),
+                'rack_interfaces' => $this->rackInterfacesPayload($device),
             ] : null,
             'cabinet' => $cabinet ? [
                 'id' => $cabinet->id,
@@ -373,8 +380,130 @@ class CabinetRoomController extends Controller
                 'uptime' => $this->metricValue($meta, $telemetryPayload, ['uptime', 'metrics.uptime']),
                 'temperature' => $this->metricValue($meta, $telemetryPayload, ['temperature', 'metrics.temperature']),
             ],
+            'rack_interfaces' => $this->rackInterfacesPayload($device),
             'metadata' => $meta,
         ];
+    }
+
+    private function rackInterfacesPayload(?Device $device): array
+    {
+        if (!$device) {
+            return [];
+        }
+
+        if (array_key_exists($device->id, $this->rackInterfaceCache)) {
+            return $this->rackInterfaceCache[$device->id];
+        }
+
+        if (!$this->interfacesTableExists()) {
+            return $this->rackInterfaceCache[$device->id] = [];
+        }
+
+        $ports = DB::table('interfaces')
+            ->where('device_id', $device->id)
+            ->get(['ifName', 'ifDescr', 'ifAlias', 'speed_bps', 'is_up', 'last_seen_at'])
+            ->map(function (object $row): ?array {
+                $name = trim((string) ($row->ifName ?? ''));
+                if (!$this->isRackRenderableInterface($name)) {
+                    return null;
+                }
+
+                $tone = $this->rackInterfaceTone($row->is_up ?? null);
+
+                return [
+                    'name' => $name,
+                    'short_name' => $this->rackInterfaceShortName($name),
+                    'family' => $this->rackInterfaceFamily($name),
+                    'status' => $this->rackInterfaceStatusLabel($tone),
+                    'status_tone' => $tone,
+                    'is_up' => $row->is_up === null ? null : (bool) $row->is_up,
+                    'description' => $this->emptyToNull($row->ifDescr ?? null),
+                    'alias' => $this->emptyToNull($row->ifAlias ?? null),
+                    'speed_bps' => is_numeric($row->speed_bps ?? null) ? (int) $row->speed_bps : null,
+                    'sort_key' => $this->rackInterfaceSortKey($name),
+                ];
+            })
+            ->filter()
+            ->sortBy('sort_key')
+            ->values()
+            ->map(function (array $port): array {
+                unset($port['sort_key']);
+
+                return $port;
+            })
+            ->all();
+
+        return $this->rackInterfaceCache[$device->id] = $ports;
+    }
+
+    private function interfacesTableExists(): bool
+    {
+        if ($this->interfacesTableAvailable !== null) {
+            return $this->interfacesTableAvailable;
+        }
+
+        return $this->interfacesTableAvailable = Schema::hasTable('interfaces');
+    }
+
+    private function isRackRenderableInterface(string $name): bool
+    {
+        return (bool) preg_match('/^(?:fa|fastethernet|gi|gigabitethernet|te|tengigabitethernet|tw|twentyfivegige|fo|fortygigabitethernet|hu|hundredgige|eth|ethernet)\b/i', $name);
+    }
+
+    private function rackInterfaceFamily(string $name): string
+    {
+        $normalized = strtolower(trim($name));
+
+        if (preg_match('/^(?:te|tengigabitethernet|tw|twentyfivegige|fo|fortygigabitethernet|hu|hundredgige)\b/', $normalized)) {
+            return 'uplink';
+        }
+
+        return 'access';
+    }
+
+    private function rackInterfaceShortName(string $name): string
+    {
+        if (preg_match('/(\d+)(?!.*\d)/', $name, $matches)) {
+            return $matches[1];
+        }
+
+        return $name;
+    }
+
+    private function rackInterfaceStatusLabel(string $tone): string
+    {
+        return match ($tone) {
+            'online' => 'Online',
+            'offline' => 'Offline',
+            default => 'Unknown',
+        };
+    }
+
+    private function rackInterfaceTone(mixed $isUp): string
+    {
+        if ($isUp === null) {
+            return 'unknown';
+        }
+
+        return (bool) $isUp ? 'online' : 'offline';
+    }
+
+    private function rackInterfaceSortKey(string $name): string
+    {
+        preg_match_all('/\d+/', $name, $matches);
+        $numbers = array_map(
+            static fn (string $value): string => str_pad($value, 5, '0', STR_PAD_LEFT),
+            $matches[0] ?? []
+        );
+
+        return strtolower(preg_replace('/\d+/', '', $name) ?: $name) . ':' . implode(':', $numbers);
+    }
+
+    private function emptyToNull(mixed $value): ?string
+    {
+        $normalized = trim((string) ($value ?? ''));
+
+        return $normalized === '' ? null : $normalized;
     }
 
     private function metricValue(array $meta, array $telemetryPayload, array $keys): ?string
