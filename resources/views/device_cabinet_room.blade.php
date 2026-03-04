@@ -151,6 +151,18 @@
                 0 26px 46px rgba(2, 6, 23, 0.22);
         }
 
+        .cabinet-room-rack-stage[data-fullscreen="true"] {
+            min-height: 100vh;
+            border-radius: 0;
+            padding: 1rem;
+        }
+
+        .cabinet-room-rack-stage[data-fullscreen="true"] .cabinet-room-rack-viewport {
+            max-height: calc(100vh - 10rem);
+            overflow: auto;
+            padding-right: 0.5rem;
+        }
+
         .cabinet-room-rack-note {
             display: inline-flex;
             align-items: center;
@@ -1206,9 +1218,19 @@
                                     <button class="rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 transition data-[active=true]:bg-white data-[active=true]:text-slate-900 data-[active=true]:shadow-sm" type="button" data-face-toggle data-face="front" data-active="true">Front</button>
                                     <button class="rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 transition data-[active=true]:bg-white data-[active=true]:text-slate-900 data-[active=true]:shadow-sm" type="button" data-face-toggle data-face="back" data-active="false">Back</button>
                                 </div>
+                                <div class="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1">
+                                    <button class="rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 transition data-[active=true]:bg-white data-[active=true]:text-slate-900 data-[active=true]:shadow-sm" type="button" data-rack-zoom="1" data-active="false">1x</button>
+                                    <button class="rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 transition data-[active=true]:bg-white data-[active=true]:text-slate-900 data-[active=true]:shadow-sm" type="button" data-rack-zoom="2" data-active="false">2x</button>
+                                    <button class="rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 transition data-[active=true]:bg-white data-[active=true]:text-slate-900 data-[active=true]:shadow-sm" type="button" data-rack-zoom="4" data-active="true">4x</button>
+                                    <button class="rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 transition data-[active=true]:bg-white data-[active=true]:text-slate-900 data-[active=true]:shadow-sm" type="button" data-rack-zoom="6" data-active="false">6x</button>
+                                </div>
                                 <button class="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100" type="button" data-refresh-rack>
                                     <span class="material-symbols-outlined text-[18px]">refresh</span>
                                     Refresh Rack
+                                </button>
+                                <button class="inline-flex items-center gap-2 rounded-xl border border-slate-200 px-3 py-2 text-sm font-semibold text-slate-600 transition hover:bg-slate-100 data-[active=true]:bg-slate-900 data-[active=true]:text-white" type="button" data-rack-fullscreen-toggle data-active="false" aria-pressed="false">
+                                    <span class="material-symbols-outlined text-[18px]" data-rack-fullscreen-icon>fullscreen</span>
+                                    <span data-rack-fullscreen-label>Fullscreen</span>
                                 </button>
                             </div>
                         </div>
@@ -1233,7 +1255,7 @@
                     </div>
                     <div class="overflow-visible p-4">
                         <div class="hidden rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" data-page-error></div>
-                        <div class="cabinet-room-rack-stage mt-3 overflow-visible p-5 text-white">
+                        <div class="cabinet-room-rack-stage mt-3 overflow-visible p-5 text-white" data-rack-stage data-fullscreen="false">
                             <div class="mb-4 flex flex-wrap items-start justify-between gap-4">
                                 <div>
                                     <p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Rack Visualizer</p>
@@ -1250,7 +1272,7 @@
                                     </span>
                                 </div>
                             </div>
-                            <div class="overflow-visible pr-1" data-rack-viewport>
+                            <div class="cabinet-room-rack-viewport overflow-visible pr-1" data-rack-viewport>
                                 <div data-rack-view></div>
                             </div>
                         </div>

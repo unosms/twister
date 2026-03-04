@@ -275,7 +275,7 @@
                 return;
             }
 
-            const slotHeight = this.resolveSlotHeight(cabinet.size_u);
+            const slotHeight = this.resolveSlotHeight(cabinet.size_u, this.app.state.rackZoom);
             const density = slotHeight <= 12 ? 'ultra-compact' : (slotHeight <= 18 ? 'compact' : 'regular');
             const facePlacements = placements
                 .filter((placement) => placement.face === face)
@@ -372,10 +372,11 @@
             `;
         }
 
-        resolveSlotHeight(sizeU) {
+        resolveSlotHeight(sizeU, zoomMultiplier = 1) {
             const fitted = Math.floor(920 / Math.max(sizeU, 1));
             const baseHeight = Math.max(14, Math.min(26, fitted));
-            return baseHeight * 4;
+            const zoom = Number(zoomMultiplier) || 1;
+            return baseHeight * zoom;
         }
     }
 
@@ -535,6 +536,8 @@
                 roomQuery: '',
                 deviceQuery: '',
                 suggestedStartU: 1,
+                rackZoom: 4,
+                rackFullscreen: false,
                 dragPayload: null,
                 dragPreview: null,
                 detailsLoading: false,
@@ -551,6 +554,11 @@
             this.refreshUnplacedButton = document.querySelector('[data-refresh-unplaced]');
             this.refreshRackButton = document.querySelector('[data-refresh-rack]');
             this.faceButtons = Array.from(document.querySelectorAll('[data-face-toggle]'));
+            this.zoomButtons = Array.from(document.querySelectorAll('[data-rack-zoom]'));
+            this.fullscreenButton = document.querySelector('[data-rack-fullscreen-toggle]');
+            this.fullscreenButtonLabel = document.querySelector('[data-rack-fullscreen-label]');
+            this.fullscreenButtonIcon = document.querySelector('[data-rack-fullscreen-icon]');
+            this.rackStage = document.querySelector('[data-rack-stage]');
             this.pageError = document.querySelector('[data-page-error]');
             this.statsRooms = document.querySelector('[data-stats-rooms]');
             this.statsCabinets = document.querySelector('[data-stats-cabinets]');
@@ -673,6 +681,26 @@
                     this.hideRackHoverCard();
                     this.render();
                 });
+            });
+
+            this.zoomButtons.forEach((button) => {
+                button.addEventListener('click', () => {
+                    const zoom = Number(button.dataset.rackZoom || 1);
+                    if (![1, 2, 4, 6].includes(zoom)) {
+                        return;
+                    }
+                    this.state.rackZoom = zoom;
+                    this.render();
+                });
+            });
+
+            this.fullscreenButton?.addEventListener('click', () => {
+                this.toggleRackFullscreen();
+            });
+
+            document.addEventListener('fullscreenchange', () => {
+                this.state.rackFullscreen = document.fullscreenElement === this.rackStage;
+                this.render();
             });
 
             this.rackView.root?.addEventListener('mousemove', (event) => {
@@ -1091,6 +1119,23 @@
             });
         }
 
+        async toggleRackFullscreen() {
+            if (!this.rackStage) {
+                return;
+            }
+
+            try {
+                if (document.fullscreenElement === this.rackStage) {
+                    await document.exitFullscreen();
+                    return;
+                }
+
+                await this.rackStage.requestFullscreen();
+            } catch (error) {
+                this.showError('Fullscreen mode is not available in this browser/session.');
+            }
+        }
+
         render() {
             const room = this.selectedRoom();
             const cabinet = this.selectedCabinet();
@@ -1119,6 +1164,22 @@
             this.faceButtons.forEach((button) => {
                 button.dataset.active = button.dataset.face === this.state.selectedFace ? 'true' : 'false';
             });
+            this.zoomButtons.forEach((button) => {
+                button.dataset.active = Number(button.dataset.rackZoom || 1) === this.state.rackZoom ? 'true' : 'false';
+            });
+            if (this.rackStage) {
+                this.rackStage.dataset.fullscreen = this.state.rackFullscreen ? 'true' : 'false';
+            }
+            if (this.fullscreenButton) {
+                this.fullscreenButton.dataset.active = this.state.rackFullscreen ? 'true' : 'false';
+                this.fullscreenButton.setAttribute('aria-pressed', this.state.rackFullscreen ? 'true' : 'false');
+            }
+            if (this.fullscreenButtonLabel) {
+                this.fullscreenButtonLabel.textContent = this.state.rackFullscreen ? 'Exit Fullscreen' : 'Fullscreen';
+            }
+            if (this.fullscreenButtonIcon) {
+                this.fullscreenButtonIcon.textContent = this.state.rackFullscreen ? 'fullscreen_exit' : 'fullscreen';
+            }
 
             this.roomList.render(this.state.rooms, this.state.selectedRoomId, this.state.roomQuery);
             this.cabinetList.render(room, this.state.selectedCabinetId, this.state.roomQuery);
