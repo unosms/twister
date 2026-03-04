@@ -376,7 +376,8 @@
             const fitted = Math.floor(920 / Math.max(sizeU, 1));
             const baseHeight = Math.max(14, Math.min(26, fitted));
             const zoom = Number(zoomMultiplier) || 1;
-            return baseHeight * zoom;
+            const scaleBoost = 1.5;
+            return Math.round(baseHeight * zoom * scaleBoost);
         }
     }
 
