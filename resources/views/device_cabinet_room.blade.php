@@ -166,11 +166,12 @@
         .cabinet-room-rack-scene {
             position: relative;
             padding: 0.5rem 0.35rem 0.75rem;
+            isolation: isolate;
         }
 
         .cabinet-room-rack-scene[data-view-mode="3d"] {
-            perspective: 2200px;
-            padding: 1.4rem 2rem 2.8rem 1rem;
+            perspective: 1800px;
+            padding: 1.15rem 1.3rem 2rem 0.9rem;
         }
 
         .cabinet-room-rack-shadow,
@@ -183,64 +184,68 @@
         .cabinet-room-rack-scene[data-view-mode="3d"] .cabinet-room-rack-shadow {
             display: block;
             position: absolute;
-            left: 4rem;
-            right: 2.8rem;
-            bottom: 0.65rem;
-            height: 2.4rem;
+            z-index: 0;
+            left: 3.2rem;
+            right: 3.2rem;
+            bottom: 0.7rem;
+            height: 2rem;
             border-radius: 999px;
             background: radial-gradient(circle, rgba(15, 23, 42, 0.42) 0%, rgba(15, 23, 42, 0.06) 70%, transparent 100%);
-            filter: blur(16px);
-            transform: skewX(-18deg);
+            filter: blur(18px);
+            transform: scaleX(0.94);
         }
 
         .cabinet-room-rack-scene[data-view-mode="3d"] .cabinet-room-rack-top-plane {
             display: block;
             position: absolute;
-            left: 3.2rem;
-            right: 2.55rem;
-            top: 0.25rem;
-            height: 1.25rem;
+            z-index: 1;
+            left: 2.7rem;
+            right: 2.7rem;
+            top: 0.55rem;
+            height: 0.95rem;
             border-radius: 1rem 1rem 0.45rem 0.45rem;
             background: linear-gradient(180deg, rgba(74, 92, 118, 0.92), rgba(31, 41, 55, 0.96));
-            transform: skewX(-34deg);
-            transform-origin: left center;
+            transform: translateY(-100%) rotateX(74deg);
+            transform-origin: bottom center;
             box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
         }
 
         .cabinet-room-rack-scene[data-view-mode="3d"] .cabinet-room-rack-floor-plane {
             display: block;
             position: absolute;
-            left: 3.35rem;
-            right: 2.65rem;
-            bottom: 1.05rem;
-            height: 1.4rem;
+            z-index: 1;
+            left: 2.8rem;
+            right: 2.8rem;
+            bottom: 0.8rem;
+            height: 1rem;
             border-radius: 0.55rem;
             background: linear-gradient(180deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.98));
-            transform: skewX(-34deg);
-            transform-origin: left center;
+            transform: translateY(100%) rotateX(-78deg);
+            transform-origin: top center;
         }
 
         .cabinet-room-rack-scene[data-view-mode="3d"] .cabinet-room-rack-side-plane {
             display: block;
             position: absolute;
-            top: 1rem;
-            bottom: 1.7rem;
-            width: 1.5rem;
+            z-index: 1;
+            top: 1.05rem;
+            bottom: 1.25rem;
+            width: 0.95rem;
             border-radius: 0.9rem;
             background: linear-gradient(180deg, rgba(58, 72, 94, 0.96), rgba(18, 25, 37, 0.98));
             box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
         }
 
         .cabinet-room-rack-scene[data-view-mode="3d"] .cabinet-room-rack-side-plane.is-left {
-            left: 1.3rem;
-            transform: skewY(-34deg);
-            transform-origin: top right;
+            left: 1.85rem;
+            transform: rotateY(68deg);
+            transform-origin: right center;
         }
 
         .cabinet-room-rack-scene[data-view-mode="3d"] .cabinet-room-rack-side-plane.is-right {
-            right: 1rem;
-            transform: skewY(34deg);
-            transform-origin: top left;
+            right: 1.85rem;
+            transform: rotateY(-68deg);
+            transform-origin: left center;
         }
 
         .cabinet-room-rack-frame {
@@ -250,13 +255,14 @@
             gap: 0.75rem;
             align-items: stretch;
             transition: transform 0.32s ease, filter 0.32s ease;
+            z-index: 2;
         }
 
         .cabinet-room-rack-frame[data-view-mode="3d"] {
             transform-style: preserve-3d;
-            transform: rotateX(17deg) rotateY(-20deg);
-            transform-origin: center top;
-            filter: drop-shadow(20px 26px 28px rgba(2, 6, 23, 0.32));
+            transform: translateZ(0);
+            transform-origin: center center;
+            filter: drop-shadow(18px 22px 24px rgba(2, 6, 23, 0.26));
         }
 
         .cabinet-room-rack-rail {
@@ -283,9 +289,18 @@
         }
 
         .cabinet-room-rack-frame[data-view-mode="3d"] .cabinet-room-rack-bay {
+            transform: translateZ(22px);
             box-shadow:
                 inset 0 0 0 1px rgba(255, 255, 255, 0.08),
                 0 20px 40px rgba(7, 10, 16, 0.22);
+        }
+
+        .cabinet-room-rack-frame[data-view-mode="3d"] .cabinet-room-rack-rail:first-child {
+            transform: translateZ(16px) translateX(0.18rem);
+        }
+
+        .cabinet-room-rack-frame[data-view-mode="3d"] .cabinet-room-rack-rail:last-child {
+            transform: translateZ(16px) translateX(-0.18rem);
         }
 
         .cabinet-room-slot {
