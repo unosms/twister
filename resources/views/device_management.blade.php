@@ -1163,7 +1163,7 @@ Showing {{ $devices->firstItem() ?? 0 }}-{{ $devices->lastItem() ?? 0 }} of {{ $
 Open Telemetry Logs
 </a>
 </div>
-@if (false)
+{{--
 <h4 class="text-sm font-bold uppercase tracking-wider text-gray-500 mb-4">Telemetry Logs</h4>
 <div class="space-y-4">
 @forelse ($telemetryLogs as $log)
@@ -1191,7 +1191,7 @@ $dotClass = match ($level) {
 <a class="w-full mt-6 py-2 text-sm font-semibold text-primary bg-primary/5 rounded-lg hover:bg-primary/10 transition-colors text-center" href="{{ route('telemetry.index') }}">
                             View Full History
                         </a>
-@endif
+--}}
 </div>
 </aside>
 </div>
