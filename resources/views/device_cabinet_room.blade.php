@@ -163,12 +163,100 @@
             color: rgba(226, 232, 240, 0.86);
         }
 
+        .cabinet-room-rack-scene {
+            position: relative;
+            padding: 0.5rem 0.35rem 0.75rem;
+        }
+
+        .cabinet-room-rack-scene[data-view-mode="3d"] {
+            perspective: 2200px;
+            padding: 1.4rem 2rem 2.8rem 1rem;
+        }
+
+        .cabinet-room-rack-shadow,
+        .cabinet-room-rack-top-plane,
+        .cabinet-room-rack-side-plane,
+        .cabinet-room-rack-floor-plane {
+            display: none;
+        }
+
+        .cabinet-room-rack-scene[data-view-mode="3d"] .cabinet-room-rack-shadow {
+            display: block;
+            position: absolute;
+            left: 4rem;
+            right: 2.8rem;
+            bottom: 0.65rem;
+            height: 2.4rem;
+            border-radius: 999px;
+            background: radial-gradient(circle, rgba(15, 23, 42, 0.42) 0%, rgba(15, 23, 42, 0.06) 70%, transparent 100%);
+            filter: blur(16px);
+            transform: skewX(-18deg);
+        }
+
+        .cabinet-room-rack-scene[data-view-mode="3d"] .cabinet-room-rack-top-plane {
+            display: block;
+            position: absolute;
+            left: 3.2rem;
+            right: 2.55rem;
+            top: 0.25rem;
+            height: 1.25rem;
+            border-radius: 1rem 1rem 0.45rem 0.45rem;
+            background: linear-gradient(180deg, rgba(74, 92, 118, 0.92), rgba(31, 41, 55, 0.96));
+            transform: skewX(-34deg);
+            transform-origin: left center;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+        }
+
+        .cabinet-room-rack-scene[data-view-mode="3d"] .cabinet-room-rack-floor-plane {
+            display: block;
+            position: absolute;
+            left: 3.35rem;
+            right: 2.65rem;
+            bottom: 1.05rem;
+            height: 1.4rem;
+            border-radius: 0.55rem;
+            background: linear-gradient(180deg, rgba(30, 41, 59, 0.96), rgba(15, 23, 42, 0.98));
+            transform: skewX(-34deg);
+            transform-origin: left center;
+        }
+
+        .cabinet-room-rack-scene[data-view-mode="3d"] .cabinet-room-rack-side-plane {
+            display: block;
+            position: absolute;
+            top: 1rem;
+            bottom: 1.7rem;
+            width: 1.5rem;
+            border-radius: 0.9rem;
+            background: linear-gradient(180deg, rgba(58, 72, 94, 0.96), rgba(18, 25, 37, 0.98));
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+        }
+
+        .cabinet-room-rack-scene[data-view-mode="3d"] .cabinet-room-rack-side-plane.is-left {
+            left: 1.3rem;
+            transform: skewY(-34deg);
+            transform-origin: top right;
+        }
+
+        .cabinet-room-rack-scene[data-view-mode="3d"] .cabinet-room-rack-side-plane.is-right {
+            right: 1rem;
+            transform: skewY(34deg);
+            transform-origin: top left;
+        }
+
         .cabinet-room-rack-frame {
             position: relative;
             display: grid;
             grid-template-columns: 28px minmax(240px, 1fr) 28px;
             gap: 0.75rem;
             align-items: stretch;
+            transition: transform 0.32s ease, filter 0.32s ease;
+        }
+
+        .cabinet-room-rack-frame[data-view-mode="3d"] {
+            transform-style: preserve-3d;
+            transform: rotateX(17deg) rotateY(-20deg);
+            transform-origin: center top;
+            filter: drop-shadow(20px 26px 28px rgba(2, 6, 23, 0.32));
         }
 
         .cabinet-room-rack-rail {
@@ -192,6 +280,12 @@
             box-shadow:
                 inset 0 0 0 1px rgba(255, 255, 255, 0.06),
                 0 18px 40px rgba(7, 10, 16, 0.32);
+        }
+
+        .cabinet-room-rack-frame[data-view-mode="3d"] .cabinet-room-rack-bay {
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+                0 20px 40px rgba(7, 10, 16, 0.22);
         }
 
         .cabinet-room-slot {
@@ -253,6 +347,13 @@
             box-shadow:
                 inset 0 0 0 1px rgba(255, 255, 255, 0.03),
                 0 8px 20px rgba(0, 0, 0, 0.24);
+        }
+
+        .cabinet-room-rack-frame[data-view-mode="3d"] .cabinet-room-device {
+            transform: translateZ(20px);
+            box-shadow:
+                inset 0 0 0 1px rgba(255, 255, 255, 0.04),
+                0 14px 24px rgba(2, 6, 23, 0.28);
         }
 
         .cabinet-room-device::before {
@@ -1052,6 +1153,10 @@
                             </div>
                             <div class="flex flex-wrap items-center gap-3">
                                 <div class="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1">
+                                    <button class="rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 transition data-[active=true]:bg-white data-[active=true]:text-slate-900 data-[active=true]:shadow-sm" type="button" data-view-toggle data-view-mode="2d" data-active="true">2D</button>
+                                    <button class="rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 transition data-[active=true]:bg-white data-[active=true]:text-slate-900 data-[active=true]:shadow-sm" type="button" data-view-toggle data-view-mode="3d" data-active="false">3D</button>
+                                </div>
+                                <div class="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1">
                                     <button class="rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 transition data-[active=true]:bg-white data-[active=true]:text-slate-900 data-[active=true]:shadow-sm" type="button" data-face-toggle data-face="front" data-active="true">Front</button>
                                     <button class="rounded-full px-3 py-1.5 text-xs font-semibold text-slate-500 transition data-[active=true]:bg-white data-[active=true]:text-slate-900 data-[active=true]:shadow-sm" type="button" data-face-toggle data-face="back" data-active="false">Back</button>
                                 </div>
@@ -1094,8 +1199,12 @@
                                         U1 at bottom
                                     </span>
                                     <span class="cabinet-room-rack-note">
-                                        <span class="material-symbols-outlined text-[16px]">open_with</span>
+                                    <span class="material-symbols-outlined text-[16px]">open_with</span>
                                         Drag and place
+                                    </span>
+                                    <span class="cabinet-room-rack-note" data-rack-mode-note>
+                                        <span class="material-symbols-outlined text-[16px]">view_in_ar</span>
+                                        2D view
                                     </span>
                                 </div>
                             </div>
