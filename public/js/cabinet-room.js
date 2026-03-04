@@ -335,13 +335,13 @@
             }).join('');
 
             this.root.innerHTML = `
-                <div class="cabinet-room-rack-scene" data-view-mode="${this.app.state.viewMode}">
+                <div class="cabinet-room-rack-scene" data-view-mode="${this.app.state.viewMode}" data-view-angle="${this.app.state.viewAngle}">
                     <div class="cabinet-room-rack-shadow"></div>
                     <div class="cabinet-room-rack-top-plane"></div>
                     <div class="cabinet-room-rack-side-plane is-left"></div>
                     <div class="cabinet-room-rack-side-plane is-right"></div>
                     <div class="cabinet-room-rack-floor-plane"></div>
-                    <div class="cabinet-room-rack-frame" data-view-mode="${this.app.state.viewMode}">
+                    <div class="cabinet-room-rack-frame" data-view-mode="${this.app.state.viewMode}" data-view-angle="${this.app.state.viewAngle}">
                         <div class="cabinet-room-rack-rail"></div>
                         <div class="cabinet-room-rack-bay" data-density="${density}" style="--rack-size-u:${cabinet.size_u};--slot-height:${slotHeight}px;">
                             <div>${slots.join('')}</div>
@@ -507,6 +507,7 @@
                 selectedCabinet: null,
                 selectedFace: 'front',
                 viewMode: this.readStoredViewMode(),
+                viewAngle: this.readStoredViewAngle(),
                 placements: [],
                 unplacedDevices: [],
                 selectedDeviceId: null,
@@ -533,6 +534,8 @@
             this.refreshRackButton = document.querySelector('[data-refresh-rack]');
             this.faceButtons = Array.from(document.querySelectorAll('[data-face-toggle]'));
             this.viewButtons = Array.from(document.querySelectorAll('[data-view-toggle]'));
+            this.viewAngleButtons = Array.from(document.querySelectorAll('[data-view-angle-toggle]'));
+            this.viewAngleGroup = document.querySelector('[data-3d-view-group]');
             this.pageError = document.querySelector('[data-page-error]');
             this.statsRooms = document.querySelector('[data-stats-rooms]');
             this.statsCabinets = document.querySelector('[data-stats-cabinets]');
@@ -660,6 +663,14 @@
                 button.addEventListener('click', () => {
                     this.state.viewMode = button.dataset.viewMode === '3d' ? '3d' : '2d';
                     this.persistViewMode();
+                    this.render();
+                });
+            });
+
+            this.viewAngleButtons.forEach((button) => {
+                button.addEventListener('click', () => {
+                    this.state.viewAngle = this.normalizeViewAngle(button.dataset.viewAngle);
+                    this.persistViewAngle();
                     this.render();
                 });
             });
@@ -1098,10 +1109,18 @@
                 button.dataset.active = button.dataset.viewMode === this.state.viewMode ? 'true' : 'false';
             });
 
+            this.viewAngleButtons.forEach((button) => {
+                button.dataset.active = button.dataset.viewAngle === this.state.viewAngle ? 'true' : 'false';
+            });
+
+            if (this.viewAngleGroup) {
+                this.viewAngleGroup.hidden = this.state.viewMode !== '3d';
+            }
+
             if (this.rackModeNote) {
                 this.rackModeNote.innerHTML = `
                     <span class="material-symbols-outlined text-[16px]">view_in_ar</span>
-                    ${this.state.viewMode === '3d' ? '3D view' : '2D view'}
+                    ${this.state.viewMode === '3d' ? `3D ${capitalize(this.state.viewAngle)}` : '2D view'}
                 `;
             }
 
@@ -1144,12 +1163,32 @@
             }
         }
 
+        readStoredViewAngle() {
+            try {
+                return this.normalizeViewAngle(window.localStorage?.getItem('cabinet-room:view-angle'));
+            } catch (error) {
+                return 'left';
+            }
+        }
+
         persistViewMode() {
             try {
                 window.localStorage?.setItem('cabinet-room:view-mode', this.state.viewMode);
             } catch (error) {
                 // Ignore storage failures and keep the current in-memory mode.
             }
+        }
+
+        persistViewAngle() {
+            try {
+                window.localStorage?.setItem('cabinet-room:view-angle', this.state.viewAngle);
+            } catch (error) {
+                // Ignore storage failures and keep the current in-memory angle.
+            }
+        }
+
+        normalizeViewAngle(value) {
+            return ['left', 'front', 'right', 'top'].includes(value) ? value : 'left';
         }
 
         async requestJson(url, options = {}) {
