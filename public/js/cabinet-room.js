@@ -377,12 +377,12 @@
 
         render(state) {
             if (state.detailsLoading) {
-                this.root.innerHTML = '<div class="rounded-2xl border border-dashed border-slate-300 px-4 py-8 text-sm text-slate-500">Loading device details...</div>';
+                this.root.innerHTML = '<div class="cabinet-room-muted-card px-4 py-8 text-sm text-slate-500">Loading device details...</div>';
                 return;
             }
 
             if (!state.selectedDevice) {
-                this.root.innerHTML = '<div class="rounded-2xl border border-dashed border-slate-300 px-4 py-8 text-sm text-slate-500">Select a placed or unplaced device to inspect live status, metrics, and placement details.</div>';
+                this.root.innerHTML = '<div class="cabinet-room-muted-card px-4 py-8 text-sm text-slate-500">Select a placed or unplaced device to inspect live status, metrics, and placement details.</div>';
                 return;
             }
 
@@ -415,8 +415,8 @@
             `).join('');
 
             this.root.innerHTML = `
-                <div class="space-y-5">
-                    <section class="rounded-2xl border border-slate-200 bg-white p-4">
+                <div class="space-y-4">
+                    <section class="cabinet-room-section-card p-4">
                         <div class="flex items-start justify-between gap-3">
                             <div class="min-w-0">
                                 <div class="truncate text-lg font-bold text-slate-900">${escapeHtml(device.name || 'Unnamed device')}</div>
@@ -437,7 +437,7 @@
                         </dl>
                     </section>
 
-                    <section class="rounded-2xl border border-slate-200 bg-white p-4">
+                    <section class="cabinet-room-section-card p-4">
                         <div class="flex items-center justify-between">
                             <h3 class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Latest Metrics</h3>
                             <span class="text-xs text-slate-400">${escapeHtml(device.last_seen_human || 'live')}</span>
@@ -447,7 +447,7 @@
                         </div>
                     </section>
 
-                    <section class="rounded-2xl border border-slate-200 bg-white p-4">
+                    <section class="cabinet-room-section-card p-4">
                         <div class="flex items-center justify-between gap-3">
                             <div>
                                 <h3 class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Placement Controls</h3>
@@ -481,7 +481,7 @@
                         </form>
                     </section>
 
-                    <details class="rounded-2xl border border-slate-200 bg-white p-4">
+                    <details class="cabinet-room-section-card p-4">
                         <summary class="cursor-pointer text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Raw Metadata</summary>
                         <pre class="mt-3 overflow-auto rounded-xl bg-slate-950 p-4 text-xs text-slate-200">${escapeHtml(JSON.stringify(device.metadata || {}, null, 2))}</pre>
                     </details>
@@ -536,6 +536,7 @@
             this.rackSubtitle = document.querySelector('[data-rack-subtitle]');
             this.cabinetSize = document.querySelector('[data-cabinet-size]');
             this.cabinetOccupied = document.querySelector('[data-cabinet-occupied]');
+            this.cabinetFree = document.querySelector('[data-cabinet-free]');
             this.cabinetPlacementCount = document.querySelector('[data-cabinet-placement-count]');
             this.rackFaceBadge = document.querySelector('[data-rack-face-badge]');
 
@@ -1065,6 +1066,9 @@
                 : 'Choose a room and cabinet from the left to view rack units and placements.';
             this.cabinetSize.textContent = cabinet ? `${cabinet.size_u}U` : '0U';
             this.cabinetOccupied.textContent = cabinet ? `${this.occupiedUnits()}U` : '0U';
+            if (this.cabinetFree) {
+                this.cabinetFree.textContent = cabinet ? `${Math.max(cabinet.size_u - this.occupiedUnits(), 0)}U` : '0U';
+            }
             this.cabinetPlacementCount.textContent = cabinet ? String(this.state.placements.filter((placement) => placement.face === this.state.selectedFace).length) : '0';
             this.rackFaceBadge.textContent = `${capitalize(this.state.selectedFace)} Face`;
 

@@ -56,6 +56,100 @@
             box-shadow: 0 10px 25px rgba(13, 18, 27, 0.04);
         }
 
+        .cabinet-room-shell {
+            background:
+                radial-gradient(circle at top left, rgba(19, 91, 236, 0.08), transparent 28rem),
+                radial-gradient(circle at top right, rgba(14, 165, 233, 0.08), transparent 26rem),
+                linear-gradient(180deg, #f4f7fc 0%, #eef2f8 100%);
+        }
+
+        .cabinet-room-hero {
+            border: 1px solid rgba(255, 255, 255, 0.75);
+            border-radius: 1.5rem;
+            background:
+                linear-gradient(135deg, rgba(255, 255, 255, 0.98) 0%, rgba(246, 249, 255, 0.96) 100%);
+            box-shadow:
+                0 18px 40px rgba(15, 23, 42, 0.08),
+                inset 0 1px 0 rgba(255, 255, 255, 0.8);
+        }
+
+        .cabinet-room-kicker {
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.28em;
+            text-transform: uppercase;
+            color: rgba(19, 91, 236, 0.78);
+        }
+
+        .cabinet-room-summary-card {
+            border: 1px solid rgba(215, 223, 239, 0.85);
+            border-radius: 1.1rem;
+            background: rgba(255, 255, 255, 0.92);
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.04);
+        }
+
+        .cabinet-room-section-card {
+            border: 1px solid rgba(226, 232, 240, 0.95);
+            border-radius: 1.15rem;
+            background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.94));
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.88);
+        }
+
+        .cabinet-room-muted-card {
+            border: 1px dashed rgba(148, 163, 184, 0.4);
+            border-radius: 1rem;
+            background: rgba(248, 250, 252, 0.82);
+        }
+
+        .cabinet-room-toolbar-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            border-radius: 999px;
+            border: 1px solid rgba(214, 222, 238, 0.88);
+            background: rgba(255, 255, 255, 0.88);
+            padding: 0.55rem 0.9rem;
+            font-size: 0.76rem;
+            font-weight: 700;
+            color: #475569;
+            box-shadow: 0 6px 16px rgba(15, 23, 42, 0.04);
+        }
+
+        .cabinet-room-panel-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #0f172a;
+        }
+
+        .cabinet-room-panel-copy {
+            margin-top: 0.3rem;
+            font-size: 0.86rem;
+            line-height: 1.45;
+            color: #64748b;
+        }
+
+        .cabinet-room-rack-stage {
+            border-radius: 1.6rem;
+            background:
+                radial-gradient(circle at top center, rgba(37, 99, 235, 0.12), transparent 24rem),
+                linear-gradient(180deg, rgba(2, 6, 23, 0.98) 0%, rgba(5, 10, 24, 0.98) 100%);
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.06),
+                0 26px 46px rgba(2, 6, 23, 0.22);
+        }
+
+        .cabinet-room-rack-note {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.45rem;
+            border-radius: 999px;
+            background: rgba(255, 255, 255, 0.08);
+            padding: 0.45rem 0.8rem;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: rgba(226, 232, 240, 0.86);
+        }
+
         .cabinet-room-rack-frame {
             position: relative;
             display: grid;
@@ -752,7 +846,7 @@
     <script src="{{ asset('js/actions.js') . '?v=' . filemtime(public_path('js/actions.js')) }}" defer></script>
     <script src="{{ asset('js/cabinet-room.js') . '?v=' . filemtime(public_path('js/cabinet-room.js')) }}" defer></script>
 </head>
-<body class="bg-background-light dark:bg-background-dark text-[#0d121b] dark:text-gray-100 min-h-screen overflow-x-hidden">
+<body class="cabinet-room-shell text-[#0d121b] min-h-screen overflow-x-hidden">
 @php
     $cabinetRoomConfig = [
         'initialRooms' => $initialRooms,
@@ -776,60 +870,110 @@
     @include('partials.admin_sidebar', ['sidebarAuthUser' => $authUser ?? null])
 
     <main class="flex-1 flex flex-col overflow-visible">
-        <header class="h-16 border-b border-[#e7ebf3] dark:border-gray-800 bg-white dark:bg-background-dark flex items-center justify-between px-8 shrink-0">
-            <div class="flex items-center gap-4 flex-1">
+        <header class="border-b border-[#e7ebf3] bg-white/85 backdrop-blur px-6 py-4 shrink-0">
+            <div class="flex flex-wrap items-start justify-between gap-4">
+                <div class="flex items-center gap-4 flex-1 min-w-0">
                 <button class="flex h-10 w-10 items-center justify-center rounded-lg border border-[#e7ebf3] bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-800 dark:bg-background-dark dark:hover:bg-gray-800" type="button" data-sidebar-toggle aria-label="Toggle sidebar">
                     <span class="material-symbols-outlined">menu</span>
                 </button>
                 <div>
-                    <p class="text-[11px] font-semibold uppercase tracking-[0.24em] text-primary/80">Devices</p>
-                    <h1 class="text-2xl font-bold tracking-tight">Virtual Cabinet Room</h1>
+                    <p class="cabinet-room-kicker">Devices</p>
+                    <h1 class="mt-1 text-2xl font-bold tracking-tight text-slate-950">Virtual Cabinet Room</h1>
+                    <p class="mt-1 text-sm text-slate-500">Manage physical rack layout, stage unplaced equipment, and inspect live device details from a single workspace.</p>
                 </div>
             </div>
-            <div class="flex items-center gap-3 text-sm text-slate-500">
-                <span class="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1.5 font-medium text-slate-600">
+                <div class="flex flex-wrap items-center gap-2 text-sm text-slate-500">
+                <span class="cabinet-room-toolbar-pill">
                     <span class="material-symbols-outlined text-[18px]">drag_indicator</span>
                     Drag devices into rack units
                 </span>
+                <span class="cabinet-room-toolbar-pill">
+                    <span class="material-symbols-outlined text-[18px]">stacked_bar_chart</span>
+                    Live rack occupancy and device details
+                </span>
+                </div>
             </div>
         </header>
 
-        <section class="flex-1 overflow-visible p-4">
-            <div class="grid items-start gap-4 xl:grid-cols-[18rem_minmax(0,1.75fr)_19rem] 2xl:grid-cols-[19rem_minmax(0,2.15fr)_20rem]">
+        <section class="flex-1 overflow-visible p-4 lg:p-5">
+            <div class="cabinet-room-hero px-5 py-5 lg:px-6">
+                <div class="flex flex-wrap items-start justify-between gap-4">
+                    <div class="max-w-3xl">
+                        <p class="cabinet-room-kicker">Rack Operations</p>
+                        <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-950">Plan rooms, place equipment, and inspect rack state without leaving the page</h2>
+                        <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-600">Use the left panel to create spaces and stage equipment, work inside the rack canvas in the center, and manage placement plus live device telemetry from the right drawer.</p>
+                    </div>
+                    <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
+                        <span class="cabinet-room-toolbar-pill">
+                            <span class="material-symbols-outlined text-[18px]">view_in_ar</span>
+                            Rack-aware placement
+                        </span>
+                        <span class="cabinet-room-toolbar-pill">
+                            <span class="material-symbols-outlined text-[18px]">sync</span>
+                            Live status refresh
+                        </span>
+                        <span class="cabinet-room-toolbar-pill">
+                            <span class="material-symbols-outlined text-[18px]">shield</span>
+                            Collision-safe U assignment
+                        </span>
+                    </div>
+                </div>
+                <div class="mt-5 grid gap-3 sm:grid-cols-3">
+                    <div class="cabinet-room-summary-card px-4 py-4">
+                        <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Rooms</div>
+                        <div class="mt-2 flex items-end justify-between gap-3">
+                            <div class="text-2xl font-bold text-slate-950" data-stats-rooms>0</div>
+                            <span class="text-xs font-semibold text-slate-400" data-rooms-summary>No rooms yet</span>
+                        </div>
+                    </div>
+                    <div class="cabinet-room-summary-card px-4 py-4">
+                        <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Cabinets</div>
+                        <div class="mt-2 flex items-end justify-between gap-3">
+                            <div class="text-2xl font-bold text-slate-950" data-stats-cabinets>0</div>
+                            <span class="text-xs font-semibold text-slate-400" data-cabinets-summary>Select a room</span>
+                        </div>
+                    </div>
+                    <div class="cabinet-room-summary-card px-4 py-4">
+                        <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Unplaced Devices</div>
+                        <div class="mt-2 flex items-end justify-between gap-3">
+                            <div class="text-2xl font-bold text-slate-950" data-stats-unplaced>0</div>
+                            <span class="text-xs font-semibold text-slate-400">Ready for staging</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-5 grid items-start gap-4 xl:grid-cols-[17rem_minmax(0,1.95fr)_18rem] 2xl:grid-cols-[18rem_minmax(0,2.3fr)_19rem]">
                 <aside class="cabinet-room-panel flex max-h-[calc(100vh-6rem)] flex-col overflow-hidden">
                     <div class="border-b border-slate-200 px-5 py-4">
-                        <h2 class="text-lg font-semibold text-slate-900">Rooms and Cabinets</h2>
-                        <p class="mt-1 text-sm text-slate-500">Create rack rooms, add cabinets, and stage unplaced equipment for drag-and-drop placement.</p>
+                        <h2 class="cabinet-room-panel-title">Rooms and Cabinets</h2>
+                        <p class="cabinet-room-panel-copy">Create spaces, register rack hardware, and keep unplaced equipment ready for drag-and-drop placement.</p>
                     </div>
                     <div class="cabinet-room-scrollbar flex-1 overflow-y-auto px-5 py-4 space-y-5" data-cabinet-room-app>
-                        <section class="space-y-3">
+                        <section class="cabinet-room-section-card space-y-3 p-4">
                             <label class="block">
                                 <span class="mb-1 block text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Search rooms and cabinets</span>
                                 <input type="search" class="w-full rounded-xl border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-primary focus:ring-primary" placeholder="Search Datacenter 1, Rack A..." data-room-search/>
                             </label>
-                            <div class="grid grid-cols-3 gap-3 text-center">
+                            <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
                                 <div class="rounded-2xl bg-slate-50 px-3 py-3">
-                                    <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Rooms</div>
-                                    <div class="mt-1 text-xl font-bold text-slate-900" data-stats-rooms>0</div>
+                                    <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Workflow</div>
+                                    <div class="mt-1 text-sm font-semibold text-slate-900">1. Select room  2. Pick cabinet  3. Drop device</div>
                                 </div>
                                 <div class="rounded-2xl bg-slate-50 px-3 py-3">
-                                    <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Cabinets</div>
-                                    <div class="mt-1 text-xl font-bold text-slate-900" data-stats-cabinets>0</div>
-                                </div>
-                                <div class="rounded-2xl bg-slate-50 px-3 py-3">
-                                    <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Unplaced</div>
-                                    <div class="mt-1 text-xl font-bold text-slate-900" data-stats-unplaced>0</div>
+                                    <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Current View</div>
+                                    <div class="mt-1 text-sm font-semibold text-slate-900"><span data-selected-room-name>No room selected</span> / <span data-selected-cabinet-name>No cabinet selected</span></div>
                                 </div>
                             </div>
                         </section>
 
-                        <section class="space-y-3">
+                        <section class="cabinet-room-section-card space-y-3 p-4">
                             <div class="flex items-center justify-between">
                                 <h3 class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Room List</h3>
-                                <span class="text-xs text-slate-400" data-rooms-summary>No rooms yet</span>
+                                <span class="text-xs text-slate-400">Create and switch rooms</span>
                             </div>
                             <div class="space-y-2" data-room-list></div>
-                            <div class="rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 p-4">
+                            <div class="cabinet-room-muted-card p-4">
                                 <h4 class="text-sm font-semibold text-slate-900">Create room</h4>
                                 <form class="mt-3 space-y-3" data-room-form>
                                     <input class="w-full rounded-xl border-slate-200 px-3 py-2.5 text-sm focus:border-primary focus:ring-primary" name="name" type="text" placeholder="Datacenter 1" required/>
@@ -842,13 +986,13 @@
                             </div>
                         </section>
 
-                        <section class="space-y-3">
+                        <section class="cabinet-room-section-card space-y-3 p-4">
                             <div class="flex items-center justify-between">
                                 <h3 class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Cabinets</h3>
-                                <span class="text-xs text-slate-400" data-cabinets-summary>Select a room</span>
+                                <span class="text-xs text-slate-400">Rack hardware in the room</span>
                             </div>
                             <div class="space-y-2" data-cabinet-list></div>
-                            <div class="rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 p-4">
+                            <div class="cabinet-room-muted-card p-4">
                                 <h4 class="text-sm font-semibold text-slate-900">Add cabinet</h4>
                                 <form class="mt-3 space-y-3" data-cabinet-form>
                                     <input class="w-full rounded-xl border-slate-200 px-3 py-2.5 text-sm focus:border-primary focus:ring-primary" name="name" type="text" placeholder="Rack A" required/>
@@ -864,7 +1008,7 @@
                             </div>
                         </section>
 
-                        <section class="space-y-3">
+                        <section class="cabinet-room-section-card space-y-3 p-4">
                             <div class="flex items-center justify-between">
                                 <h3 class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Unplaced Devices</h3>
                                 <button class="inline-flex items-center gap-1 rounded-lg border border-slate-200 px-2.5 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100" type="button" data-refresh-unplaced>
@@ -886,9 +1030,9 @@
                         <div class="flex flex-wrap items-center justify-between gap-4">
                             <div>
                                 <div class="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">
-                                    <span data-selected-room-name>No room selected</span>
+                                    <span>Rack Workspace</span>
                                     <span class="text-slate-300">/</span>
-                                    <span data-selected-cabinet-name>No cabinet selected</span>
+                                    <span data-rack-face-badge>Front Face</span>
                                 </div>
                                 <h2 class="mt-2 text-2xl font-bold text-slate-900" data-rack-title>Select a cabinet to start</h2>
                                 <p class="mt-1 text-sm text-slate-500" data-rack-subtitle>Choose a room and cabinet from the left to view rack units and placements.</p>
@@ -904,30 +1048,43 @@
                                 </button>
                             </div>
                         </div>
-                        <div class="mt-4 grid gap-3 sm:grid-cols-3">
-                            <div class="rounded-2xl bg-slate-50 px-4 py-3">
+                        <div class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                            <div class="cabinet-room-summary-card px-4 py-3">
                                 <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Cabinet Size</div>
                                 <div class="mt-1 text-lg font-bold text-slate-900" data-cabinet-size>0U</div>
                             </div>
-                            <div class="rounded-2xl bg-slate-50 px-4 py-3">
+                            <div class="cabinet-room-summary-card px-4 py-3">
                                 <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Occupied</div>
                                 <div class="mt-1 text-lg font-bold text-slate-900" data-cabinet-occupied>0U</div>
                             </div>
-                            <div class="rounded-2xl bg-slate-50 px-4 py-3">
-                                <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Placements</div>
+                            <div class="cabinet-room-summary-card px-4 py-3">
+                                <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Free U</div>
+                                <div class="mt-1 text-lg font-bold text-slate-900" data-cabinet-free>0U</div>
+                            </div>
+                            <div class="cabinet-room-summary-card px-4 py-3">
+                                <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Visible Devices</div>
                                 <div class="mt-1 text-lg font-bold text-slate-900" data-cabinet-placement-count>0</div>
                             </div>
                         </div>
                     </div>
                     <div class="overflow-visible p-4">
                         <div class="hidden rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700" data-page-error></div>
-                        <div class="mt-3 overflow-visible rounded-[1.5rem] bg-slate-950/95 p-4 text-white shadow-2xl shadow-slate-900/25">
-                            <div class="mb-3 flex items-center justify-between gap-4">
+                        <div class="cabinet-room-rack-stage mt-3 overflow-visible p-5 text-white">
+                            <div class="mb-4 flex flex-wrap items-start justify-between gap-4">
                                 <div>
                                     <p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Rack Visualizer</p>
-                                    <p class="mt-1 text-sm text-slate-300">Drop unplaced devices into the selected face. Drag placed equipment to move it. Rack numbering starts at U1 on the bottom.</p>
+                                    <p class="mt-1 max-w-2xl text-sm text-slate-300">Drop unplaced devices into the selected face, drag existing equipment to move it, and use the details drawer to confirm live state before you commit changes.</p>
                                 </div>
-                                <div class="rounded-full bg-white/10 px-3 py-1.5 text-xs font-semibold text-slate-200" data-rack-face-badge>Front Face</div>
+                                <div class="flex flex-wrap gap-2">
+                                    <span class="cabinet-room-rack-note">
+                                        <span class="material-symbols-outlined text-[16px]">south</span>
+                                        U1 starts at the bottom
+                                    </span>
+                                    <span class="cabinet-room-rack-note">
+                                        <span class="material-symbols-outlined text-[16px]">open_with</span>
+                                        Drag, drop, then verify placement
+                                    </span>
+                                </div>
                             </div>
                             <div class="overflow-visible pr-1" data-rack-viewport>
                                 <div data-rack-view></div>
@@ -938,8 +1095,14 @@
 
                 <aside class="cabinet-room-panel flex max-h-[calc(100vh-6rem)] flex-col overflow-hidden">
                     <div class="border-b border-slate-200 px-5 py-4">
-                        <h2 class="text-lg font-semibold text-slate-900">Device Details</h2>
-                        <p class="mt-1 text-sm text-slate-500">Click equipment in the rack or from the unplaced list to view live status and placement controls.</p>
+                        <h2 class="cabinet-room-panel-title">Device Details</h2>
+                        <p class="cabinet-room-panel-copy">Inspect live device state, review placement metadata, and update U position or face from this control panel.</p>
+                    </div>
+                    <div class="px-5 pt-4">
+                        <div class="cabinet-room-muted-card p-4">
+                            <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Operator Notes</div>
+                            <p class="mt-2 text-sm leading-6 text-slate-600">Select a device from the rack or staging list to inspect its status, then use placement controls to move, resize, or remove it from the active cabinet.</p>
+                        </div>
                     </div>
                     <div class="cabinet-room-scrollbar flex-1 overflow-y-auto px-5 py-4" data-device-drawer></div>
                 </aside>
