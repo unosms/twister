@@ -77,26 +77,33 @@ set TFTP_SERVER $env(TFTP_SERVER)
 set FILENAME $env(FILENAME)
 set prompt {.*[>#\]] ?$}
 
+proc log_step {message} {
+    send_user [format "%s %s\n" {[backup-step]} $message]
+}
+
 proc fail_step {message code} {
-    send_user [format {[backup-step] %s\n} $message]
+    log_step $message
     exit $code
 }
 
-send_user [format {[backup-step] opening Telnet session to %s\n} $OLT_IP]
+log_step "opening Telnet session to $OLT_IP"
 spawn telnet $OLT_IP
 
 set logged 0
 while {!$logged} {
     expect {
-        -re {(?i)(user ?name|login)\s*:?\s*$} {
-            send_user [format {[backup-step] login prompt received; sending username\n}]
+        -re {(?i)(user ?name|login)\s*:?\s*} {
+            log_step "login prompt received; sending username"
             send -- "$OLT_USER\r"
             exp_continue
         }
-        -re {(?i)password\s*:?\s*$} {
-            send_user [format {[backup-step] password prompt received; sending password\n}]
+        -re {(?i)password\s*:?\s*} {
+            log_step "password prompt received; sending password"
             send -- "$OLT_PASS\r"
             exp_continue
+        }
+        -re {(?i)(login incorrect|authentication failed|invalid password|access denied)} {
+            fail_step "authentication failed during OLT login" 17
         }
         -re {(?i)press (return|enter) to continue} {
             send -- "\r"
@@ -110,7 +117,7 @@ while {!$logged} {
     }
 }
 
-send_user [format {[backup-step] login complete; starting backup command\n}]
+log_step "login complete; starting backup command"
 send -- "backup configuration tftp $TFTP_SERVER $FILENAME\r"
 
 set finished 0
@@ -158,7 +165,7 @@ if {!$finished} {
     fail_step "backup did not report completion" 14
 }
 
-send_user [format {[backup-step] backup command completed; closing session\n}]
+log_step "backup command completed; closing session"
 send -- "quit\r"
 expect eof
 EOF
