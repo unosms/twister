@@ -90,16 +90,65 @@ log_step "opening Telnet session to $OLT_IP"
 spawn telnet $OLT_IP
 
 set logged 0
+set username_sent 0
+set password_sent 0
 while {!$logged} {
     expect {
-        -re {(?i)(user ?name|login)\s*:?\s*} {
+        -re {(?i)(user ?name|login)[[:space:]]*:?[[:space:]]*} {
+            if {$username_sent} {
+                fail_step "authentication failed (login prompt repeated)" 17
+            }
             log_step "login prompt received; sending username"
             send -- "$OLT_USER\r"
+            set username_sent 1
             exp_continue
         }
-        -re {(?i)password\s*:?\s*} {
+        -re {(?i)password[[:space:]]*:?[[:space:]]*} {
+            if {!$username_sent} {
+                log_step "password prompt received before username; sending username first"
+                send -- "$OLT_USER\r"
+                set username_sent 1
+                exp_continue
+            }
+            if {$password_sent} {
+                fail_step "authentication failed (password prompt repeated)" 17
+            }
             log_step "password prompt received; sending password"
             send -- "$OLT_PASS\r"
+            set password_sent 1
+            exp_continue
+        }
+        -gl "*Login:*" {
+            if {$username_sent} {
+                fail_step "authentication failed (login prompt repeated)" 17
+            }
+            log_step "login prompt received; sending username"
+            send -- "$OLT_USER\r"
+            set username_sent 1
+            exp_continue
+        }
+        -gl "*Username:*" {
+            if {$username_sent} {
+                fail_step "authentication failed (login prompt repeated)" 17
+            }
+            log_step "login prompt received; sending username"
+            send -- "$OLT_USER\r"
+            set username_sent 1
+            exp_continue
+        }
+        -gl "*Password:*" {
+            if {!$username_sent} {
+                log_step "password prompt received before username; sending username first"
+                send -- "$OLT_USER\r"
+                set username_sent 1
+                exp_continue
+            }
+            if {$password_sent} {
+                fail_step "authentication failed (password prompt repeated)" 17
+            }
+            log_step "password prompt received; sending password"
+            send -- "$OLT_PASS\r"
+            set password_sent 1
             exp_continue
         }
         -re {(?i)(login incorrect|authentication failed|invalid password|access denied)} {
@@ -112,7 +161,15 @@ while {!$logged} {
         -re $prompt {
             set logged 1
         }
-        timeout { fail_step "timed out waiting for OLT login prompt" 10 }
+        timeout {
+            if {$password_sent} {
+                fail_step "timed out waiting for OLT shell prompt after password" 10
+            } elseif {$username_sent} {
+                fail_step "timed out waiting for OLT password prompt after username" 10
+            } else {
+                fail_step "timed out waiting for OLT login prompt" 10
+            }
+        }
         eof { fail_step "connection closed during OLT login" 11 }
     }
 }
