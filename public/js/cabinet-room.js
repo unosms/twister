@@ -410,7 +410,7 @@
             ].map(([label, value]) => `
                 <div class="rounded-2xl bg-slate-50 px-3 py-3">
                     <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">${label}</div>
-                    <div class="mt-1 text-sm font-semibold text-slate-900">${escapeHtml(value || 'N/A')}</div>
+                    <div class="mt-1 text-sm font-semibold leading-5 whitespace-pre-line text-slate-900">${formatMetricValue(label, value)}</div>
                 </div>
             `).join('');
 
@@ -1320,6 +1320,94 @@
 
     function renderModule() {
         return '<span class="cabinet-room-module"></span>';
+    }
+
+    function formatMetricValue(label, value) {
+        if (value === null || value === undefined || String(value).trim() === '') {
+            return 'N/A';
+        }
+
+        if (label === 'Uptime') {
+            return escapeHtml(formatUptimeValue(value));
+        }
+
+        if (label === 'Temperature') {
+            return formatTemperatureValue(value);
+        }
+
+        return escapeHtml(String(value));
+    }
+
+    function formatUptimeValue(value) {
+        const raw = String(value).trim();
+        const numeric = Number(raw);
+
+        if (raw !== '' && Number.isFinite(numeric) && /^-?\d+(?:\.\d+)?$/.test(raw)) {
+            return formatDurationFromMinutes(Math.max(Math.round(numeric / 60), 0));
+        }
+
+        const matches = Array.from(raw.toLowerCase().matchAll(/(\d+)\s*(weeks?|days?|hours?|hrs?|hr|minutes?|mins?|min|seconds?|secs?|sec)\b/g));
+        if (!matches.length) {
+            return raw;
+        }
+
+        let totalMinutes = 0;
+        matches.forEach((match) => {
+            const amount = Number(match[1] || 0);
+            const unit = match[2] || '';
+
+            if (unit.startsWith('week')) {
+                totalMinutes += amount * 7 * 24 * 60;
+                return;
+            }
+
+            if (unit.startsWith('day')) {
+                totalMinutes += amount * 24 * 60;
+                return;
+            }
+
+            if (unit.startsWith('hour') || unit.startsWith('hr')) {
+                totalMinutes += amount * 60;
+                return;
+            }
+
+            if (unit.startsWith('min')) {
+                totalMinutes += amount;
+                return;
+            }
+
+            if (unit.startsWith('sec')) {
+                totalMinutes += Math.round(amount / 60);
+            }
+        });
+
+        return formatDurationFromMinutes(totalMinutes);
+    }
+
+    function formatDurationFromMinutes(totalMinutes) {
+        const safeMinutes = Math.max(Number(totalMinutes) || 0, 0);
+        const days = Math.floor(safeMinutes / (24 * 60));
+        const hours = Math.floor((safeMinutes % (24 * 60)) / 60);
+        const minutes = safeMinutes % 60;
+
+        return `${days} day${days === 1 ? '' : 's'}, ${hours} hour${hours === 1 ? '' : 's'}, ${minutes} minute${minutes === 1 ? '' : 's'}`;
+    }
+
+    function formatTemperatureValue(value) {
+        const normalized = String(value)
+            .replace(/\r\n/g, '\n')
+            .replace(/\s*\|\s*/g, '\n')
+            .replace(/\s*\/\s*/g, '\n')
+            .replace(/(-?\d+(?:\.\d+)?)\s*(?:°|º|â°|Â°|\?)?\s*([cf])\b/gi, '$1°$2')
+            .replace(/°([cf])/gi, (_, unit) => `°${unit.toUpperCase()}`);
+
+        const lines = normalized
+            .split('\n')
+            .map((line) => line.trim())
+            .filter(Boolean)
+            .map((line) => escapeHtml(line));
+
+        return lines.join('<br>');
     }
 
     function renderPortGroup(label, content) {
