@@ -892,17 +892,17 @@
                 <div>
                     <p class="cabinet-room-kicker">Devices</p>
                     <h1 class="mt-1 text-2xl font-bold tracking-tight text-slate-950">Virtual Cabinet Room</h1>
-                    <p class="mt-1 text-sm text-slate-500">Manage physical rack layout, stage unplaced equipment, and inspect live device details from a single workspace.</p>
+                    <p class="mt-1 text-sm text-slate-500">Place devices, track rack space, and inspect live status.</p>
                 </div>
             </div>
                 <div class="flex flex-wrap items-center gap-2 text-sm text-slate-500">
                 <span class="cabinet-room-toolbar-pill">
                     <span class="material-symbols-outlined text-[18px]">drag_indicator</span>
-                    Drag devices into rack units
+                    Drag to place
                 </span>
                 <span class="cabinet-room-toolbar-pill">
                     <span class="material-symbols-outlined text-[18px]">stacked_bar_chart</span>
-                    Live rack occupancy and device details
+                    Live rack status
                 </span>
                 </div>
             </div>
@@ -913,21 +913,21 @@
                 <div class="flex flex-wrap items-start justify-between gap-4">
                     <div class="max-w-3xl">
                         <p class="cabinet-room-kicker">Rack Operations</p>
-                        <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-950">Plan rooms, place equipment, and inspect rack state without leaving the page</h2>
-                        <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-600">Use the left panel to create spaces and stage equipment, work inside the rack canvas in the center, and manage placement plus live device telemetry from the right drawer.</p>
+                        <h2 class="mt-2 text-3xl font-bold tracking-tight text-slate-950">Plan rooms, place equipment, and work the rack live</h2>
+                        <p class="mt-3 max-w-2xl text-sm leading-6 text-slate-600">Build rooms on the left, place devices in the rack, and manage details on the right.</p>
                     </div>
                     <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-3">
                         <span class="cabinet-room-toolbar-pill">
                             <span class="material-symbols-outlined text-[18px]">view_in_ar</span>
-                            Rack-aware placement
+                            Rack placement
                         </span>
                         <span class="cabinet-room-toolbar-pill">
                             <span class="material-symbols-outlined text-[18px]">sync</span>
-                            Live status refresh
+                            Live refresh
                         </span>
                         <span class="cabinet-room-toolbar-pill">
                             <span class="material-symbols-outlined text-[18px]">shield</span>
-                            Collision-safe U assignment
+                            Safe U placement
                         </span>
                     </div>
                 </div>
@@ -950,7 +950,7 @@
                         <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Unplaced Devices</div>
                         <div class="mt-2 flex items-end justify-between gap-3">
                             <div class="text-2xl font-bold text-slate-950" data-stats-unplaced>0</div>
-                            <span class="text-xs font-semibold text-slate-400">Ready for staging</span>
+                            <span class="text-xs font-semibold text-slate-400">Ready</span>
                         </div>
                     </div>
                 </div>
@@ -960,7 +960,7 @@
                 <aside class="cabinet-room-panel flex max-h-[calc(100vh-6rem)] flex-col overflow-hidden">
                     <div class="border-b border-slate-200 px-5 py-4">
                         <h2 class="cabinet-room-panel-title">Rooms and Cabinets</h2>
-                        <p class="cabinet-room-panel-copy">Create spaces, register rack hardware, and keep unplaced equipment ready for drag-and-drop placement.</p>
+                        <p class="cabinet-room-panel-copy">Create rooms, add cabinets, and stage devices.</p>
                     </div>
                     <div class="cabinet-room-scrollbar flex-1 overflow-y-auto px-5 py-4 space-y-5" data-cabinet-room-app>
                         <section class="cabinet-room-section-card space-y-3 p-4">
@@ -970,11 +970,11 @@
                             </label>
                             <div class="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
                                 <div class="rounded-2xl bg-slate-50 px-3 py-3">
-                                    <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Workflow</div>
-                                    <div class="mt-1 text-sm font-semibold text-slate-900">1. Select room  2. Pick cabinet  3. Drop device</div>
+                                    <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Flow</div>
+                                    <div class="mt-1 text-sm font-semibold text-slate-900">1. Room  2. Cabinet  3. Place</div>
                                 </div>
                                 <div class="rounded-2xl bg-slate-50 px-3 py-3">
-                                    <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Current View</div>
+                                    <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Selection</div>
                                     <div class="mt-1 text-sm font-semibold text-slate-900"><span data-selected-room-name>No room selected</span> / <span data-selected-cabinet-name>No cabinet selected</span></div>
                                 </div>
                             </div>
@@ -982,8 +982,8 @@
 
                         <section class="cabinet-room-section-card space-y-3 p-4">
                             <div class="flex items-center justify-between">
-                                <h3 class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Room List</h3>
-                                <span class="text-xs text-slate-400">Create and switch rooms</span>
+                                <h3 class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Rooms</h3>
+                                <span class="text-xs text-slate-400">Create and switch</span>
                             </div>
                             <div class="space-y-2" data-room-list></div>
                             <div class="cabinet-room-muted-card p-4">
@@ -1002,7 +1002,7 @@
                         <section class="cabinet-room-section-card space-y-3 p-4">
                             <div class="flex items-center justify-between">
                                 <h3 class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Cabinets</h3>
-                                <span class="text-xs text-slate-400">Rack hardware in the room</span>
+                                <span class="text-xs text-slate-400">Rack hardware</span>
                             </div>
                             <div class="space-y-2" data-cabinet-list></div>
                             <div class="cabinet-room-muted-card p-4">
@@ -1048,7 +1048,7 @@
                                     <span data-rack-face-badge>Front Face</span>
                                 </div>
                                 <h2 class="mt-2 text-2xl font-bold text-slate-900" data-rack-title>Select a cabinet to start</h2>
-                                <p class="mt-1 text-sm text-slate-500" data-rack-subtitle>Choose a room and cabinet from the left to view rack units and placements.</p>
+                                <p class="mt-1 text-sm text-slate-500" data-rack-subtitle>Select a room and cabinet to load the rack.</p>
                             </div>
                             <div class="flex flex-wrap items-center gap-3">
                                 <div class="inline-flex rounded-full border border-slate-200 bg-slate-50 p-1">
@@ -1075,7 +1075,7 @@
                                 <div class="mt-1 text-lg font-bold text-slate-900" data-cabinet-free>0U</div>
                             </div>
                             <div class="cabinet-room-summary-card px-4 py-3">
-                                <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Visible Devices</div>
+                                <div class="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">Devices</div>
                                 <div class="mt-1 text-lg font-bold text-slate-900" data-cabinet-placement-count>0</div>
                             </div>
                         </div>
@@ -1086,16 +1086,16 @@
                             <div class="mb-4 flex flex-wrap items-start justify-between gap-4">
                                 <div>
                                     <p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">Rack Visualizer</p>
-                                    <p class="mt-1 max-w-2xl text-sm text-slate-300">Drop unplaced devices into the selected face, drag existing equipment to move it, and use the details drawer to confirm live state before you commit changes.</p>
+                                    <p class="mt-1 max-w-2xl text-sm text-slate-300">Drop devices into the selected face or drag placed equipment to move it.</p>
                                 </div>
                                 <div class="flex flex-wrap gap-2">
                                     <span class="cabinet-room-rack-note">
                                         <span class="material-symbols-outlined text-[16px]">south</span>
-                                        U1 starts at the bottom
+                                        U1 at bottom
                                     </span>
                                     <span class="cabinet-room-rack-note">
                                         <span class="material-symbols-outlined text-[16px]">open_with</span>
-                                        Drag, drop, then verify placement
+                                        Drag and place
                                     </span>
                                 </div>
                             </div>
@@ -1109,12 +1109,12 @@
                 <aside class="cabinet-room-panel flex max-h-[calc(100vh-6rem)] flex-col overflow-hidden">
                     <div class="border-b border-slate-200 px-5 py-4">
                         <h2 class="cabinet-room-panel-title">Device Details</h2>
-                        <p class="cabinet-room-panel-copy">Inspect live device state, review placement metadata, and update U position or face from this control panel.</p>
+                        <p class="cabinet-room-panel-copy">View status and manage placement.</p>
                     </div>
                     <div class="px-5 pt-4">
                         <div class="cabinet-room-muted-card p-4">
-                            <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Operator Notes</div>
-                            <p class="mt-2 text-sm leading-6 text-slate-600">Select a device from the rack or staging list to inspect its status, then use placement controls to move, resize, or remove it from the active cabinet.</p>
+                            <div class="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Notes</div>
+                            <p class="mt-2 text-sm leading-6 text-slate-600">Select a device to inspect it, then place, move, resize, or remove it.</p>
                         </div>
                     </div>
                     <div class="cabinet-room-scrollbar flex-1 overflow-y-auto px-5 py-4" data-device-drawer></div>

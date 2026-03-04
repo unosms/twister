@@ -377,12 +377,12 @@
 
         render(state) {
             if (state.detailsLoading) {
-                this.root.innerHTML = '<div class="cabinet-room-muted-card px-4 py-8 text-sm text-slate-500">Loading device details...</div>';
+                this.root.innerHTML = '<div class="cabinet-room-muted-card px-4 py-8 text-sm text-slate-500">Loading details...</div>';
                 return;
             }
 
             if (!state.selectedDevice) {
-                this.root.innerHTML = '<div class="cabinet-room-muted-card px-4 py-8 text-sm text-slate-500">Select a placed or unplaced device to inspect live status, metrics, and placement details.</div>';
+                this.root.innerHTML = '<div class="cabinet-room-muted-card px-4 py-8 text-sm text-slate-500">Select a device to view status, metrics, and placement.</div>';
                 return;
             }
 
@@ -395,10 +395,10 @@
             const heightU = placement ? placement.height_u : (state.selectedDeviceHeightU || 1);
             const face = placement && placement.cabinet_id === currentCabinet?.id ? placement.face : state.selectedFace;
             const actionLabel = !currentCabinet
-                ? 'Select a cabinet first'
+                ? 'Select cabinet'
                 : placement
-                    ? (placement.cabinet_id === currentCabinet.id ? 'Update Placement' : 'Move To Selected Cabinet')
-                    : 'Place In Selected Cabinet';
+                    ? (placement.cabinet_id === currentCabinet.id ? 'Update Placement' : 'Move Here')
+                    : 'Place Here';
 
             const metricCards = [
                 ['CPU', device.metrics?.cpu],
@@ -451,7 +451,7 @@
                         <div class="flex items-center justify-between gap-3">
                             <div>
                                 <h3 class="text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Placement Controls</h3>
-                                <p class="mt-1 text-xs text-slate-500">${currentCabinet ? `Working in ${escapeHtml(currentCabinet.name)} (${currentCabinet.size_u}U)` : 'Choose a cabinet to place or move this device.'}</p>
+                                <p class="mt-1 text-xs text-slate-500">${currentCabinet ? `${escapeHtml(currentCabinet.name)} • ${currentCabinet.size_u}U` : 'Select a cabinet to place or move this device.'}</p>
                             </div>
                         </div>
                         <form class="mt-4 space-y-3" data-placement-form>
@@ -476,13 +476,13 @@
                                 <button class="inline-flex items-center justify-center rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-primary/20 transition hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50" type="submit" ${currentCabinet ? '' : 'disabled'}>
                                     ${escapeHtml(actionLabel)}
                                 </button>
-                                ${placement ? '<button class="inline-flex items-center justify-center rounded-xl border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50" type="button" data-remove-placement>Remove From Cabinet</button>' : ''}
+                                ${placement ? '<button class="inline-flex items-center justify-center rounded-xl border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-600 transition hover:bg-red-50" type="button" data-remove-placement>Remove</button>' : ''}
                             </div>
                         </form>
                     </section>
 
                     <details class="cabinet-room-section-card p-4">
-                        <summary class="cursor-pointer text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Raw Metadata</summary>
+                        <summary class="cursor-pointer text-sm font-semibold uppercase tracking-[0.18em] text-slate-500">Metadata</summary>
                         <pre class="mt-3 overflow-auto rounded-xl bg-slate-950 p-4 text-xs text-slate-200">${escapeHtml(JSON.stringify(device.metadata || {}, null, 2))}</pre>
                     </details>
                 </div>
