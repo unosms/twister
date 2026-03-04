@@ -8,7 +8,7 @@
     <title>Virtual Cabinet Room | Device Control Manager</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&display=swap" rel="stylesheet"/>
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
     <script>
         tailwind.config = {
             darkMode: 'class',
@@ -34,6 +34,19 @@
     </script>
     <style>
         .material-symbols-outlined {
+            font-family: 'Material Symbols Outlined';
+            font-weight: normal;
+            font-style: normal;
+            font-size: 24px;
+            line-height: 1;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            white-space: nowrap;
+            direction: ltr;
+            -webkit-font-smoothing: antialiased;
+            text-rendering: optimizeLegibility;
+            font-feature-settings: 'liga';
             font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
         }
 
@@ -846,7 +859,7 @@
     <script src="{{ asset('js/actions.js') . '?v=' . filemtime(public_path('js/actions.js')) }}" defer></script>
     <script src="{{ asset('js/cabinet-room.js') . '?v=' . filemtime(public_path('js/cabinet-room.js')) }}" defer></script>
 </head>
-<body class="cabinet-room-shell text-[#0d121b] min-h-screen overflow-x-hidden">
+<body class="cabinet-room-shell font-display text-slate-900 h-screen overflow-hidden">
 @php
     $cabinetRoomConfig = [
         'initialRooms' => $initialRooms,
@@ -866,11 +879,11 @@
 @endphp
 <script id="cabinet-room-config" type="application/json">@json($cabinetRoomConfig, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)</script>
 
-<div class="flex min-h-screen">
+<div class="flex h-screen overflow-hidden">
     @include('partials.admin_sidebar', ['sidebarAuthUser' => $authUser ?? null])
 
-    <main class="flex-1 flex flex-col overflow-visible">
-        <header class="border-b border-[#e7ebf3] bg-white/85 backdrop-blur px-6 py-4 shrink-0">
+    <main class="flex-1 min-w-0 flex flex-col overflow-y-auto overflow-x-hidden">
+        <header class="sticky top-0 z-10 border-b border-[#e7ebf3] bg-white/85 backdrop-blur px-6 py-4 shrink-0">
             <div class="flex flex-wrap items-start justify-between gap-4">
                 <div class="flex items-center gap-4 flex-1 min-w-0">
                 <button class="flex h-10 w-10 items-center justify-center rounded-lg border border-[#e7ebf3] bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-800 dark:bg-background-dark dark:hover:bg-gray-800" type="button" data-sidebar-toggle aria-label="Toggle sidebar">
