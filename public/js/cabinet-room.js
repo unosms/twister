@@ -300,9 +300,33 @@
                 const subtitle = [placement.device?.model, placement.device?.ip_address].filter(Boolean).join(' | ');
                 const equipmentKind = equipmentKindFor(placement.device);
                 const facade = buildEquipmentFacade(placement, density);
+                const hoverMeta = [
+                    placement.device?.model,
+                    placement.device?.ip_address,
+                    `${placement.height_u}U`,
+                    `U${placement.start_u}-${placement.end_u}`,
+                    capitalize(face),
+                ].filter(Boolean).join(' • ');
 
                 return `
-                    <button type="button" draggable="true" data-placement-id="${placement.id}" data-device-id="${placement.device_id}" data-height-u="${placement.height_u}" data-status-tone="${tone}" data-equipment-kind="${equipmentKind}" class="cabinet-room-device ${selected ? 'is-selected' : ''}" style="bottom:${bottom}px;height:${Math.max(height, slotHeight - 8)}px" aria-label="${escapeHtml(placement.device?.name || 'Rack device')}">
+                    <button
+                        type="button"
+                        draggable="true"
+                        data-placement-id="${placement.id}"
+                        data-device-id="${placement.device_id}"
+                        data-height-u="${placement.height_u}"
+                        data-status-tone="${tone}"
+                        data-equipment-kind="${equipmentKind}"
+                        data-rack-hover
+                        data-hover-title="${escapeHtml(placement.device?.name || 'Rack device')}"
+                        data-hover-part="${escapeHtml(`${capitalize(placement.device?.type || equipmentKind)} panel`)}"
+                        data-hover-status="${escapeHtml(capitalize(placement.device?.status || 'unknown'))}"
+                        data-hover-tone="${escapeHtml(tone)}"
+                        data-hover-meta="${escapeHtml(hoverMeta)}"
+                        class="cabinet-room-device ${selected ? 'is-selected' : ''}"
+                        style="bottom:${bottom}px;height:${Math.max(height, slotHeight - 8)}px"
+                        aria-label="${escapeHtml(placement.device?.name || 'Rack device')}"
+                    >
                         <span class="cabinet-room-device-rail"></span>
                         <div class="cabinet-room-device-body">
                             <div class="cabinet-room-device-face">
