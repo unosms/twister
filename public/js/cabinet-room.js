@@ -1330,7 +1330,7 @@
                         ${renderScreen()}
                         ${renderModule()}
                     </div>
-                    ${renderPortGroup('WAN / LAN', renderPorts(density === 'ultra-compact' ? 6 : 10, 2))}
+                    ${renderPortGroup('WAN / LAN', renderPorts(placement.device, 'Port', density === 'ultra-compact' ? 6 : 10, 2))}
                 </div>
             `;
         }
@@ -1347,8 +1347,8 @@
                         sockets: ['console', 'mgmt'],
                         buttons: ['power'],
                     })}
-                    ${renderPortGroup('Optical cages', renderSfps(density === 'ultra-compact' ? 4 : 8, 2))}
-                    ${renderPortGroup('Service ports', renderPorts(density === 'ultra-compact' ? 4 : 8, 1))}
+                    ${renderPortGroup('Optical cages', renderSfps(placement.device, 'Optical cage', density === 'ultra-compact' ? 4 : 8, 2))}
+                    ${renderPortGroup('Service ports', renderPorts(placement.device, 'Port', density === 'ultra-compact' ? 4 : 8, 1))}
                 </div>
             `;
         }
@@ -1369,7 +1369,7 @@
                         ${renderScreen()}
                         ${renderVents(5)}
                     </div>
-                    ${renderPortGroup('Ethernet', renderPorts(density === 'ultra-compact' ? 4 : 6, 1))}
+                    ${renderPortGroup('Ethernet', renderPorts(placement.device, 'Port', density === 'ultra-compact' ? 4 : 6, 1))}
                 </div>
             `;
         }
@@ -1385,25 +1385,68 @@
                     buttons: ['power'],
                 })}
                 ${renderVents(6)}
-                ${renderPortGroup('Interfaces', renderPorts(density === 'ultra-compact' ? 4 : 8, 1))}
+                ${renderPortGroup('Interfaces', renderPorts(placement.device, 'Port', density === 'ultra-compact' ? 4 : 8, 1))}
             </div>
         `;
     }
 
-    function renderPorts(count, litCount) {
-        return `<div class="cabinet-room-port-bank">${Array.from({ length: count }, (_, index) => `<span class="cabinet-room-port ${index < litCount ? 'is-lit' : ''}"></span>`).join('')}</div>`;
+    function renderPorts(device, partLabel, count, litCount) {
+        return `<div class="cabinet-room-port-bank">${Array.from({ length: count }, (_, index) => renderSyntheticPortCell(device, `${partLabel} ${index + 1}`, index < litCount, false)).join('')}</div>`;
     }
 
-    function renderPortRow(count, litCount, columns, extraClass = '') {
-        return `<div class="cabinet-room-port-row ${extraClass}" style="grid-template-columns: repeat(${columns}, minmax(0, 1fr));">${Array.from({ length: count }, (_, index) => `<span class="cabinet-room-port ${index < litCount ? 'is-lit' : ''} ${extraClass.includes('is-uplink') ? 'is-uplink' : ''}"></span>`).join('')}</div>`;
+    function renderPortRow(device, count, litCount, columns, extraClass = '', partLabel = 'Port') {
+        const uplink = extraClass.includes('is-uplink');
+        return `<div class="cabinet-room-port-row ${extraClass}" style="grid-template-columns: repeat(${columns}, minmax(0, 1fr));">${Array.from({ length: count }, (_, index) => renderSyntheticPortCell(device, `${partLabel} ${index + 1}`, index < litCount, uplink)).join('')}</div>`;
     }
 
     function renderDriveBays(count, litCount = 0) {
         return `<div class="cabinet-room-drive-bays">${Array.from({ length: count }, (_, index) => `<span class="cabinet-room-drive-bay ${index < litCount ? 'is-lit' : ''}"></span>`).join('')}</div>`;
     }
 
-    function renderSfps(count, litCount) {
-        return `<div class="cabinet-room-sfp-bank">${Array.from({ length: count }, (_, index) => `<span class="cabinet-room-sfp ${index < litCount ? 'is-lit' : ''}"></span>`).join('')}</div>`;
+    function renderSfps(device, partLabel, count, litCount) {
+        return `<div class="cabinet-room-sfp-bank">${Array.from({ length: count }, (_, index) => renderSyntheticSfpCell(device, `${partLabel} ${index + 1}`, index < litCount)).join('')}</div>`;
+    }
+
+    function renderSyntheticPortCell(device, partName, isLit, uplink) {
+        const tone = isLit ? 'online' : 'offline';
+        const status = isLit ? 'Online' : 'Offline';
+        const meta = [device?.model, device?.ip_address].filter(Boolean).join(' • ');
+
+        return `
+            <span
+                class="cabinet-room-port ${isLit ? 'is-lit' : ''} ${uplink ? 'is-uplink' : ''}"
+                data-status-tone="${tone}"
+                data-rack-hover
+                data-hover-title="${escapeHtml(device?.name || 'Device')}"
+                data-hover-part="${escapeHtml(partName)}"
+                data-hover-status="${escapeHtml(status)}"
+                data-hover-tone="${escapeHtml(tone)}"
+                ${meta ? `data-hover-meta="${escapeHtml(meta)}"` : ''}
+                title="${escapeHtml(`${device?.name || 'Device'} | ${partName} | ${status}`)}"
+            >
+                <span class="cabinet-room-port-link"></span>
+                <span class="cabinet-room-port-label">${escapeHtml(String(partName).replace(/^[^\d]*(\d+)$/, '$1'))}</span>
+            </span>
+        `;
+    }
+
+    function renderSyntheticSfpCell(device, partName, isLit) {
+        const tone = isLit ? 'online' : 'offline';
+        const status = isLit ? 'Online' : 'Offline';
+        const meta = [device?.model, device?.ip_address].filter(Boolean).join(' • ');
+
+        return `
+            <span
+                class="cabinet-room-sfp ${isLit ? 'is-lit' : ''}"
+                data-rack-hover
+                data-hover-title="${escapeHtml(device?.name || 'Device')}"
+                data-hover-part="${escapeHtml(partName)}"
+                data-hover-status="${escapeHtml(status)}"
+                data-hover-tone="${escapeHtml(tone)}"
+                ${meta ? `data-hover-meta="${escapeHtml(meta)}"` : ''}
+                title="${escapeHtml(`${device?.name || 'Device'} | ${partName} | ${status}`)}"
+            ></span>
+        `;
     }
 
     function renderVents(count) {
@@ -1579,9 +1622,9 @@
             `;
         }
 
-        const rows = spec.rows.map((row) => renderPortRow(row.count, row.litCount, row.columns, row.uplink ? 'is-uplink' : '')).join('');
+        const rows = spec.rows.map((row) => renderPortRow(device, row.count, row.litCount, row.columns, row.uplink ? 'is-uplink' : '', spec.accessLabel.replace(/s$/i, ''))).join('');
         const uplinks = spec.uplinkCount > 0
-            ? renderPortRow(spec.uplinkCount, Math.min(2, spec.uplinkCount), spec.uplinkCount > 4 ? 4 : spec.uplinkCount, 'is-uplink')
+            ? renderPortRow(device, spec.uplinkCount, Math.min(2, spec.uplinkCount), spec.uplinkCount > 4 ? 4 : spec.uplinkCount, 'is-uplink', spec.uplinkLabel.replace(/s$/i, ''))
             : '';
 
         return `
