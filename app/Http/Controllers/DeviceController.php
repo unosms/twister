@@ -104,6 +104,11 @@ class DeviceController extends Controller
         'C5X',
         'B11',
     ];
+    private const OLT_DEVICE_TYPE_OPTIONS = [
+        'HUAWEI',
+        'VSOL',
+        'HIOSO',
+    ];
     private const MIKROTIK_PORT_KEYS = [
         'winbox_port',
         'ssh_port',
@@ -465,6 +470,7 @@ class DeviceController extends Controller
             'olt_snmp_community' => ['nullable', 'string', 'max:255'],
             'olt_model' => ['nullable', 'string', 'max:255'],
             'olt_number_of_ports' => ['nullable', 'integer', 'min:1', 'max:4096'],
+            'olt_device_type' => ['nullable', 'string', Rule::in(self::OLT_DEVICE_TYPE_OPTIONS)],
             'olt_folder_location' => ['nullable', 'string', 'max:500'],
             'mikrotik_ip_address' => ['nullable', 'string', 'max:255'],
             'mikrotik_username' => ['nullable', 'string', 'max:255'],
@@ -634,6 +640,7 @@ class DeviceController extends Controller
 
         if ($type === 'OLT') {
             $oltModel = $this->normalizeOptionalString($data['olt_model'] ?? null);
+            $oltDeviceType = $this->normalizeOltDeviceType($data['olt_device_type'] ?? null) ?? 'HUAWEI';
             $oltNumberOfPorts = isset($data['olt_number_of_ports']) && is_numeric($data['olt_number_of_ports'])
                 ? (int) $data['olt_number_of_ports']
                 : null;
@@ -648,6 +655,7 @@ class DeviceController extends Controller
             $olt = [
                 'ip_address' => $ipAddress,
                 'model' => $oltModel,
+                'device_type' => $oltDeviceType,
                 'number_of_ports' => $oltNumberOfPorts,
                 'web_address' => $this->normalizeOptionalString($data['olt_web_address'] ?? null),
                 'username' => $this->normalizeOptionalString($data['olt_username'] ?? null),
@@ -774,6 +782,7 @@ class DeviceController extends Controller
             'olt_snmp_community' => ['nullable', 'string', 'max:255', 'required_if:type,OLT'],
             'olt_model' => ['nullable', 'string', 'max:255', 'required_if:type,OLT'],
             'olt_number_of_ports' => ['nullable', 'integer', 'min:1', 'max:4096', 'required_if:type,OLT'],
+            'olt_device_type' => ['nullable', 'string', Rule::in(self::OLT_DEVICE_TYPE_OPTIONS)],
             'olt_folder_location' => ['nullable', 'string', 'max:500'],
             'mikrotik_ip_address' => ['nullable', 'string', 'max:255', 'required_if:type,MIKROTIK'],
             'mikrotik_username' => ['nullable', 'string', 'max:255', 'required_if:type,MIKROTIK'],
@@ -938,6 +947,7 @@ class DeviceController extends Controller
 
             $olt['ip_address'] = $ipAddress;
             $olt['model'] = $this->normalizeOptionalString($data['olt_model'] ?? null);
+            $olt['device_type'] = $this->normalizeOltDeviceType($data['olt_device_type'] ?? null) ?? 'HUAWEI';
             $olt['number_of_ports'] = isset($data['olt_number_of_ports']) && is_numeric($data['olt_number_of_ports'])
                 ? (int) $data['olt_number_of_ports']
                 : null;
@@ -1654,6 +1664,7 @@ class DeviceController extends Controller
             ]),
             'OLT' => $this->buildMissingFieldErrors([
                 'name' => ['label' => 'Device name', 'value' => $data['name'] ?? null],
+                'olt_device_type' => ['label' => 'OLT type', 'value' => $data['olt_device_type'] ?? null],
                 'olt_ip_address' => ['label' => 'IP address', 'value' => $data['olt_ip_address'] ?? null],
                 'olt_username' => ['label' => 'Username', 'value' => $data['olt_username'] ?? null],
                 'olt_password' => ['label' => 'Password', 'value' => $data['olt_password'] ?? null],
@@ -1875,6 +1886,18 @@ class DeviceController extends Controller
         return in_array($normalized, self::SERVER_TYPE_OPTIONS, true)
             ? $normalized
             : 'virtual_server';
+    }
+
+    private function normalizeOltDeviceType(mixed $value): ?string
+    {
+        if (!is_scalar($value)) {
+            return null;
+        }
+
+        $normalized = strtoupper(trim((string) $value));
+        return in_array($normalized, self::OLT_DEVICE_TYPE_OPTIONS, true)
+            ? $normalized
+            : null;
     }
 
     private function resolveSignalAndBattery(array $meta, string $deviceType = ''): array

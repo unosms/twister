@@ -118,6 +118,18 @@ class RunDeviceBackups extends Command
             ];
         }
 
+        $backupSupportMessage = $this->backupUnsupportedMessage($device, $isOlt, is_array($olt) ? $olt : []);
+        if ($backupSupportMessage !== null) {
+            $this->writeProvisioningLog('backup trace: scheduled backup skipped - backup not supported for device', $traceContext + [
+                'reason' => $backupSupportMessage,
+            ]);
+
+            return [
+                'status' => 'skipped',
+                'message' => $backupSupportMessage,
+            ];
+        }
+
         if (!empty($meta['monitoring_disabled'])) {
             $this->writeProvisioningLog('backup trace: scheduled backup skipped - device deactivated', $traceContext);
             return [
@@ -435,6 +447,28 @@ class RunDeviceBackups extends Command
             'ok' => false,
             'output' => trim(($processResult['output'] ?? '') . "\nBackup verification failed: no new backup file was created in {$snapshot['relative']}."),
         ];
+    }
+
+    private function backupUnsupportedMessage(Device $device, bool $isOlt, array $olt = []): ?string
+    {
+        if (!$isOlt) {
+            return null;
+        }
+
+        $oltType = strtoupper((string) $this->firstNonEmpty(data_get($olt, 'device_type'), ''));
+        if ($oltType === 'HUAWEI') {
+            return null;
+        }
+
+        if ($oltType === '') {
+            $model = strtoupper((string) $this->firstNonEmpty(data_get($olt, 'model'), $device->model, ''));
+            if (str_contains($model, 'HUAWEI')) {
+                return null;
+            }
+        }
+
+        $typeLabel = $oltType !== '' ? ucfirst(strtolower($oltType)) : 'non-Huawei';
+        return "Backup is supported only for Huawei OLT devices. Current OLT type: {$typeLabel}.";
     }
 
     private function normalizeMetadata($value): array

@@ -108,11 +108,19 @@ class ScriptController extends Controller
     public function showBackupsPage(Device $device)
     {
         $backupData = $this->buildBackupFilePayload($device);
+        $backupSupportMessage = $this->backupUnsupportedMessage(
+            $device,
+            strtoupper((string) ($device->type ?? '')) === 'OLT',
+            data_get($device->metadata ?? [], 'olt', [])
+        );
+        $canRunBackup = $backupSupportMessage === null;
 
         return view('device_backups', [
             'device' => $device,
             'backupFiles' => $backupData['files'],
             'backupFolder' => $backupData['folder'],
+            'canRunBackup' => $canRunBackup,
+            'backupSupportMessage' => $backupSupportMessage,
         ]);
     }
 
@@ -972,6 +980,21 @@ class ScriptController extends Controller
         $cisco = data_get($meta, 'cisco', []);
         $olt = data_get($meta, 'olt', []);
         $isOlt = $type === 'OLT';
+        $backupSupportMessage = $this->backupUnsupportedMessage($device, $isOlt, is_array($olt) ? $olt : []);
+        if ($backupSupportMessage !== null) {
+            ProvisioningTrace::log('backup trace: backup not supported for device', $this->deviceTraceContext($device, [
+                'trace' => 'backup execution',
+                'trigger' => $request->route()?->getName() ?: 'backup',
+                'reason' => $backupSupportMessage,
+            ]));
+
+            return [
+                'ok' => false,
+                'status' => 422,
+                'message' => $backupSupportMessage,
+                'output' => $backupSupportMessage,
+            ];
+        }
         $switchModel = $isOlt
             ? (string) $this->firstNonEmpty(data_get($olt, 'model'), $device->model, '')
             : $this->resolveSwitchModel($device, $cisco);
@@ -1972,6 +1995,29 @@ class ScriptController extends Controller
 
         return '4948_backup.sh';
     }
+
+    private function backupUnsupportedMessage(Device $device, bool $isOlt, array $olt = []): ?string
+    {
+        if (!$isOlt) {
+            return null;
+        }
+
+        $oltType = strtoupper((string) $this->firstNonEmpty(data_get($olt, 'device_type'), ''));
+        if ($oltType === 'HUAWEI') {
+            return null;
+        }
+
+        if ($oltType === '') {
+            $model = strtoupper((string) $this->firstNonEmpty(data_get($olt, 'model'), $device->model, ''));
+            if (str_contains($model, 'HUAWEI')) {
+                return null;
+            }
+        }
+
+        $typeLabel = $oltType !== '' ? ucfirst(strtolower($oltType)) : 'non-Huawei';
+        return "Backup is supported only for Huawei OLT devices. Current OLT type: {$typeLabel}.";
+    }
+
     private function cleanupTransportNoise(string $output): string
     {
         $output = str_replace("\r", '', $output);

@@ -46,10 +46,14 @@
                 </div>
                 <div class="flex items-center gap-2">
                     <a href="{{ route('devices.details') }}" class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800">Back to Devices</a>
-                    <form method="POST" action="{{ route('devices.backups.run', ['device' => $device->id]) }}">
-                        @csrf
-                        <button type="submit" class="inline-flex items-center rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700">Run Backup Now</button>
-                    </form>
+                    @if ($canRunBackup ?? true)
+                        <form method="POST" action="{{ route('devices.backups.run', ['device' => $device->id]) }}">
+                            @csrf
+                            <button type="submit" class="inline-flex items-center rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white hover:bg-blue-700">Run Backup Now</button>
+                        </form>
+                    @else
+                        <button type="button" class="inline-flex cursor-not-allowed items-center rounded-lg bg-slate-300 px-3 py-2 text-sm font-semibold text-slate-600" disabled>Backup Not Supported</button>
+                    @endif
                 </div>
             </header>
 
@@ -70,6 +74,12 @@
                 @if (session('error'))
                     <div class="mb-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                         {{ session('error') }}
+                    </div>
+                @endif
+
+                @if (!empty($backupSupportMessage))
+                    <div class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                        {{ $backupSupportMessage }}
                     </div>
                 @endif
 

@@ -65,6 +65,10 @@ $typePassword = match ($typeKey) {
 $primaryCredential = $credentialMode === 'username_password' ? ($username ?? '-') : ($password ?? '-');
 $secondaryCredential = $credentialMode === 'username_password' ? ($typePassword ?? '-') : ($enablePassword ?? '-');
 $showExecActions = $typeKey === 'CISCO';
+$oltDeviceType = strtoupper((string) data_get($olt, 'device_type', ''));
+$isHuaweiOlt = $typeKey !== 'OLT'
+    || $oltDeviceType === 'HUAWEI'
+    || ($oltDeviceType === '' && str_contains(strtoupper((string) data_get($olt, 'model', $device->model)), 'HUAWEI'));
 $temperatureValue = data_get($meta, 'temperature');
 $deg = "\u{00B0}";
 $temperature = is_numeric($temperatureValue) ? $temperatureValue . $deg . 'C' : ($temperatureValue ?? null);
@@ -129,7 +133,9 @@ $alive = strtolower($device->status ?? '') === 'online';
 </td>
 <td class="px-4 py-3">
 <div class="flex flex-wrap gap-2">
+<?php if($isHuaweiOlt): ?>
 <a class="px-2 py-1 text-[11px] font-semibold border border-slate-200 rounded hover:bg-slate-50 inline-flex" href="<?php echo e(route('devices.backups.show', ['device' => $device->id])); ?>">Open Backup</a>
+<?php endif; ?>
 <?php if($showExecActions && $execUrl): ?>
 <details class="w-full group">
 <summary class="px-2 py-1 text-[11px] font-semibold border border-slate-200 rounded hover:bg-slate-50 cursor-pointer select-none inline-flex items-center gap-2 dark:border-gray-700 dark:hover:bg-gray-800 group-open:bg-slate-50 dark:group-open:bg-gray-800">

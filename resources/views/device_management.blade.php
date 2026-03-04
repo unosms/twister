@@ -557,6 +557,14 @@ $oldServerServices = array_values(array_filter(array_map(
 <input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="name" placeholder="e.g. OLT-01" type="text" data-olt-required disabled/>
 </div>
 <div class="flex flex-col gap-2">
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">OLT Type *</label>
+<select class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="olt_device_type" data-olt-required disabled>
+<option value="HUAWEI" selected>Huawei</option>
+<option value="VSOL">VSOL</option>
+<option value="HIOSO">Hioso</option>
+</select>
+</div>
+<div class="flex flex-col gap-2">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Model *</label>
 <input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="olt_model" placeholder="e.g., MA5800-X17" type="text" data-olt-required disabled/>
 </div>
@@ -945,6 +953,15 @@ $legacyServerVncIp = data_get($device->metadata, 'server.vnc_address_port');
 </div>
 <div class="md:col-span-2 hidden" data-device-edit-olt-fields>
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 rounded-lg border border-[#dce3f2] dark:border-gray-700 p-4 bg-white/70 dark:bg-gray-900/30">
+<div class="flex flex-col gap-2">
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">OLT Type</label>
+<select class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="olt_device_type" data-device-edit-olt-required>
+@php($oltDeviceType = strtoupper((string) data_get($device->metadata, 'olt.device_type', '')))
+<option value="HUAWEI" @selected($oltDeviceType === 'HUAWEI' || $oltDeviceType === '')>Huawei</option>
+<option value="VSOL" @selected($oltDeviceType === 'VSOL')>VSOL</option>
+<option value="HIOSO" @selected($oltDeviceType === 'HIOSO')>Hioso</option>
+</select>
+</div>
 <div class="flex flex-col gap-2">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Model</label>
 <input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="olt_model" type="text" value="{{ data_get($device->metadata, 'olt.model') ?? $device->model ?? '' }}" data-device-edit-olt-required/>
