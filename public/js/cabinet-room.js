@@ -374,7 +374,8 @@
 
         resolveSlotHeight(sizeU) {
             const fitted = Math.floor(920 / Math.max(sizeU, 1));
-            return Math.max(14, Math.min(26, fitted));
+            const baseHeight = Math.max(14, Math.min(26, fitted));
+            return baseHeight * 4;
         }
     }
 
