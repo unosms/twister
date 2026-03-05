@@ -282,6 +282,48 @@ Clear Selected Device Backups
 </button>
 </form>
 </div>
+
+<div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
+<p class="text-sm font-bold text-slate-900 dark:text-white">Database Backup to FTP</p>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Create a SQL backup for a standalone or virtual server database, then upload it directly to your FTP server.</p>
+@if ($errors->has('database_backup'))
+<div class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+{{ $errors->first('database_backup') }}
+</div>
+@endif
+<form class="mt-5 space-y-4" method="POST" action="{{ route('settings.database-backup.run') }}" onsubmit="return confirm('Run database backup now and upload it to the FTP server?');">
+@csrf
+<div class="grid gap-4 md:grid-cols-2">
+<div>
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-200" for="backup_server_type">Server Type</label>
+<select class="mt-2 h-11 w-full rounded-2xl border border-slate-300 bg-white px-4 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" id="backup_server_type" name="backup_server_type" required>
+<option value="standalone_server" @selected(old('backup_server_type') === 'standalone_server')>Standalone Server</option>
+<option value="virtual_server" @selected(old('backup_server_type') === 'virtual_server')>Virtual Server</option>
+</select>
+</div>
+<div>
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-200" for="database_name">Database Name</label>
+<input class="mt-2 h-11 w-full rounded-2xl border border-slate-300 bg-white px-4 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" id="database_name" name="database_name" type="text" value="{{ old('database_name') }}" placeholder="e.g. laravel_db" required>
+</div>
+<div>
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-200" for="ftp_server_ip">FTP Server IP</label>
+<input class="mt-2 h-11 w-full rounded-2xl border border-slate-300 bg-white px-4 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" id="ftp_server_ip" name="ftp_server_ip" type="text" value="{{ old('ftp_server_ip') }}" placeholder="e.g. 192.168.88.57" required>
+</div>
+<div>
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-200" for="ftp_username">FTP Username</label>
+<input class="mt-2 h-11 w-full rounded-2xl border border-slate-300 bg-white px-4 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" id="ftp_username" name="ftp_username" type="text" value="{{ old('ftp_username') }}" placeholder="FTP username" required>
+</div>
+<div class="md:col-span-2">
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-200" for="ftp_password">FTP Password</label>
+<input class="mt-2 h-11 w-full rounded-2xl border border-slate-300 bg-white px-4 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" id="ftp_password" name="ftp_password" type="password" autocomplete="new-password" placeholder="FTP password" required>
+</div>
+</div>
+<button class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-primary/90" type="submit">
+<span class="material-symbols-outlined text-[18px]">backup</span>
+Backup Database to FTP
+</button>
+</form>
+</div>
 </div>
 </section>
 

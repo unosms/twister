@@ -80,6 +80,7 @@ Route::middleware(['admin.auth', 'audit.log'])->group(function () {
     Route::post('/settings', [SettingsController::class, 'update'])->name('settings.update');
     Route::post('/settings/backup-schedule', [SettingsController::class, 'updateBackupSchedule'])->name('settings.backup-schedule.update');
     Route::post('/settings/backups', [SettingsController::class, 'manageBackups'])->name('settings.backups.manage');
+    Route::post('/settings/database-backup', [SettingsController::class, 'backupDatabaseToFtp'])->name('settings.database-backup.run');
     Route::post('/settings/logs/clear', [SettingsController::class, 'clearLogs'])->name('settings.logs.clear');
     Route::post('/settings/notifications/clear', [SettingsController::class, 'clearNotifications'])->name('settings.notifications.clear');
     Route::get('/settings/system-config/export', [SettingsController::class, 'exportSystemConfiguration'])->name('settings.system-config.export');

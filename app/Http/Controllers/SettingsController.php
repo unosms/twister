@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Symfony\Component\Process\Process;
 
 class SettingsController extends Controller
 {
@@ -138,6 +139,100 @@ class SettingsController extends Controller
         return redirect()
             ->route('settings.index')
             ->with('status', 'Backup scheduler updated to ' . BackupSchedule::humanLabel($hours) . '.');
+    }
+
+    public function backupDatabaseToFtp(Request $request)
+    {
+        $data = $request->validate([
+            'backup_server_type' => ['required', 'string', Rule::in(['standalone_server', 'virtual_server'])],
+            'database_name' => ['required', 'string', 'max:128', 'regex:/^[A-Za-z0-9_\-\.]+$/'],
+            'ftp_server_ip' => ['required', 'string', 'max:255'],
+            'ftp_username' => ['required', 'string', 'max:255'],
+            'ftp_password' => ['required', 'string', 'max:255'],
+        ]);
+
+        $defaultConnection = (string) config('database.default', 'mysql');
+        $connection = config("database.connections.{$defaultConnection}", []);
+        $driver = strtolower((string) data_get($connection, 'driver', ''));
+
+        if (!in_array($driver, ['mysql', 'mariadb'], true)) {
+            return back()->withErrors([
+                'database_backup' => 'Database backup currently supports MySQL/MariaDB connections only.',
+            ])->withInput();
+        }
+
+        $dbHost = (string) data_get($connection, 'host', '127.0.0.1');
+        $dbPort = (string) data_get($connection, 'port', '3306');
+        $dbUser = (string) data_get($connection, 'username', '');
+        $dbPassword = (string) data_get($connection, 'password', '');
+
+        if ($dbUser === '') {
+            return back()->withErrors([
+                'database_backup' => 'Database username is missing in server configuration.',
+            ])->withInput();
+        }
+
+        $serverType = (string) $data['backup_server_type'];
+        $databaseName = (string) $data['database_name'];
+        $ftpHost = (string) $data['ftp_server_ip'];
+        $ftpUsername = (string) $data['ftp_username'];
+        $ftpPassword = (string) $data['ftp_password'];
+
+        $safeServerType = str_replace(['standalone_server', 'virtual_server'], ['standalone', 'virtual'], $serverType);
+        $safeDatabaseName = preg_replace('/[^A-Za-z0-9_\-\.]+/', '_', $databaseName) ?: 'database';
+        $fileName = "{$safeServerType}-{$safeDatabaseName}-" . now()->format('Y-m-d_H-i-s') . '.sql';
+        $dumpDirectory = storage_path('app/database-backups');
+        $dumpPath = $dumpDirectory . DIRECTORY_SEPARATOR . $fileName;
+
+        try {
+            File::ensureDirectoryExists($dumpDirectory);
+
+            $dumpCommand = [
+                $this->mysqldumpBinary(),
+                '--host=' . $dbHost,
+                '--port=' . $dbPort,
+                '--user=' . $dbUser,
+                '--single-transaction',
+                '--quick',
+                '--skip-lock-tables',
+                '--set-gtid-purged=OFF',
+                '--databases',
+                $databaseName,
+                '--result-file=' . $dumpPath,
+            ];
+
+            $process = new Process($dumpCommand, base_path());
+            $process->setTimeout(300);
+            $process->setEnv(array_merge($_ENV, $_SERVER, [
+                'MYSQL_PWD' => $dbPassword,
+            ]));
+            $process->run();
+
+            if (!$process->isSuccessful()) {
+                $error = trim($process->getErrorOutput());
+                $output = trim($process->getOutput());
+                throw new \RuntimeException($error !== '' ? $error : ($output !== '' ? $output : 'mysqldump failed.'));
+            }
+
+            if (!is_file($dumpPath) || (int) filesize($dumpPath) <= 0) {
+                throw new \RuntimeException('Backup dump file was not created.');
+            }
+
+            $this->uploadBackupFileToFtp($dumpPath, $fileName, $ftpHost, $ftpUsername, $ftpPassword);
+            File::delete($dumpPath);
+
+            return redirect()
+                ->route('settings.index')
+                ->with('status', "Database backup uploaded successfully: {$fileName}");
+        } catch (\Throwable $exception) {
+            if (is_file($dumpPath)) {
+                File::delete($dumpPath);
+            }
+
+            return back()->withErrors([
+                'database_backup' => 'Could not backup database to FTP: ' . $exception->getMessage(),
+            ])->withInput();
+        }
     }
 
     public function clearLogs()
@@ -673,6 +768,40 @@ class SettingsController extends Controller
         }
 
         return (int) DB::table($table)->count();
+    }
+
+    private function mysqldumpBinary(): string
+    {
+        $configured = trim((string) env('MYSQLDUMP_BINARY', ''));
+        return $configured !== '' ? $configured : 'mysqldump';
+    }
+
+    private function uploadBackupFileToFtp(string $localPath, string $remoteFileName, string $host, string $username, string $password): void
+    {
+        if (!function_exists('ftp_connect')) {
+            throw new \RuntimeException('PHP FTP extension is not enabled on this server.');
+        }
+
+        $connection = @ftp_connect($host, 21, 20);
+        if ($connection === false) {
+            throw new \RuntimeException('Could not connect to FTP server: ' . $host);
+        }
+
+        try {
+            $loggedIn = @ftp_login($connection, $username, $password);
+            if (!$loggedIn) {
+                throw new \RuntimeException('FTP authentication failed.');
+            }
+
+            @ftp_pasv($connection, true);
+
+            $uploaded = @ftp_put($connection, $remoteFileName, $localPath, FTP_BINARY);
+            if (!$uploaded) {
+                throw new \RuntimeException('FTP upload failed for file: ' . $remoteFileName);
+            }
+        } finally {
+            @ftp_close($connection);
+        }
     }
 
     private function resolveBackupDirectory(Device $device): ?array
