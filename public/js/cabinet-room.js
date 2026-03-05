@@ -1914,6 +1914,243 @@
         return values[0] || 0;
     }
 
+    // Override switch facade with Cisco-realistic front panel rendering.
+    function renderSwitchFacade(device, density) {
+        const spec = switchPanelSpec(device);
+        const livePorts = normalizeRackInterfaces(device?.rack_interfaces);
+
+        if (isCiscoSwitchDevice(device)) {
+            return renderCiscoSwitchFacade(device, spec, livePorts, density);
+        }
+
+        return renderGenericSwitchFacadeOverride(device, spec, livePorts, density);
+    }
+
+    function renderGenericSwitchFacadeOverride(device, spec, livePorts, density) {
+        if (livePorts.length) {
+            const accessPorts = livePorts.filter((port) => port.family !== 'uplink');
+            const uplinkPorts = livePorts.filter((port) => port.family === 'uplink');
+            const onlineCount = livePorts.filter((port) => port.statusTone === 'online').length;
+
+            return `
+                <div class="cabinet-room-switch-panel">
+                    <div class="cabinet-room-switch-header">
+                        <span class="cabinet-room-switch-badge">${escapeHtml(`${livePorts.length}-Port`)}</span>
+                        <span class="cabinet-room-switch-label">${escapeHtml(`${spec.label} • ${onlineCount}/${livePorts.length} up`)}</span>
+                    </div>
+                    ${renderPanelStrip({
+                        leds: spec.leds,
+                        sockets: spec.sockets,
+                        buttons: spec.buttons,
+                    })}
+                    ${accessPorts.length ? renderPortGroup(spec.accessLabel, renderLivePortRows(device, accessPorts, density)) : ''}
+                    ${uplinkPorts.length ? renderPortGroup(spec.uplinkLabel, renderLivePortRows(device, uplinkPorts, density, true)) : ''}
+                </div>
+            `;
+        }
+
+        const rows = spec.rows.map((row) => renderPortRow(device, row.count, row.litCount, row.columns, row.uplink ? 'is-uplink' : '', spec.accessLabel.replace(/s$/i, ''))).join('');
+        const uplinks = spec.uplinkCount > 0
+            ? renderPortRow(device, spec.uplinkCount, Math.min(2, spec.uplinkCount), spec.uplinkCount > 4 ? 4 : spec.uplinkCount, 'is-uplink', spec.uplinkLabel.replace(/s$/i, ''))
+            : '';
+
+        return `
+            <div class="cabinet-room-switch-panel">
+                <div class="cabinet-room-switch-header">
+                    <span class="cabinet-room-switch-badge">${escapeHtml(spec.badge)}</span>
+                    <span class="cabinet-room-switch-label">${escapeHtml(spec.label)}</span>
+                </div>
+                ${renderPanelStrip({
+                    leds: spec.leds,
+                    sockets: spec.sockets,
+                    buttons: spec.buttons,
+                })}
+                ${renderPortGroup(spec.accessLabel, `<div class="cabinet-room-switch-rows">${rows}</div>`)}
+                ${uplinks ? renderPortGroup(spec.uplinkLabel, uplinks) : ''}
+            </div>
+        `;
+    }
+
+    function renderCiscoSwitchFacade(device, spec, livePorts, density) {
+        const groups = partitionSwitchPorts(device, spec, livePorts);
+        const totalPorts = groups.accessPorts.length + groups.uplinkPorts.length;
+        const onlinePorts = [...groups.accessPorts, ...groups.uplinkPorts].filter((port) => port.statusTone === 'online').length;
+        const chunkSize = groups.accessPorts.length >= 48 ? 12 : groups.accessPorts.length >= 24 ? 12 : Math.max(Math.ceil(groups.accessPorts.length / 2), 6);
+        const accessGroups = chunkArray(groups.accessPorts, chunkSize);
+        const showFooter = density !== 'ultra-compact';
+
+        return `
+            <div class="cabinet-room-cisco-real">
+                <div class="cabinet-room-cisco-real-header">
+                    <span class="cabinet-room-cisco-real-brand">${escapeHtml(spec.label)}</span>
+                    <span class="cabinet-room-cisco-real-summary">${escapeHtml(`${onlinePorts}/${totalPorts} up${groups.source === 'synthetic' ? ' • simulated' : ''}`)}</span>
+                </div>
+                <div class="cabinet-room-cisco-real-face">
+                    <div class="cabinet-room-cisco-real-access" style="--cisco-access-groups:${Math.max(accessGroups.length, 1)};">
+                        ${accessGroups.map((group) => renderCiscoAccessGroup(device, group)).join('')}
+                    </div>
+                    <div class="cabinet-room-cisco-real-side">
+                        ${groups.uplinkPorts.length ? `
+                            <div class="cabinet-room-cisco-uplink-title">${escapeHtml(spec.uplinkLabel)}</div>
+                            <div class="cabinet-room-cisco-uplink-grid" style="grid-template-columns: repeat(${groups.uplinkPorts.length >= 4 ? 2 : 1}, minmax(0, 1fr));">
+                                ${groups.uplinkPorts.map((port) => renderCiscoPortCell(device, port, true)).join('')}
+                            </div>
+                        ` : ''}
+                        ${renderCiscoLedColumn(spec.leds)}
+                    </div>
+                </div>
+                ${showFooter ? `
+                    <div class="cabinet-room-cisco-real-footer">
+                        ${accessGroups.map((group, index) => {
+                            const start = (index * chunkSize) + 1;
+                            const end = start + group.length - 1;
+                            return `<span class="cabinet-room-cisco-range">${escapeHtml(`${start}-${end}`)}</span>`;
+                        }).join('')}
+                    </div>
+                ` : ''}
+            </div>
+        `;
+    }
+
+    function isCiscoSwitchDevice(device) {
+        const type = String(device?.type || '').trim().toUpperCase();
+        const model = String(device?.model || '').trim().toLowerCase();
+
+        if (type === 'CISCO') {
+            return true;
+        }
+
+        return model.includes('cisco')
+            || model.includes('catalyst')
+            || model.includes('nexus')
+            || model.includes('ws-c')
+            || model.includes('sg');
+    }
+
+    function partitionSwitchPorts(device, spec, livePorts) {
+        if (livePorts.length) {
+            return {
+                accessPorts: livePorts.filter((port) => port.family !== 'uplink'),
+                uplinkPorts: livePorts.filter((port) => port.family === 'uplink'),
+                source: 'live',
+            };
+        }
+
+        const accessCount = spec.rows.reduce((sum, row) => sum + row.count, 0);
+        return {
+            accessPorts: createSyntheticSwitchPorts(device, accessCount, false),
+            uplinkPorts: createSyntheticSwitchPorts(device, spec.uplinkCount, true),
+            source: 'synthetic',
+        };
+    }
+
+    function createSyntheticSwitchPorts(device, count, uplink) {
+        const litThreshold = uplink ? Math.min(1, count) : Math.max(2, Math.min(8, Math.floor(count / 6)));
+        return Array.from({ length: count }, (_, index) => {
+            const statusToneValue = index < litThreshold ? 'online' : 'offline';
+            const portNumber = index + 1;
+            const name = uplink ? `Te1/1/${portNumber}` : `Gi1/0/${portNumber}`;
+            return {
+                name,
+                shortName: uplink ? `U${portNumber}` : String(portNumber),
+                family: uplink ? 'uplink' : 'access',
+                status: statusToneValue === 'online' ? 'Up' : 'Down',
+                statusTone: statusToneValue,
+                description: uplink ? 'Uplink interface' : 'Access interface',
+                alias: String(device?.name || ''),
+                speedBps: uplink ? 10000000000 : 1000000000,
+            };
+        });
+    }
+
+    function renderCiscoAccessGroup(device, ports) {
+        const splitAt = Math.ceil(ports.length / 2);
+        const topRow = ports.slice(0, splitAt);
+        const bottomRow = ports.slice(splitAt);
+        const columns = Math.max(topRow.length, bottomRow.length, 1);
+
+        return `
+            <div class="cabinet-room-cisco-group">
+                <div class="cabinet-room-cisco-group-row" style="grid-template-columns: repeat(${columns}, minmax(0, 1fr));">
+                    ${topRow.map((port) => renderCiscoPortCell(device, port, false)).join('')}
+                </div>
+                <div class="cabinet-room-cisco-group-row" style="grid-template-columns: repeat(${columns}, minmax(0, 1fr));">
+                    ${bottomRow.map((port) => renderCiscoPortCell(device, port, false)).join('')}
+                </div>
+            </div>
+        `;
+    }
+
+    function renderCiscoPortCell(device, port, uplink) {
+        const tone = statusTone(port.statusTone || port.status || '');
+        const status = String(port.status || (tone === 'online' ? 'Up' : 'Down'));
+        const metaParts = [port.alias, port.description, formatPortSpeed(port.speedBps)].filter(Boolean);
+        const label = compactCiscoPortLabel(port.shortName || port.name, uplink);
+
+        return `
+            <span
+                class="cabinet-room-cisco-port ${tone === 'online' ? 'is-lit' : ''} ${uplink ? 'is-uplink' : ''}"
+                data-status-tone="${escapeHtml(tone)}"
+                data-rack-hover
+                data-hover-title="${escapeHtml(device?.name || 'Cisco switch')}"
+                data-hover-part="${escapeHtml(port.name || label)}"
+                data-hover-status="${escapeHtml(status)}"
+                data-hover-tone="${escapeHtml(tone)}"
+                ${metaParts.length ? `data-hover-meta="${escapeHtml(metaParts.join(' • '))}"` : ''}
+                title="${escapeHtml(`${device?.name || 'Device'} | ${port.name || label} | ${status}`)}"
+            >
+                <span class="cabinet-room-cisco-port-hole"></span>
+                <span class="cabinet-room-cisco-port-led"></span>
+                <span class="cabinet-room-cisco-port-tag">${escapeHtml(label)}</span>
+            </span>
+        `;
+    }
+
+    function renderCiscoLedColumn(leds) {
+        const safeLeds = (leds || []).slice(0, 4);
+        if (!safeLeds.length) {
+            return '';
+        }
+
+        return `
+            <div class="cabinet-room-cisco-led-column">
+                ${safeLeds.map((led) => `
+                    <span class="cabinet-room-cisco-led-item">
+                        <span class="cabinet-room-cisco-led-dot ${led.lit ? 'is-lit' : ''} ${led.tone ? `is-${led.tone}` : ''}"></span>
+                        <span class="cabinet-room-cisco-led-text">${escapeHtml(led.label || 'LED')}</span>
+                    </span>
+                `).join('')}
+            </div>
+        `;
+    }
+
+    function compactCiscoPortLabel(value, uplink) {
+        const raw = String(value || '').trim();
+        const numberMatch = raw.match(/(\d+)(?!.*\d)/);
+        if (numberMatch) {
+            return uplink ? `U${numberMatch[1]}` : numberMatch[1];
+        }
+
+        if (!raw) {
+            return uplink ? 'U' : '-';
+        }
+
+        return raw.length > 5 ? raw.slice(0, 5) : raw;
+    }
+
+    function chunkArray(items, chunkSize) {
+        if (!Array.isArray(items) || !items.length || chunkSize <= 0) {
+            return [];
+        }
+
+        const chunks = [];
+        for (let index = 0; index < items.length; index += chunkSize) {
+            chunks.push(items.slice(index, index + chunkSize));
+        }
+
+        return chunks;
+    }
+
     function statusTone(status) {
         const normalized = String(status || '').trim().toLowerCase();
         if (!normalized) {

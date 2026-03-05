@@ -770,6 +770,254 @@
             box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.04);
         }
 
+        .cabinet-room-cisco-real {
+            display: grid;
+            width: 100%;
+            gap: 0.18rem;
+            border-radius: 0.34rem;
+            border: 1px solid rgba(203, 213, 225, 0.95);
+            background:
+                linear-gradient(180deg, rgba(251, 253, 255, 0.99), rgba(217, 225, 236, 0.98));
+            box-shadow:
+                inset 0 1px 0 rgba(255, 255, 255, 0.95),
+                inset 0 -1px 0 rgba(148, 163, 184, 0.35);
+            padding: 0.18rem 0.22rem;
+        }
+
+        .cabinet-room-cisco-real-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.35rem;
+        }
+
+        .cabinet-room-cisco-real-brand {
+            font-size: 0.42rem;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #0f172a;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .cabinet-room-cisco-real-summary {
+            font-size: 0.4rem;
+            font-weight: 700;
+            color: #334155;
+            white-space: nowrap;
+        }
+
+        .cabinet-room-cisco-real-face {
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 0.16rem;
+            align-items: stretch;
+        }
+
+        .cabinet-room-cisco-real-access {
+            display: grid;
+            grid-template-columns: repeat(var(--cisco-access-groups, 1), minmax(0, 1fr));
+            gap: 0.12rem;
+            min-width: 0;
+        }
+
+        .cabinet-room-cisco-group {
+            display: grid;
+            gap: 0.08rem;
+            border-radius: 0.2rem;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            background: rgba(226, 232, 240, 0.48);
+            padding: 0.08rem;
+        }
+
+        .cabinet-room-cisco-group-row {
+            display: grid;
+            gap: 0.06rem;
+        }
+
+        .cabinet-room-cisco-port {
+            position: relative;
+            display: block;
+            min-height: 0.7rem;
+            border-radius: 0.08rem;
+            border: 1px solid rgba(71, 85, 105, 0.55);
+            background:
+                linear-gradient(180deg, rgba(231, 236, 244, 0.98), rgba(182, 193, 209, 0.98));
+            overflow: hidden;
+            transition: transform 0.12s ease, box-shadow 0.12s ease, border-color 0.12s ease;
+        }
+
+        .cabinet-room-cisco-port:hover {
+            transform: translateY(-1px);
+            border-color: rgba(37, 99, 235, 0.7);
+            box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.24);
+        }
+
+        .cabinet-room-cisco-port-hole {
+            position: absolute;
+            left: 0.07rem;
+            right: 0.07rem;
+            top: 0.08rem;
+            bottom: 0.2rem;
+            border-radius: 0.06rem;
+            background:
+                linear-gradient(180deg, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.96));
+            box-shadow:
+                inset 0 0 0 1px rgba(148, 163, 184, 0.18),
+                inset 0 -1px 0 rgba(255, 255, 255, 0.08);
+        }
+
+        .cabinet-room-cisco-port.is-uplink {
+            background:
+                linear-gradient(180deg, rgba(244, 247, 251, 0.98), rgba(201, 210, 223, 0.98));
+        }
+
+        .cabinet-room-cisco-port.is-uplink .cabinet-room-cisco-port-hole {
+            background:
+                linear-gradient(180deg, rgba(30, 41, 59, 0.86), rgba(15, 23, 42, 0.94));
+            border: 1px solid rgba(148, 163, 184, 0.25);
+        }
+
+        .cabinet-room-cisco-port-led {
+            position: absolute;
+            top: 0.08rem;
+            right: 0.08rem;
+            width: 0.11rem;
+            height: 0.11rem;
+            border-radius: 999px;
+            background: rgba(148, 163, 184, 0.9);
+            box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.35);
+        }
+
+        .cabinet-room-cisco-port-tag {
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0.02rem;
+            text-align: center;
+            font-size: 0.33rem;
+            font-weight: 800;
+            color: rgba(15, 23, 42, 0.9);
+            letter-spacing: 0.02em;
+            line-height: 1;
+            pointer-events: none;
+        }
+
+        .cabinet-room-cisco-port[data-status-tone="online"] .cabinet-room-cisco-port-led {
+            background: #16a34a;
+            box-shadow:
+                0 0 0 1px rgba(15, 23, 42, 0.35),
+                0 0 6px rgba(34, 197, 94, 0.75);
+        }
+
+        .cabinet-room-cisco-port[data-status-tone="warning"] .cabinet-room-cisco-port-led {
+            background: #f59e0b;
+            box-shadow:
+                0 0 0 1px rgba(15, 23, 42, 0.35),
+                0 0 6px rgba(245, 158, 11, 0.75);
+        }
+
+        .cabinet-room-cisco-port[data-status-tone="error"] .cabinet-room-cisco-port-led {
+            background: #ef4444;
+            box-shadow:
+                0 0 0 1px rgba(15, 23, 42, 0.35),
+                0 0 6px rgba(239, 68, 68, 0.72);
+        }
+
+        .cabinet-room-cisco-real-side {
+            display: grid;
+            gap: 0.12rem;
+            min-width: 2.2rem;
+            align-content: start;
+        }
+
+        .cabinet-room-cisco-uplink-title {
+            font-size: 0.35rem;
+            font-weight: 800;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #334155;
+        }
+
+        .cabinet-room-cisco-uplink-grid {
+            display: grid;
+            gap: 0.08rem;
+        }
+
+        .cabinet-room-cisco-led-column {
+            display: grid;
+            gap: 0.08rem;
+            border-radius: 0.2rem;
+            border: 1px solid rgba(148, 163, 184, 0.35);
+            background: rgba(226, 232, 240, 0.56);
+            padding: 0.08rem;
+        }
+
+        .cabinet-room-cisco-led-item {
+            display: grid;
+            grid-template-columns: auto minmax(0, 1fr);
+            align-items: center;
+            gap: 0.08rem;
+        }
+
+        .cabinet-room-cisco-led-dot {
+            width: 0.16rem;
+            height: 0.16rem;
+            border-radius: 999px;
+            background: rgba(148, 163, 184, 0.85);
+            box-shadow: 0 0 0 1px rgba(15, 23, 42, 0.28);
+        }
+
+        .cabinet-room-cisco-led-dot.is-lit {
+            background: #22c55e;
+            box-shadow:
+                0 0 0 1px rgba(15, 23, 42, 0.28),
+                0 0 6px rgba(34, 197, 94, 0.7);
+        }
+
+        .cabinet-room-cisco-led-dot.is-amber.is-lit {
+            background: #f59e0b;
+            box-shadow:
+                0 0 0 1px rgba(15, 23, 42, 0.28),
+                0 0 6px rgba(245, 158, 11, 0.72);
+        }
+
+        .cabinet-room-cisco-led-dot.is-blue.is-lit {
+            background: #0ea5e9;
+            box-shadow:
+                0 0 0 1px rgba(15, 23, 42, 0.28),
+                0 0 6px rgba(14, 165, 233, 0.72);
+        }
+
+        .cabinet-room-cisco-led-text {
+            font-size: 0.3rem;
+            font-weight: 800;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: #475569;
+            line-height: 1;
+        }
+
+        .cabinet-room-cisco-real-footer {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.08rem;
+        }
+
+        .cabinet-room-cisco-range {
+            display: inline-flex;
+            align-items: center;
+            border-radius: 999px;
+            padding: 0.05rem 0.22rem;
+            font-size: 0.3rem;
+            font-weight: 800;
+            color: #334155;
+            border: 1px solid rgba(148, 163, 184, 0.45);
+            background: rgba(241, 245, 249, 0.92);
+        }
+
         .cabinet-room-hover-card {
             position: fixed;
             z-index: 80;
@@ -891,6 +1139,28 @@
             font-size: 0.48rem;
         }
 
+        .cabinet-room-rack-bay[data-density="compact"] .cabinet-room-cisco-real {
+            padding: 0.14rem 0.16rem;
+            gap: 0.12rem;
+        }
+
+        .cabinet-room-rack-bay[data-density="compact"] .cabinet-room-cisco-real-brand,
+        .cabinet-room-rack-bay[data-density="compact"] .cabinet-room-cisco-real-summary {
+            font-size: 0.34rem;
+        }
+
+        .cabinet-room-rack-bay[data-density="compact"] .cabinet-room-cisco-port {
+            min-height: 0.58rem;
+        }
+
+        .cabinet-room-rack-bay[data-density="compact"] .cabinet-room-cisco-port-tag {
+            font-size: 0.28rem;
+        }
+
+        .cabinet-room-rack-bay[data-density="compact"] .cabinet-room-cisco-led-text {
+            font-size: 0.24rem;
+        }
+
         .cabinet-room-rack-bay[data-density="compact"] .cabinet-room-device-chip {
             padding: 0.08rem 0.35rem;
             font-size: 0.58rem;
@@ -945,6 +1215,27 @@
 
         .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-port-bank {
             grid-template-columns: repeat(8, minmax(0, 1fr));
+        }
+
+        .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-cisco-real-header,
+        .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-cisco-led-column,
+        .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-cisco-uplink-title,
+        .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-cisco-real-footer {
+            display: none;
+        }
+
+        .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-cisco-real {
+            gap: 0.08rem;
+            padding: 0.1rem 0.12rem;
+        }
+
+        .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-cisco-real-face {
+            grid-template-columns: minmax(0, 1fr) auto;
+            gap: 0.08rem;
+        }
+
+        .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-cisco-port {
+            min-height: 0.45rem;
         }
 
         .cabinet-room-rack-bay[data-density="ultra-compact"] .cabinet-room-port-label {
