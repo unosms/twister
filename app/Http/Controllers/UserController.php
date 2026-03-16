@@ -55,6 +55,11 @@ class UserController extends Controller
             'description' => 'Show log filtered by interface (exec cmd).',
         ],
         [
+            'name' => 'Showintstatus',
+            'action_key' => 'showintstatus',
+            'description' => 'Show interface status (exec cmd).',
+        ],
+        [
             'name' => 'Show Interface Transceiver Detail ($interface)',
             'action_key' => 'shtransceiver',
             'description' => 'Show optical transceiver detail (exec cmd).',
