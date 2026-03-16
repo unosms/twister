@@ -205,8 +205,18 @@ class ScriptController extends Controller
         return response($html, 200)->header('Content-Type', 'text/html; charset=UTF-8');
     }
 
+    public function showPortalGraphsPage(Request $request)
+    {
+        $request->attributes->set('graph_context', 'portal');
+
+        return $this->showGraphsPage($request);
+    }
+
     public function showGraphsPage(Request $request)
     {
+        $graphContext = strtolower(trim((string) $request->attributes->get('graph_context', 'admin')));
+        $isPortalContext = $graphContext === 'portal';
+        $graphView = $isPortalContext ? 'device_graphs_portal' : 'device_graphs';
         $role = (string) $request->session()->get('auth.role', '');
         $userId = (int) $request->session()->get('auth.user_id', 0);
         $unit = strtolower(trim((string) $request->query('unit', 'mbit')));
@@ -254,29 +264,33 @@ class ScriptController extends Controller
         }
 
         $accessibleDeviceIds = null;
-        if ($role !== 'admin') {
-            if ($userId <= 0) {
-                return $this->plainError('Unauthorized.', 401);
-            }
+        if ($isPortalContext) {
+            if ($role !== 'admin') {
+                if ($userId <= 0) {
+                    return $this->plainError('Unauthorized.', 401);
+                }
 
-            if (User::supportsAssignedDeviceGraphAccess()) {
-                $canViewAssignedDeviceGraphs = (bool) User::query()
-                    ->where('id', $userId)
-                    ->value('can_view_assigned_device_graphs');
+                if (User::supportsAssignedDeviceGraphAccess()) {
+                    $canViewAssignedDeviceGraphs = (bool) User::query()
+                        ->where('id', $userId)
+                        ->value('can_view_assigned_device_graphs');
 
-                if (!$canViewAssignedDeviceGraphs) {
-                    return $this->plainError('Forbidden: graph access is not enabled for this account.', 403);
+                    if (!$canViewAssignedDeviceGraphs) {
+                        return $this->plainError('Forbidden: graph access is not enabled for this account.', 403);
+                    }
+                }
+
+                $accessibleDeviceIds = $this->resolveGraphAccessibleDeviceIds($userId);
+                if (empty($accessibleDeviceIds)) {
+                    return $this->plainError('Forbidden: no assigned devices are available for graph access.', 403);
+                }
+
+                if (!in_array((int) $device->id, $accessibleDeviceIds, true)) {
+                    return $this->plainError('Forbidden: device is not assigned for graph access.', 403);
                 }
             }
-
-            $accessibleDeviceIds = $this->resolveGraphAccessibleDeviceIds($userId);
-            if (empty($accessibleDeviceIds)) {
-                return $this->plainError('Forbidden: no assigned devices are available for graph access.', 403);
-            }
-
-            if (!in_array((int) $device->id, $accessibleDeviceIds, true)) {
-                return $this->plainError('Forbidden: device is not assigned for graph access.', 403);
-            }
+        } elseif ($role !== 'admin') {
+            return $this->plainError('Unauthorized.', 401);
         }
 
         $deviceOptionsQuery = Device::query()->orderBy('name');
@@ -305,7 +319,7 @@ class ScriptController extends Controller
 
         $schema = DB::getSchemaBuilder();
         if (!$schema->hasTable('interfaces') || !$schema->hasTable('interface_samples')) {
-            return view('device_graphs', [
+            return view($graphView, [
                 'device' => $device,
                 'unit' => $unit,
                 'unitLabel' => $unitMap[$unit]['label'],
@@ -338,7 +352,7 @@ class ScriptController extends Controller
             ->get(['id', 'ifIndex', 'ifName', 'ifDescr', 'ifAlias', 'speed_bps', 'is_up']);
 
         if ($interfaces->isEmpty()) {
-            return view('device_graphs', [
+            return view($graphView, [
                 'device' => $device,
                 'unit' => $unit,
                 'unitLabel' => $unitMap[$unit]['label'],
@@ -500,7 +514,7 @@ class ScriptController extends Controller
             ];
         }
 
-        return view('device_graphs', [
+        return view($graphView, [
             'device' => $device,
             'unit' => $unit,
             'unitLabel' => $unitMap[$unit]['label'],
