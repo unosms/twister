@@ -369,6 +369,8 @@ class ScriptController extends Controller
                 'aggregation' => 'raw',
                 'bucket_seconds' => null,
                 'max_points' => 300,
+                'display_window_range' => true,
+                'pad_single_sample' => true,
             ],
             [
                 'key' => 'one_hour',
@@ -378,6 +380,8 @@ class ScriptController extends Controller
                 'aggregation' => 'raw',
                 'bucket_seconds' => null,
                 'max_points' => 360,
+                'display_window_range' => true,
+                'pad_single_sample' => true,
             ],
             [
                 'key' => 'twenty_four_hours',
@@ -387,6 +391,7 @@ class ScriptController extends Controller
                 'aggregation' => 'interval',
                 'bucket_seconds' => 300,
                 'max_points' => 288,
+                'display_window_range' => true,
             ],
             [
                 'key' => 'seven_days',
@@ -396,6 +401,7 @@ class ScriptController extends Controller
                 'aggregation' => 'interval',
                 'bucket_seconds' => 3600,
                 'max_points' => 240,
+                'display_window_range' => true,
             ],
         ];
 
@@ -500,6 +506,8 @@ class ScriptController extends Controller
         $maxPoints = isset($config['max_points']) && is_numeric($config['max_points'])
             ? max(1, (int) $config['max_points'])
             : 480;
+        $displayWindowRange = (bool) ($config['display_window_range'] ?? false);
+        $padSingleSample = (bool) ($config['pad_single_sample'] ?? false);
         $emptyMessage = (string) ($config['empty_message'] ?? 'No graph data available for this range.');
         $domId = 'graph-' . preg_replace('/[^a-z0-9]+/i', '-', (string) ($config['key'] ?? $title));
 
@@ -527,6 +535,22 @@ class ScriptController extends Controller
         ];
 
         $preparedRows = $this->aggregateTrafficRows($rows, $aggregation, $bucketSeconds);
+        if ($padSingleSample && $aggregation === 'raw' && $preparedRows->count() === 1 && $rangeEnd > $rangeStart) {
+            $firstPoint = $preparedRows->first();
+            $preparedRows = collect([
+                [
+                    'ts' => $rangeStart,
+                    'in_bps' => (float) ($firstPoint['in_bps'] ?? 0),
+                    'out_bps' => (float) ($firstPoint['out_bps'] ?? 0),
+                ],
+                [
+                    'ts' => $rangeEnd,
+                    'in_bps' => (float) ($firstPoint['in_bps'] ?? 0),
+                    'out_bps' => (float) ($firstPoint['out_bps'] ?? 0),
+                ],
+            ]);
+        }
+
         if ($preparedRows->count() > $maxPoints) {
             $step = (int) ceil($preparedRows->count() / $maxPoints);
             $preparedRows = $preparedRows->values()->filter(static function ($row, $index) use ($step) {
@@ -547,6 +571,8 @@ class ScriptController extends Controller
 
         $actualStartTs = (int) (($rows->first()->ts ?? $rangeStart));
         $actualEndTs = (int) (($rows->last()->ts ?? $rangeEnd));
+        $displayStartTs = $displayWindowRange ? $rangeStart : $actualStartTs;
+        $displayEndTs = $displayWindowRange ? $rangeEnd : $actualEndTs;
 
         return [
             'dom_id' => $domId,
@@ -559,8 +585,8 @@ class ScriptController extends Controller
             'unit_label' => $unitLabel,
             'stats' => $stats,
             'sample_count' => $rows->count(),
-            'from_text' => date('Y-m-d H:i:s', $actualStartTs),
-            'to_text' => date('Y-m-d H:i:s', $actualEndTs),
+            'from_text' => date('Y-m-d H:i:s', $displayStartTs),
+            'to_text' => date('Y-m-d H:i:s', $displayEndTs),
             'empty_message' => $emptyMessage,
         ];
     }
