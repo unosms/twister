@@ -304,6 +304,21 @@
     }
 
     const charts = new Map();
+    const resolvePointRadius = (context) => {
+        const values = context && context.dataset && Array.isArray(context.dataset.data)
+            ? context.dataset.data
+            : [];
+
+        return values.length <= 1 ? 4 : 0;
+    };
+
+    const resolvePointHoverRadius = (context) => {
+        const values = context && context.dataset && Array.isArray(context.dataset.data)
+            ? context.dataset.data
+            : [];
+
+        return values.length <= 1 ? 6 : 4;
+    };
 
     payload.forEach((graph) => {
         if (!graph || !graph.domId || !graph.hasData) {
@@ -328,8 +343,8 @@
                         fill: true,
                         borderWidth: 2.2,
                         tension: 0.28,
-                        pointRadius: 0,
-                        pointHoverRadius: 4,
+                        pointRadius: resolvePointRadius,
+                        pointHoverRadius: resolvePointHoverRadius,
                         pointHitRadius: 16,
                     },
                     {
@@ -340,8 +355,8 @@
                         fill: true,
                         borderWidth: 2.2,
                         tension: 0.28,
-                        pointRadius: 0,
-                        pointHoverRadius: 4,
+                        pointRadius: resolvePointRadius,
+                        pointHoverRadius: resolvePointHoverRadius,
                         pointHitRadius: 16,
                     }
                 ]

@@ -403,7 +403,8 @@ class ScriptController extends Controller
         $now = time();
         foreach ($fixedRangeConfigs as $config) {
             $rangeEnd = $now;
-            $rangeStart = max(0, $rangeEnd - (int) $config['seconds'] + 1);
+            // Include the boundary sample exactly N seconds ago for sparse polling intervals.
+            $rangeStart = max(0, $rangeEnd - (int) $config['seconds']);
             $fixedGraphs[] = $this->buildTrafficGraph(
                 $selectedIfaceId,
                 $rangeStart,
