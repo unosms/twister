@@ -273,6 +273,7 @@ class UserController extends Controller
             'devices' => $devices,
             'commandTemplates' => $commandTemplates,
             'avatarStorageReady' => User::supportsAvatarStorage(),
+            'assignedDeviceGraphAccessReady' => User::supportsAssignedDeviceGraphAccess(),
             'deviceCommandRestrictionsReady' => DevicePermission::supportsAllowedCommandTemplateIds(),
             'telegramSeverityOptions' => self::TELEGRAM_SEVERITIES,
             'telegramEventTypeOptions' => self::TELEGRAM_EVENT_TYPES,
@@ -427,6 +428,7 @@ class UserController extends Controller
             'custom_command_script_name' => ['nullable', 'string', 'max:255', 'required_if:custom_command_type,custom'],
             'custom_command_script_code' => ['nullable', 'string', 'max:65535', 'required_if:custom_command_type,custom'],
 
+            'can_view_assigned_device_graphs' => ['nullable', 'boolean'],
             'telegram_enabled' => ['nullable', 'boolean'],
             'telegram_chat_id' => ['nullable', 'string', 'max:500'],
             'telegram_bot_token' => ['nullable', 'string', 'max:255'],
@@ -463,6 +465,8 @@ class UserController extends Controller
         )));
 
         $telegramEnabled = $request->boolean('telegram_enabled');
+        $canViewAssignedDeviceGraphs = $request->boolean('can_view_assigned_device_graphs');
+        $assignedDeviceGraphAccessReady = User::supportsAssignedDeviceGraphAccess();
         $telegramChatId = trim((string) ($data['telegram_chat_id'] ?? ''));
         $telegramChatId = $telegramChatId !== '' ? $telegramChatId : null;
         $telegramBotToken = trim((string) ($data['telegram_bot_token'] ?? ''));
@@ -511,6 +515,10 @@ class UserController extends Controller
             'telegram_event_types' => $telegramEventTypes,
             'telegram_template' => $telegramTemplate,
         ];
+
+        if ($assignedDeviceGraphAccessReady) {
+            $updates['can_view_assigned_device_graphs'] = $canViewAssignedDeviceGraphs;
+        }
 
         if ($avatarStorageReady) {
             $updates['avatar_path'] = $avatarPath;

@@ -35,6 +35,7 @@ Route::middleware(['auth.session', 'audit.log'])->group(function () {
     Route::post('/actions/dispatch', [ActionController::class, 'dispatch'])->name('actions.dispatch');
     Route::get('/portal', [PortalController::class, 'index'])->name('portal.index');
     Route::get('/exec.php', [ScriptController::class, 'execLegacy'])->name('scripts.exec');
+    Route::get('/devices/graphs', [ScriptController::class, 'showGraphsPage'])->name('devices.graphs');
 });
 
 Route::middleware(['admin.auth', 'audit.log'])->group(function () {
@@ -93,7 +94,6 @@ Route::middleware(['admin.auth', 'audit.log'])->group(function () {
     Route::get('/telemetry', [TelemetryController::class, 'index'])->name('telemetry.index');
     Route::get('/showbackup.php', [ScriptController::class, 'backupLegacy'])->name('scripts.backup');
     Route::get('/devices/{device}/events', [ScriptController::class, 'showEventsPage'])->name('devices.events.show');
-    Route::get('/devices/graphs', [ScriptController::class, 'showGraphsPage'])->name('devices.graphs');
     Route::get('/devices/{device}/backups', [ScriptController::class, 'showBackupsPage'])->name('devices.backups.show');
     Route::post('/devices/{device}/backups/run', [ScriptController::class, 'runBackupNow'])->name('devices.backups.run');
     Route::get('/devices/{device}/backups/list', [ScriptController::class, 'listBackups'])->name('devices.backups.index');

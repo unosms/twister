@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CommandTemplate;
 use App\Models\Device;
 use App\Models\DevicePermission;
+use App\Models\User;
 use App\Support\ProvisioningTrace;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -206,6 +207,8 @@ class ScriptController extends Controller
 
     public function showGraphsPage(Request $request)
     {
+        $role = (string) $request->session()->get('auth.role', '');
+        $userId = (int) $request->session()->get('auth.user_id', 0);
         $unit = strtolower(trim((string) $request->query('unit', 'mbit')));
         $unitMap = [
             'kbit' => ['label' => 'kbit/s', 'divisor' => 1000],
@@ -250,9 +253,38 @@ class ScriptController extends Controller
             return $this->plainError('Device not found.', 404);
         }
 
-        $deviceOptions = Device::query()
-            ->orderBy('name')
-            ->get(['id', 'name', 'type']);
+        $accessibleDeviceIds = null;
+        if ($role !== 'admin') {
+            if ($userId <= 0) {
+                return $this->plainError('Unauthorized.', 401);
+            }
+
+            if (User::supportsAssignedDeviceGraphAccess()) {
+                $canViewAssignedDeviceGraphs = (bool) User::query()
+                    ->where('id', $userId)
+                    ->value('can_view_assigned_device_graphs');
+
+                if (!$canViewAssignedDeviceGraphs) {
+                    return $this->plainError('Forbidden: graph access is not enabled for this account.', 403);
+                }
+            }
+
+            $accessibleDeviceIds = $this->resolveGraphAccessibleDeviceIds($userId);
+            if (empty($accessibleDeviceIds)) {
+                return $this->plainError('Forbidden: no assigned devices are available for graph access.', 403);
+            }
+
+            if (!in_array((int) $device->id, $accessibleDeviceIds, true)) {
+                return $this->plainError('Forbidden: device is not assigned for graph access.', 403);
+            }
+        }
+
+        $deviceOptionsQuery = Device::query()->orderBy('name');
+        if (is_array($accessibleDeviceIds)) {
+            $deviceOptionsQuery->whereIn('id', $accessibleDeviceIds);
+        }
+
+        $deviceOptions = $deviceOptionsQuery->get(['id', 'name', 'type']);
 
         // Render quickly from stored samples by default.
         // Pass poll=1/true/yes/on for an immediate manual poll before rendering.
@@ -1776,6 +1808,38 @@ class ScriptController extends Controller
         }
 
         return null;
+    }
+
+    private function resolveGraphAccessibleDeviceIds(int $userId): array
+    {
+        if ($userId <= 0) {
+            return [];
+        }
+
+        $assignedDeviceIds = Device::query()
+            ->where('assigned_user_id', $userId)
+            ->pluck('id')
+            ->map(static fn ($id): int => (int) $id)
+            ->all();
+
+        $assignmentDeviceIds = DB::table('device_assignments')
+            ->where('user_id', $userId)
+            ->whereNull('unassigned_at')
+            ->pluck('device_id')
+            ->map(static fn ($id): int => (int) $id)
+            ->all();
+
+        $permissionDeviceIds = DB::table('device_permissions')
+            ->where('user_id', $userId)
+            ->pluck('device_id')
+            ->map(static fn ($id): int => (int) $id)
+            ->all();
+
+        return array_values(array_unique(array_merge(
+            $assignedDeviceIds,
+            $assignmentDeviceIds,
+            $permissionDeviceIds
+        )));
     }
 
     private function authorizeCommandExecution(Request $request, Device $device, string $cmd): ?\Symfony\Component\HttpFoundation\Response

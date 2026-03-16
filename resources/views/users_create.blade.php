@@ -77,6 +77,8 @@ $customCommandScriptName = old('custom_command_script_name', '');
 $customCommandScriptCode = old('custom_command_script_code', '');
 $showCustomCommandFields = $customCommandType === 'custom';
 $telegramEnabled = (bool) old('telegram_enabled', false);
+$canViewAssignedDeviceGraphs = (bool) old('can_view_assigned_device_graphs', false);
+$assignedDeviceGraphAccessReady = (bool) ($assignedDeviceGraphAccessReady ?? false);
 @endphp
 
 <div class="flex h-screen overflow-hidden">
@@ -212,6 +214,22 @@ Upload Picture
 <button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-select-action="invert">Invert</button>
 </div>
 </div>
+
+<div class="xl:col-span-2 flex flex-col gap-2">
+<label class="text-sm font-semibold text-slate-700 dark:text-slate-200">Device Graph Access</label>
+@if ($assignedDeviceGraphAccessReady)
+<label class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-200">
+<input class="rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" name="can_view_assigned_device_graphs" value="1" @checked($canViewAssignedDeviceGraphs) />
+<span>Allow this user to view graphs for assigned/permitted devices.</span>
+</label>
+<p class="text-xs text-slate-400">Admins always have graph access; this toggle applies to user accounts.</p>
+@else
+<div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300">
+Run <code>php artisan migrate --force</code> to enable user graph access toggles.
+</div>
+@endif
+</div>
+
 <div class="xl:col-span-2 flex flex-col gap-2" data-device-port-permissions>
 <label class="text-sm font-semibold text-slate-700 dark:text-slate-200">Port Access Per Device (optional)</label>
 <div class="rounded-lg border border-slate-200 dark:border-slate-700 p-3 space-y-3 bg-slate-50/70 dark:bg-slate-800/40">

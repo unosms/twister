@@ -55,6 +55,10 @@
         ? rtrim(rtrim(number_format($speedBps / 1000000, 2, '.', ''), '0'), '.') . ' Mbit/s'
         : 'unknown';
     $isUp = $sel ? ((int) ($sel->is_up ?? 2) === 1) : false;
+    $sessionRole = strtolower((string) session('auth.role', ''));
+    $isAdminRole = $sessionRole === 'admin';
+    $backRouteLabel = $isAdminRole ? 'Back to Devices' : 'Back to Portal';
+    $backRouteUrl = $isAdminRole ? route('devices.details') : route('portal.index');
     $chartPayload = $chartPayload ?? [];
 @endphp
 
@@ -72,7 +76,7 @@
                     <p class="mt-1 text-sm text-slate-500">Interactive traffic history for {{ $device->name }}.</p>
                 </div>
             </div>
-            <a class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold hover:bg-slate-50" href="{{ route('devices.details') }}">Back to Devices</a>
+            <a class="inline-flex items-center rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold hover:bg-slate-50" href="{{ $backRouteUrl }}">{{ $backRouteLabel }}</a>
         </header>
 
         <div class="mx-auto max-w-[1600px] px-4 py-6 sm:px-6 lg:px-8">
@@ -181,7 +185,9 @@
             @foreach($unitOptions as $unitKey => $unitOption)
                 <a class="rounded-full px-4 py-2 text-xs font-black {{ $unit === $unitKey ? 'bg-blue-100 text-blue-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200' }}" href="{{ route('devices.graphs') . '?' . http_build_query(array_merge($queryBase, ['unit' => $unitKey])) }}">{{ $unitOption['label'] }}</a>
             @endforeach
-            <a class="rounded-full bg-slate-100 px-4 py-2 text-xs font-black text-slate-600 hover:bg-slate-200" href="{{ route('devices.events.show', ['device' => $device->id]) }}">Back to Events</a>
+            @if($isAdminRole)
+                <a class="rounded-full bg-slate-100 px-4 py-2 text-xs font-black text-slate-600 hover:bg-slate-200" href="{{ route('devices.events.show', ['device' => $device->id]) }}">Back to Events</a>
+            @endif
         </div>
     </form>
 

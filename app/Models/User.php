@@ -17,6 +17,7 @@ class User extends Authenticatable
     use HasFactory, Notifiable;
 
     protected static ?bool $avatarStorageSupported = null;
+    protected static ?bool $assignedDeviceGraphAccessSupported = null;
 
     /**
      * The attributes that are mass assignable.
@@ -34,10 +35,11 @@ class User extends Authenticatable
 'telegram_chat_id',
 'telegram_bot_token',
 'telegram_devices',
-'telegram_ports',
-'telegram_severities',
-'telegram_event_types',
-'telegram_template',
+        'telegram_ports',
+        'telegram_severities',
+        'telegram_event_types',
+        'telegram_template',
+        'can_view_assigned_device_graphs',
 
     ];
 
@@ -69,6 +71,7 @@ class User extends Authenticatable
         'telegram_severities' => 'array',
         'telegram_event_types' => 'array',
         'telegram_template' => 'string',
+        'can_view_assigned_device_graphs' => 'boolean',
         ];
     }
 
@@ -124,6 +127,22 @@ class User extends Authenticatable
         }
 
         return static::$avatarStorageSupported;
+    }
+
+    public static function supportsAssignedDeviceGraphAccess(): bool
+    {
+        if (static::$assignedDeviceGraphAccessSupported !== null) {
+            return static::$assignedDeviceGraphAccessSupported;
+        }
+
+        try {
+            static::$assignedDeviceGraphAccessSupported = Schema::hasTable('users')
+                && Schema::hasColumn('users', 'can_view_assigned_device_graphs');
+        } catch (\Throwable) {
+            static::$assignedDeviceGraphAccessSupported = false;
+        }
+
+        return static::$assignedDeviceGraphAccessSupported;
     }
 
     public function profileAvatarUrl(): ?string

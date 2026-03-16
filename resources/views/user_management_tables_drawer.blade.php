@@ -353,6 +353,11 @@ $assignedDeviceCount = count($assignedDeviceIds);
 $commandDeviceCount = count($selectedPermissionDeviceIds);
 $commandTemplateCount = count($selectedCommandTemplateIds);
 $telegramEnabled = (bool) old('telegram_enabled', (bool) ($user->telegram_enabled ?? false));
+$canViewAssignedDeviceGraphs = (bool) old(
+    'can_view_assigned_device_graphs',
+    (bool) ($user->can_view_assigned_device_graphs ?? false)
+);
+$assignedDeviceGraphAccessReady = (bool) ($assignedDeviceGraphAccessReady ?? false);
 ?>
 <div class="rounded-lg border border-[#cfd7e7] dark:border-gray-700 bg-white dark:bg-gray-900/50 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
 <div>
@@ -490,6 +495,20 @@ Upload Picture
 <button class="px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-select-action="invert">Invert</button>
 </div>
 <p class="text-xs text-gray-400">Grant command access to devices even if assigned to another user.</p>
+</div>
+<div class="flex flex-col gap-2 lg:col-span-12">
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Device Graph Access</label>
+<?php if($assignedDeviceGraphAccessReady): ?>
+<label class="inline-flex items-center gap-2 rounded-lg border border-[#cfd7e7] bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
+<input class="rounded border-gray-300 text-primary focus:ring-primary" type="checkbox" name="can_view_assigned_device_graphs" value="1" <?php if($canViewAssignedDeviceGraphs): echo 'checked'; endif; ?> />
+<span>Allow this user to view graphs for assigned/permitted devices.</span>
+</label>
+<p class="text-xs text-gray-400">Admins always have graph access; this toggle applies to user accounts.</p>
+<?php else: ?>
+<div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300">
+Run <code>php artisan migrate --force</code> to enable user graph access toggles.
+</div>
+<?php endif; ?>
 </div>
 <div class="flex flex-col gap-2 lg:col-span-12" data-device-port-permissions>
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Port Access Per Device (optional)</label>

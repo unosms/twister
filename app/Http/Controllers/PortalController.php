@@ -17,6 +17,12 @@ class PortalController extends Controller
         $userId = request()->session()->get('auth.user_id');
         $role = request()->session()->get('auth.role');
         $authUser = $userId ? User::find($userId) : null;
+        $canViewAssignedDeviceGraphs = $role === 'admin';
+        if ($role !== 'admin') {
+            $canViewAssignedDeviceGraphs = User::supportsAssignedDeviceGraphAccess()
+                ? (bool) ($authUser?->can_view_assigned_device_graphs ?? false)
+                : true;
+        }
         $devices = collect();
         $allDevices = collect();
         $commandTemplates = collect();
@@ -184,6 +190,7 @@ class PortalController extends Controller
             'commandTemplateCount' => $commandTemplateCount,
             'commandTemplates' => $commandTemplates,
             'commandTemplatesByDevice' => $commandTemplatesByDevice,
+            'canViewAssignedDeviceGraphs' => $canViewAssignedDeviceGraphs,
             'healthPercent' => $healthPercent,
             'accessibleScopeLabel' => $accessibleScopeLabel,
             'deviceTypeBreakdown' => $deviceTypeBreakdown,
