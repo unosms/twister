@@ -249,6 +249,9 @@ $statusClass = $isActive
 <form class="space-y-6" method="POST" action="<?php echo e(route('users.update', $user)); ?>" enctype="multipart/form-data">
 <?php echo csrf_field(); ?>
 <?php
+$passwordPreviewUserId = (int) session('users_password_preview_user_id', 0);
+$passwordPreviewValue = (string) session('users_password_preview_value', '');
+$hasPasswordPreview = $passwordPreviewUserId === (int) $user->id && $passwordPreviewValue !== '';
 $assignedDeviceIds = $devices->where('assigned_user_id', $user->id)->pluck('id')->map(static fn ($id) => (int) $id)->all();
 $selectedPermissionDeviceIds = old('device_permission_ids', $user->permittedDevices->pluck('id')->all());
 if (!is_array($selectedPermissionDeviceIds)) {
@@ -554,7 +557,7 @@ foreach ($graphInterfaceMap as $deviceId => $expression) {
 <div class="flex flex-col gap-2 <?php echo e($isSuperAdmin ? 'lg:col-span-12' : 'lg:col-span-4'); ?>">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Set New Password</label>
 <?php if($canManageUserIdentity ?? false): ?>
-<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="password" placeholder="Leave blank to keep current" type="password"/>
+<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" id="new_password_<?php echo e($user->id); ?>" name="password" placeholder="Leave blank to keep current" type="password" data-new-password-input/>
 <p class="text-xs text-gray-400">Use this only when rotating credentials.</p>
 <?php else: ?>
 <input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 bg-slate-50 dark:bg-gray-800/60 dark:text-white text-slate-500 h-11 cursor-not-allowed" placeholder="Only super admin can change password" type="password" disabled/>
@@ -565,12 +568,16 @@ foreach ($graphInterfaceMap as $deviceId => $expression) {
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300" for="current_password_view_<?php echo e($user->id); ?>">Current Password</label>
 <?php if($canManageUserIdentity ?? false): ?>
 <div class="relative">
-<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11 w-full pr-11" id="current_password_view_<?php echo e($user->id); ?>" type="password" placeholder="Type current password to view it" autocomplete="off"/>
+<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11 w-full pr-11" id="current_password_view_<?php echo e($user->id); ?>" type="password" value="<?php echo e($hasPasswordPreview ? $passwordPreviewValue : ''); ?>" data-current-password-display data-server-value="<?php echo e($hasPasswordPreview ? $passwordPreviewValue : ''); ?>" placeholder="<?php echo e($hasPasswordPreview ? 'Current password (shown once)' : 'Current password is not retrievable'); ?>" autocomplete="off" readonly/>
 <button class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200" type="button" data-toggle="password" data-target="#current_password_view_<?php echo e($user->id); ?>" data-no-dispatch="true" aria-pressed="false" aria-label="Toggle current password visibility">
 <span class="material-symbols-outlined">visibility_off</span>
 </button>
 </div>
+<?php if($hasPasswordPreview): ?>
+<p class="text-xs text-emerald-600 dark:text-emerald-300">Password updated. This preview is shown once on this page load.</p>
+<?php else: ?>
 <p class="text-xs text-gray-400">Stored passwords are hashed and cannot be displayed from the server.</p>
+<?php endif; ?>
 <?php else: ?>
 <input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 bg-slate-50 dark:bg-gray-800/60 dark:text-white text-slate-500 h-11 cursor-not-allowed" type="password" placeholder="Only super admin can manage passwords" disabled/>
 <p class="text-xs text-gray-400">Stored passwords are hashed and cannot be displayed from the server.</p>
@@ -1185,6 +1192,27 @@ document.addEventListener('DOMContentLoaded', function () {
     var filterForm = document.getElementById('user-filters');
     var exportForm = document.getElementById('user-export-form');
 
+    function setupPasswordPreviewMirrors() {
+        document.querySelectorAll('form').forEach(function (form) {
+            var newPasswordInput = form.querySelector('[data-new-password-input]');
+            var currentPasswordDisplay = form.querySelector('[data-current-password-display]');
+
+            if (!newPasswordInput || !currentPasswordDisplay) {
+                return;
+            }
+
+            var serverValue = currentPasswordDisplay.dataset.serverValue || '';
+            var syncPreview = function () {
+                currentPasswordDisplay.value = newPasswordInput.value !== ''
+                    ? newPasswordInput.value
+                    : serverValue;
+            };
+
+            newPasswordInput.addEventListener('input', syncPreview);
+            newPasswordInput.addEventListener('change', syncPreview);
+        });
+    }
+
     function syncExportFilters() {
         if (!filterForm || !exportForm) {
             return;
@@ -1205,6 +1233,8 @@ document.addEventListener('DOMContentLoaded', function () {
     if (exportForm) {
         exportForm.addEventListener('submit', syncExportFilters);
     }
+
+    setupPasswordPreviewMirrors();
 });
 </script>
 </body></html>

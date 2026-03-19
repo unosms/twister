@@ -262,7 +262,15 @@ class UserController extends Controller
             $this->persistUser($request, $user, $data);
         });
 
-        return back()->with('status', "User {$user->name} updated.");
+        $response = back()->with('status', "User {$user->name} updated.");
+        $updatedPassword = $canManageIdentity ? trim((string) ($data['password'] ?? '')) : '';
+        if ($updatedPassword !== '') {
+            $response = $response
+                ->with('users_password_preview_user_id', (int) $user->id)
+                ->with('users_password_preview_value', $updatedPassword);
+        }
+
+        return $response;
     }
 
     private function buildUserFormViewData(): array
