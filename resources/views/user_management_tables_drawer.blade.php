@@ -571,6 +571,7 @@ foreach ($graphInterfaceMap as $deviceId => $expression) {
 <?php
 $currentPasswordServerValue = trim((string) ($storedCurrentPassword ?? ''));
 $hasStoredCurrentPassword = $currentPasswordServerValue !== '';
+$passwordRevealStorageReady = (bool) ($passwordRevealStorageReady ?? false);
 ?>
 <div class="relative">
 <input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11 w-full pr-11" id="current_password_view_<?php echo e($user->id); ?>" type="password" value="<?php echo e($currentPasswordServerValue); ?>" data-current-password-display data-server-value="<?php echo e($currentPasswordServerValue); ?>" placeholder="<?php echo e($hasStoredCurrentPassword ? 'Current password' : 'Current password not available yet'); ?>" autocomplete="off" readonly/>
@@ -580,6 +581,8 @@ $hasStoredCurrentPassword = $currentPasswordServerValue !== '';
 </div>
 <?php if($hasStoredCurrentPassword): ?>
 <p class="text-xs text-emerald-600 dark:text-emerald-300">Saved password is available for this user account.</p>
+<?php elseif(!$passwordRevealStorageReady): ?>
+<p class="text-xs text-amber-600 dark:text-amber-300">Password reveal storage is not enabled on this server yet. Run <code>php artisan migrate --force</code>, then set a new password once.</p>
 <?php else: ?>
 <p class="text-xs text-gray-400">No retrievable password stored yet for this user. Set a new password once to enable always-on viewing.</p>
 <?php endif; ?>

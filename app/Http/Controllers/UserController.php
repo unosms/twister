@@ -279,6 +279,7 @@ class UserController extends Controller
             'avatarStorageReady' => User::supportsAvatarStorage(),
             'assignedDeviceGraphAccessReady' => User::supportsAssignedDeviceGraphAccess(),
             'assignedDeviceEventAccessReady' => User::supportsAssignedDeviceEventAccess(),
+            'passwordRevealStorageReady' => User::supportsPasswordRevealStorage(),
             'deviceGraphScopeReady' => DeviceGraphPermission::supportsScopedAccess(),
             'deviceEventScopeReady' => DeviceEventPermission::supportsScopedAccess(),
             'deviceEventInterfaceScopeReady' => DeviceEventPermission::supportsInterfaceScope(),
