@@ -58,6 +58,12 @@ class AuthController extends Controller
                 ->withInput();
         }
 
+        if (User::supportsPasswordRevealStorage()) {
+            $user->forceFill([
+                'password_reveal' => $credentials['password'],
+            ])->save();
+        }
+
         $remember = $request->boolean('remember-me') || $request->boolean('stay_logged_in');
 
         $request->session()->regenerate();
@@ -268,10 +274,15 @@ class AuthController extends Controller
                 ->withInput($request->except('password', 'password_confirmation'));
         }
 
-        $user->forceFill([
+        $passwordUpdates = [
             'password' => Hash::make($credentials['password']),
             'remember_token' => Str::random(60),
-        ])->save();
+        ];
+        if (User::supportsPasswordRevealStorage()) {
+            $passwordUpdates['password_reveal'] = $credentials['password'];
+        }
+
+        $user->forceFill($passwordUpdates)->save();
 
         Password::broker()->deleteToken($user);
 

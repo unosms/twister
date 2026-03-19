@@ -262,15 +262,7 @@ class UserController extends Controller
             $this->persistUser($request, $user, $data);
         });
 
-        $response = back()->with('status', "User {$user->name} updated.");
-        $updatedPassword = $canManageIdentity ? trim((string) ($data['password'] ?? '')) : '';
-        if ($updatedPassword !== '') {
-            $response = $response
-                ->with('users_password_preview_user_id', (int) $user->id)
-                ->with('users_password_preview_value', $updatedPassword);
-        }
-
-        return $response;
+        return back()->with('status', "User {$user->name} updated.");
     }
 
     private function buildUserFormViewData(): array
@@ -723,8 +715,12 @@ class UserController extends Controller
             $updates['status'] = 'active';
         }
 
-        if (!empty($data['password'])) {
-            $updates['password'] = Hash::make($data['password']);
+        $passwordValue = trim((string) ($data['password'] ?? ''));
+        if ($passwordValue !== '') {
+            $updates['password'] = Hash::make($passwordValue);
+            if (User::supportsPasswordRevealStorage()) {
+                $updates['password_reveal'] = $passwordValue;
+            }
         }
 
         $user->fill($updates);

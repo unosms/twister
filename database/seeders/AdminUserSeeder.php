@@ -16,22 +16,32 @@ class AdminUserSeeder extends Seeder
      */
     public function run(): void
     {
+        $adminPayload = [
+            'name' => 'admin',
+            'role' => 'admin',
+            'password' => 'admin123',
+        ];
+        if (User::supportsPasswordRevealStorage()) {
+            $adminPayload['password_reveal'] = 'admin123';
+        }
+
         $admin = User::updateOrCreate(
             ['email' => 'admin'],
-            [
-                'name' => 'admin',
-                'role' => 'admin',
-                'password' => 'admin123',
-            ]
+            $adminPayload
         );
+
+        $testUserPayload = [
+            'name' => 'testuser',
+            'role' => 'user',
+            'password' => 'Test1234',
+        ];
+        if (User::supportsPasswordRevealStorage()) {
+            $testUserPayload['password_reveal'] = 'Test1234';
+        }
 
         $testUser = User::updateOrCreate(
             ['email' => 'test.user@company.com'],
-            [
-                'name' => 'testuser',
-                'role' => 'user',
-                'password' => 'Test1234',
-            ]
+            $testUserPayload
         );
 
         $commands = [

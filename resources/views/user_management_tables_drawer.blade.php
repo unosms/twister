@@ -249,9 +249,10 @@ $statusClass = $isActive
 <form class="space-y-6" method="POST" action="<?php echo e(route('users.update', $user)); ?>" enctype="multipart/form-data">
 <?php echo csrf_field(); ?>
 <?php
-$passwordPreviewUserId = (int) session('users_password_preview_user_id', 0);
-$passwordPreviewValue = (string) session('users_password_preview_value', '');
-$hasPasswordPreview = $passwordPreviewUserId === (int) $user->id && $passwordPreviewValue !== '';
+$storedCurrentPassword = null;
+if ($canManageUserIdentity ?? false) {
+    $storedCurrentPassword = $user->currentPasswordRevealValue();
+}
 $assignedDeviceIds = $devices->where('assigned_user_id', $user->id)->pluck('id')->map(static fn ($id) => (int) $id)->all();
 $selectedPermissionDeviceIds = old('device_permission_ids', $user->permittedDevices->pluck('id')->all());
 if (!is_array($selectedPermissionDeviceIds)) {
@@ -567,20 +568,24 @@ foreach ($graphInterfaceMap as $deviceId => $expression) {
 <div class="flex flex-col gap-2 lg:col-span-12">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300" for="current_password_view_<?php echo e($user->id); ?>">Current Password</label>
 <?php if($canManageUserIdentity ?? false): ?>
+<?php
+$currentPasswordServerValue = trim((string) ($storedCurrentPassword ?? ''));
+$hasStoredCurrentPassword = $currentPasswordServerValue !== '';
+?>
 <div class="relative">
-<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11 w-full pr-11" id="current_password_view_<?php echo e($user->id); ?>" type="password" value="<?php echo e($hasPasswordPreview ? $passwordPreviewValue : ''); ?>" data-current-password-display data-server-value="<?php echo e($hasPasswordPreview ? $passwordPreviewValue : ''); ?>" placeholder="<?php echo e($hasPasswordPreview ? 'Current password (shown once)' : 'Current password is not retrievable'); ?>" autocomplete="off" readonly/>
+<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11 w-full pr-11" id="current_password_view_<?php echo e($user->id); ?>" type="password" value="<?php echo e($currentPasswordServerValue); ?>" data-current-password-display data-server-value="<?php echo e($currentPasswordServerValue); ?>" placeholder="<?php echo e($hasStoredCurrentPassword ? 'Current password' : 'Current password not available yet'); ?>" autocomplete="off" readonly/>
 <button class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200" type="button" data-toggle="password" data-target="#current_password_view_<?php echo e($user->id); ?>" data-no-dispatch="true" aria-pressed="false" aria-label="Toggle current password visibility">
 <span class="material-symbols-outlined">visibility_off</span>
 </button>
 </div>
-<?php if($hasPasswordPreview): ?>
-<p class="text-xs text-emerald-600 dark:text-emerald-300">Password updated. This preview is shown once on this page load.</p>
+<?php if($hasStoredCurrentPassword): ?>
+<p class="text-xs text-emerald-600 dark:text-emerald-300">Saved password is available for this user account.</p>
 <?php else: ?>
-<p class="text-xs text-gray-400">Stored passwords are hashed and cannot be displayed from the server.</p>
+<p class="text-xs text-gray-400">No retrievable password stored yet for this user. Set a new password once to enable always-on viewing.</p>
 <?php endif; ?>
 <?php else: ?>
 <input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 bg-slate-50 dark:bg-gray-800/60 dark:text-white text-slate-500 h-11 cursor-not-allowed" type="password" placeholder="Only super admin can manage passwords" disabled/>
-<p class="text-xs text-gray-400">Stored passwords are hashed and cannot be displayed from the server.</p>
+<p class="text-xs text-gray-400">Only super admin can view or rotate passwords.</p>
 <?php endif; ?>
 </div>
 </div>

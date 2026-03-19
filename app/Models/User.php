@@ -20,6 +20,7 @@ class User extends Authenticatable
     protected static ?bool $assignedDeviceGraphAccessSupported = null;
     protected static ?bool $assignedDeviceEventAccessSupported = null;
     protected static ?bool $telegramDeviceInterfaceScopeSupported = null;
+    protected static ?bool $passwordRevealStorageSupported = null;
 
     /**
      * The attributes that are mass assignable.
@@ -33,10 +34,11 @@ class User extends Authenticatable
         'status',
         'avatar_path',
         'password',
-'telegram_enabled',
-'telegram_chat_id',
-'telegram_bot_token',
-'telegram_devices',
+        'password_reveal',
+        'telegram_enabled',
+        'telegram_chat_id',
+        'telegram_bot_token',
+        'telegram_devices',
         'telegram_device_interfaces',
         'telegram_ports',
         'telegram_severities',
@@ -54,6 +56,7 @@ class User extends Authenticatable
      */
     protected $hidden = [
         'password',
+        'password_reveal',
         'remember_token',
     ];
 
@@ -66,18 +69,19 @@ class User extends Authenticatable
     {
         return [
             'email_verified_at' => 'datetime',
-        'password' => 'hashed',
-        'telegram_enabled' => 'boolean',
-        'telegram_chat_id' => 'string',
-'telegram_bot_token' => 'string',
-        'telegram_devices' => 'array',
-        'telegram_device_interfaces' => 'array',
-        'telegram_ports' => 'string',
-        'telegram_severities' => 'array',
-        'telegram_event_types' => 'array',
-        'telegram_template' => 'string',
-        'can_view_assigned_device_graphs' => 'boolean',
-        'can_view_assigned_device_events' => 'boolean',
+            'password' => 'hashed',
+            'password_reveal' => 'encrypted',
+            'telegram_enabled' => 'boolean',
+            'telegram_chat_id' => 'string',
+            'telegram_bot_token' => 'string',
+            'telegram_devices' => 'array',
+            'telegram_device_interfaces' => 'array',
+            'telegram_ports' => 'string',
+            'telegram_severities' => 'array',
+            'telegram_event_types' => 'array',
+            'telegram_template' => 'string',
+            'can_view_assigned_device_graphs' => 'boolean',
+            'can_view_assigned_device_events' => 'boolean',
         ];
     }
 
@@ -195,6 +199,36 @@ class User extends Authenticatable
         }
 
         return static::$telegramDeviceInterfaceScopeSupported;
+    }
+
+    public static function supportsPasswordRevealStorage(): bool
+    {
+        if (static::$passwordRevealStorageSupported !== null) {
+            return static::$passwordRevealStorageSupported;
+        }
+
+        try {
+            static::$passwordRevealStorageSupported = Schema::hasTable('users')
+                && Schema::hasColumn('users', 'password_reveal');
+        } catch (\Throwable) {
+            static::$passwordRevealStorageSupported = false;
+        }
+
+        return static::$passwordRevealStorageSupported;
+    }
+
+    public function currentPasswordRevealValue(): ?string
+    {
+        if (!static::supportsPasswordRevealStorage()) {
+            return null;
+        }
+
+        try {
+            $value = trim((string) ($this->password_reveal ?? ''));
+            return $value !== '' ? $value : null;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 
     public function profileAvatarUrl(): ?string
