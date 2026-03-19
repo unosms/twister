@@ -213,11 +213,6 @@ class TelegramEventNotifier
             }
         }
 
-        $ports = trim((string) ($user->telegram_ports ?? ''));
-        if (!$hasDeviceSpecificInterfaces && $ports !== '' && !$this->portMatchesExpression($event['port'], $ports)) {
-            return false;
-        }
-
         $severities = $this->normalizeSimpleList($user->telegram_severities ?? self::DEFAULT_SEVERITIES);
         if (empty($severities)) {
             $severities = self::DEFAULT_SEVERITIES;

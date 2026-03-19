@@ -986,11 +986,6 @@ Run <code>php artisan migrate --force</code> to enable per-device command restri
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Telegram Chat ID</label>
 <input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="telegram_chat_id" type="text" value="<?php echo e(old('telegram_chat_id', $user->telegram_chat_id)); ?>" placeholder="e.g. 123456789, -1001234567890"/>
 </div>
-<div class="flex flex-col gap-2">
-<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Telegram Ports (fallback)</label>
-<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="telegram_ports" type="text" value="<?php echo e(old('telegram_ports', $user->telegram_ports)); ?>" placeholder="80,443,1000-1010"/>
-<p class="text-xs text-gray-400">Optional comma-separated ports and ranges.</p>
-</div>
 
 <div class="flex flex-col gap-2 md:col-span-2">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Telegram Bot Token (optional)</label>

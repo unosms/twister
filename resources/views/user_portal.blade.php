@@ -188,6 +188,21 @@ All visible devices are currently healthy.
 </header>
 
 <main class="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+@if (session('status'))
+<div class="mb-6 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/20 dark:text-emerald-300">
+{{ session('status') }}
+</div>
+@endif
+@if ($errors->any())
+<div class="mb-6 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700 dark:border-rose-900/40 dark:bg-rose-950/20 dark:text-rose-300">
+<p class="font-semibold">Could not update Telegram settings.</p>
+<ul class="mt-2 list-disc pl-5 space-y-1">
+@foreach ($errors->all() as $error)
+<li>{{ $error }}</li>
+@endforeach
+</ul>
+</div>
+@endif
 <section class="portal-surface relative overflow-hidden rounded-[2rem] border border-slate-200/70 bg-white/90 p-6 shadow-xl shadow-slate-200/40 dark:border-slate-800 dark:bg-slate-900/60 dark:shadow-black/20 lg:p-8">
 <div class="pointer-events-none absolute inset-y-0 right-0 w-1/2 bg-[radial-gradient(circle_at_center,_rgba(19,91,236,0.16),_transparent_60%)]"></div>
 <div class="relative grid gap-8 xl:grid-cols-[minmax(0,1.15fr)_22rem] xl:items-start">
@@ -279,6 +294,47 @@ $share = ($totalDevices ?? 0) > 0 ? (int) round(($entry['count'] / $totalDevices
 <p class="text-sm text-slate-500">No device type distribution available yet.</p>
 @endforelse
 </div>
+</div>
+
+<div class="mt-5 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+<div class="flex items-center justify-between gap-3">
+<p class="text-sm font-bold text-slate-900 dark:text-white">Telegram Settings</p>
+<span class="text-xs text-slate-400">User portal</span>
+</div>
+<form class="mt-4 space-y-3" method="POST" action="{{ route('portal.telegram-settings.update') }}">
+@csrf
+<div class="space-y-1">
+<label class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400" for="portal_telegram_chat_id">Telegram Chat ID</label>
+<input
+id="portal_telegram_chat_id"
+class="h-11 w-full rounded-xl border-slate-200 bg-white text-sm text-slate-800 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+name="telegram_chat_id"
+type="text"
+value="{{ old('telegram_chat_id', $authUser->telegram_chat_id ?? '') }}"
+placeholder="123456789 or -1001234567890"
+/>
+</div>
+<div class="space-y-1">
+<label class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400" for="portal_telegram_bot_token">Telegram Bot Token (optional)</label>
+<div class="relative">
+<input
+id="portal_telegram_bot_token"
+class="h-11 w-full rounded-xl border-slate-200 bg-white pr-11 text-sm text-slate-800 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white"
+name="telegram_bot_token"
+type="password"
+value="{{ old('telegram_bot_token', $authUser->telegram_bot_token ?? '') }}"
+placeholder="123456:ABC..."
+/>
+<button class="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 transition hover:text-slate-600 dark:hover:text-slate-200" type="button" data-toggle="password" data-target="#portal_telegram_bot_token" data-no-dispatch="true" aria-label="Toggle Telegram bot token visibility" aria-pressed="false">
+<span class="material-symbols-outlined text-[20px]">visibility_off</span>
+</button>
+</div>
+</div>
+<p class="text-xs text-slate-500">Leave token blank to use the global TELEGRAM_BOT_TOKEN.</p>
+<button class="inline-flex h-10 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-white transition hover:bg-primary/90" type="submit">
+Save Telegram Settings
+</button>
+</form>
 </div>
 </aside>
 </div>

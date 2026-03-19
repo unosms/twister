@@ -572,17 +572,6 @@ class UserController extends Controller
                     }
                 },
             ],
-            'telegram_ports' => [
-                'nullable',
-                'string',
-                'max:255',
-                function (string $attribute, mixed $value, \Closure $fail): void {
-                    $error = $this->validatePortExpression(is_string($value) ? $value : '');
-                    if ($error !== null) {
-                        $fail($error);
-                    }
-                },
-            ],
             'telegram_severities' => ['nullable', 'array'],
             'telegram_severities.*' => ['string', Rule::in(self::TELEGRAM_SEVERITIES)],
             'telegram_event_types' => ['nullable', 'array'],
@@ -611,7 +600,6 @@ class UserController extends Controller
         $telegramChatId = $telegramChatId !== '' ? $telegramChatId : null;
         $telegramBotToken = trim((string) ($data['telegram_bot_token'] ?? ''));
         $telegramBotToken = $telegramBotToken !== '' ? $telegramBotToken : null;
-        $telegramPorts = $this->normalizePortExpression($data['telegram_ports'] ?? null);
 
         $telegramSeverities = array_values(array_unique(array_map(
             static fn (string $value): string => strtolower(trim($value)),
@@ -650,7 +638,6 @@ class UserController extends Controller
             'telegram_enabled' => $telegramEnabled,
             'telegram_chat_id' => $telegramChatId,
             'telegram_bot_token' => $telegramBotToken,
-            'telegram_ports' => $telegramPorts,
             'telegram_severities' => $telegramSeverities,
             'telegram_event_types' => $telegramEventTypes,
             'telegram_template' => $telegramTemplate,
@@ -1067,64 +1054,6 @@ class UserController extends Controller
             ->pluck('id')
             ->map(static fn ($id): int => (int) $id)
             ->all();
-    }
-
-    private function validatePortExpression(string $value): ?string
-    {
-        $value = trim($value);
-        if ($value === '') {
-            return null;
-        }
-
-        $tokens = preg_split('/\s*,\s*/', $value) ?: [];
-        foreach ($tokens as $token) {
-            if ($token === '') {
-                continue;
-            }
-
-            if (preg_match('/^\d+$/', $token)) {
-                continue;
-            }
-
-            if (preg_match('/^(\d+)-(\d+)$/', $token, $matches)) {
-                if ((int) $matches[1] > (int) $matches[2]) {
-                    return 'Telegram ports range must be ascending (for example 1000-1010).';
-                }
-                continue;
-            }
-
-            return 'Telegram ports must be comma-separated values like 80,443,1000-1010.';
-        }
-
-        return null;
-    }
-
-    private function normalizePortExpression(?string $value): ?string
-    {
-        if (!is_string($value)) {
-            return null;
-        }
-
-        $value = trim($value);
-        if ($value === '') {
-            return null;
-        }
-
-        $tokens = preg_split('/\s*,\s*/', $value) ?: [];
-        $clean = [];
-        foreach ($tokens as $token) {
-            $token = trim($token);
-            if ($token === '') {
-                continue;
-            }
-            if (preg_match('/^(\d+)\s*-\s*(\d+)$/', $token, $matches)) {
-                $clean[] = ((int) $matches[1]) . '-' . ((int) $matches[2]);
-            } else {
-                $clean[] = $token;
-            }
-        }
-
-        return empty($clean) ? null : implode(',', array_values(array_unique($clean)));
     }
 
     private function validateInterfaceExpression(string $value): ?string

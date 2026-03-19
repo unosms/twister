@@ -263,4 +263,36 @@ class PortalController extends Controller
             'recentDevices' => $recentDevices,
         ]);
     }
+
+    public function updateTelegramSettings(Request $request)
+    {
+        $userId = (int) $request->session()->get('auth.user_id', 0);
+        if ($userId <= 0) {
+            return redirect()->route('auth.login');
+        }
+
+        $user = User::find($userId);
+        if (!$user) {
+            $request->session()->forget(['auth.user_id', 'auth.role']);
+            return redirect()->route('auth.login');
+        }
+
+        $data = $request->validate([
+            'telegram_chat_id' => ['nullable', 'string', 'max:500'],
+            'telegram_bot_token' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $telegramChatId = trim((string) ($data['telegram_chat_id'] ?? ''));
+        $telegramBotToken = trim((string) ($data['telegram_bot_token'] ?? ''));
+
+        $user->fill([
+            'telegram_chat_id' => $telegramChatId !== '' ? $telegramChatId : null,
+            'telegram_bot_token' => $telegramBotToken !== '' ? $telegramBotToken : null,
+        ]);
+        $user->save();
+
+        return redirect()
+            ->route('portal.index')
+            ->with('status', 'Telegram settings updated.');
+    }
 }
