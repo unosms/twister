@@ -406,18 +406,13 @@ class RunDeviceBackups extends Command
         return $files;
     }
 
-    private function verifyBackupArtifact(Device $device, array $processResult, array $snapshot, array $traceContext): array
+    private function detectCreatedBackupFile(array $beforeFiles, array $afterFiles): array
     {
-        if (!($processResult['ok'] ?? false)) {
-            return $processResult;
-        }
-
-        $afterFiles = $this->backupFileMap($snapshot['absolute']);
         $createdFile = null;
         $createdMtime = null;
 
         foreach ($afterFiles as $name => $mtime) {
-            $previousMtime = $snapshot['files'][$name] ?? null;
+            $previousMtime = $beforeFiles[$name] ?? null;
             if ($previousMtime === null || $mtime > $previousMtime) {
                 if ($createdMtime === null || $mtime > $createdMtime) {
                     $createdFile = $name;
@@ -425,6 +420,104 @@ class RunDeviceBackups extends Command
                 }
             }
         }
+
+        return [
+            'created_file' => $createdFile,
+            'created_mtime' => $createdMtime,
+        ];
+    }
+
+    private function detectCreatedBackupFileWithRetry(array $beforeFiles, string $absolutePath): array
+    {
+        $afterFiles = [];
+        $createdFile = null;
+        $createdMtime = null;
+        $maxAttempts = 8;
+
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            $afterFiles = $this->backupFileMap($absolutePath);
+            $detected = $this->detectCreatedBackupFile($beforeFiles, $afterFiles);
+            $createdFile = $detected['created_file'] ?? null;
+            $createdMtime = $detected['created_mtime'] ?? null;
+
+            if ($createdFile !== null) {
+                break;
+            }
+
+            if ($attempt < $maxAttempts) {
+                usleep(500000);
+            }
+        }
+
+        return [
+            'created_file' => $createdFile,
+            'created_mtime' => $createdMtime,
+            'after_files' => $afterFiles,
+        ];
+    }
+
+    private function detectBackupFileFromProcessOutput(string $output, string $absolutePath): ?array
+    {
+        if (!is_dir($absolutePath)) {
+            return null;
+        }
+
+        $output = trim($output);
+        if ($output === '' || !preg_match('/(bytes copied|copied in|copy complete|copied successfully)/i', $output)) {
+            return null;
+        }
+
+        $candidateNames = [];
+        if (preg_match_all('/([0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}\.[A-Za-z0-9]+)/', $output, $matches)) {
+            foreach ($matches[1] as $match) {
+                $candidateNames[] = basename(str_replace('\\', '/', (string) $match));
+            }
+        }
+
+        $candidateNames = array_values(array_unique(array_filter($candidateNames, static fn ($name): bool => $name !== '')));
+        foreach ($candidateNames as $candidateName) {
+            $candidatePath = rtrim($absolutePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $candidateName;
+            if (is_file($candidatePath)) {
+                $mtime = filemtime($candidatePath);
+
+                return [
+                    'file' => $candidateName,
+                    'mtime' => is_int($mtime) ? $mtime : time(),
+                ];
+            }
+        }
+
+        $afterFiles = $this->backupFileMap($absolutePath);
+        $latestFile = null;
+        $latestMtime = null;
+        foreach ($afterFiles as $name => $mtime) {
+            if ($latestMtime === null || $mtime > $latestMtime) {
+                $latestFile = $name;
+                $latestMtime = $mtime;
+            }
+        }
+
+        if ($latestFile !== null && $latestMtime !== null && $latestMtime >= (time() - 30)) {
+            return [
+                'file' => $latestFile,
+                'mtime' => $latestMtime,
+            ];
+        }
+
+        return null;
+    }
+
+    private function verifyBackupArtifact(Device $device, array $processResult, array $snapshot, array $traceContext): array
+    {
+        if (!($processResult['ok'] ?? false)) {
+            return $processResult;
+        }
+
+        $beforeFiles = $snapshot['files'] ?? [];
+        $detected = $this->detectCreatedBackupFileWithRetry($beforeFiles, $snapshot['absolute']);
+        $afterFiles = $detected['after_files'] ?? [];
+        $createdFile = $detected['created_file'] ?? null;
+        $createdMtime = $detected['created_mtime'] ?? null;
 
         if ($createdFile !== null) {
             $this->writeProvisioningLog('backup trace: verification succeeded - backup file detected', $this->withoutProvisioningSecrets($traceContext) + [
@@ -436,10 +529,24 @@ class RunDeviceBackups extends Command
             return $processResult;
         }
 
+        $outputDetected = $this->detectBackupFileFromProcessOutput(
+            (string) ($processResult['output'] ?? ''),
+            $snapshot['absolute']
+        );
+        if ($outputDetected !== null) {
+            $this->writeProvisioningLog('backup trace: verification recovered from process output', $this->withoutProvisioningSecrets($traceContext) + [
+                'backup_file' => $outputDetected['file'],
+                'backup_modified_at' => date('Y-m-d H:i:s', (int) $outputDetected['mtime']),
+                'backup_folder' => $snapshot['relative'],
+            ]);
+
+            return $processResult;
+        }
+
         $this->writeProvisioningLog('backup trace: verification failed - no new backup file detected', $this->withoutProvisioningSecrets($traceContext) + [
             'backup_folder' => $snapshot['relative'],
             'backup_path' => $snapshot['absolute'],
-            'existing_file_count_before' => count($snapshot['files']),
+            'existing_file_count_before' => count($beforeFiles),
             'existing_file_count_after' => count($afterFiles),
         ]);
 
