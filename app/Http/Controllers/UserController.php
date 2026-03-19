@@ -281,6 +281,7 @@ class UserController extends Controller
             'assignedDeviceEventAccessReady' => User::supportsAssignedDeviceEventAccess(),
             'deviceGraphScopeReady' => DeviceGraphPermission::supportsScopedAccess(),
             'deviceEventScopeReady' => DeviceEventPermission::supportsScopedAccess(),
+            'deviceEventInterfaceScopeReady' => DeviceEventPermission::supportsInterfaceScope(),
             'telegramDeviceInterfaceScopeReady' => User::supportsTelegramDeviceInterfaceScope(),
             'deviceCommandRestrictionsReady' => DevicePermission::supportsAllowedCommandTemplateIds(),
             'telegramSeverityOptions' => self::TELEGRAM_SEVERITIES,
@@ -529,6 +530,18 @@ class UserController extends Controller
             'graph_device_ids.*' => ['integer', 'exists:devices,id'],
             'event_device_ids' => ['nullable', 'array'],
             'event_device_ids.*' => ['integer', 'exists:devices,id'],
+            'event_device_interfaces' => ['nullable', 'array'],
+            'event_device_interfaces.*' => [
+                'nullable',
+                'string',
+                'max:500',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    $error = $this->validateInterfaceExpression(is_string($value) ? $value : '');
+                    if ($error !== null) {
+                        $fail($error);
+                    }
+                },
+            ],
             'graph_device_interfaces' => ['nullable', 'array'],
             'graph_device_interfaces.*' => [
                 'nullable',
@@ -922,18 +935,45 @@ class UserController extends Controller
         }
 
         if (DeviceEventPermission::supportsScopedAccess()) {
+            $supportsEventInterfaceScope = DeviceEventPermission::supportsInterfaceScope();
             $eventDeviceIds = $data['event_device_ids'] ?? [];
             $eventDeviceIds = array_values(array_unique(array_map(
                 static fn ($id): int => (int) $id,
                 array_filter($eventDeviceIds, static fn ($id): bool => is_numeric($id) && (int) $id > 0)
             )));
 
+            $eventInterfaceMap = [];
+            if ($supportsEventInterfaceScope) {
+                $eventInterfaceRaw = $data['event_device_interfaces'] ?? [];
+                if (!is_array($eventInterfaceRaw)) {
+                    $eventInterfaceRaw = [];
+                }
+                foreach ($eventInterfaceRaw as $deviceIdRaw => $expressionRaw) {
+                    if (!is_numeric($deviceIdRaw)) {
+                        continue;
+                    }
+
+                    $deviceId = (int) $deviceIdRaw;
+                    if (!in_array($deviceId, $eventDeviceIds, true)) {
+                        continue;
+                    }
+
+                    $eventInterfaceMap[$deviceId] = $this->normalizeInterfaceExpression(
+                        is_string($expressionRaw) ? $expressionRaw : null
+                    );
+                }
+            }
+
             $eventPayload = [];
             if (!empty($eventDeviceIds)) {
+                $existingEventColumns = ['device_id', 'granted_by', 'granted_at'];
+                if ($supportsEventInterfaceScope) {
+                    $existingEventColumns[] = 'allowed_interfaces';
+                }
                 $existingEventMeta = DB::table('device_event_permissions')
                     ->where('user_id', $user->id)
                     ->whereIn('device_id', $eventDeviceIds)
-                    ->get(['device_id', 'granted_by', 'granted_at'])
+                    ->get($existingEventColumns)
                     ->keyBy(static fn ($row): int => (int) $row->device_id);
 
                 foreach ($eventDeviceIds as $deviceId) {
@@ -942,6 +982,9 @@ class UserController extends Controller
                         'granted_by' => $existing?->granted_by ?? $assignedBy,
                         'granted_at' => $existing?->granted_at ?? now(),
                     ];
+                    if ($supportsEventInterfaceScope) {
+                        $eventPayload[$deviceId]['allowed_interfaces'] = $eventInterfaceMap[$deviceId] ?? $existing?->allowed_interfaces ?? null;
+                    }
                 }
             }
 

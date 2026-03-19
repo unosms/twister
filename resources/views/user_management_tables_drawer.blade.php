@@ -383,15 +383,33 @@ $assignedDeviceGraphAccessReady = (bool) ($assignedDeviceGraphAccessReady ?? fal
 $assignedDeviceEventAccessReady = (bool) ($assignedDeviceEventAccessReady ?? false);
 $deviceGraphScopeReady = (bool) ($deviceGraphScopeReady ?? false);
 $deviceEventScopeReady = (bool) ($deviceEventScopeReady ?? false);
+$deviceEventInterfaceScopeReady = (bool) ($deviceEventInterfaceScopeReady ?? false);
 $graphInterfaceOptionsByDevice = is_array($graphInterfaceOptionsByDevice ?? null) ? $graphInterfaceOptionsByDevice : [];
 $selectedEventDeviceIds = [];
+$eventInterfaceMap = [];
 if ($deviceEventScopeReady && \App\Models\DeviceEventPermission::supportsScopedAccess()) {
-    $selectedEventDeviceIds = \Illuminate\Support\Facades\DB::table('device_event_permissions')
+    $eventScopeColumns = ['device_id'];
+    if ($deviceEventInterfaceScopeReady) {
+        $eventScopeColumns[] = 'allowed_interfaces';
+    }
+
+    $storedEventScopeRows = \Illuminate\Support\Facades\DB::table('device_event_permissions')
         ->where('user_id', $user->id)
-        ->pluck('device_id')
-        ->map(static fn ($id): int => (int) $id)
-        ->all();
+        ->get($eventScopeColumns);
+
+    foreach ($storedEventScopeRows as $row) {
+        $deviceId = (int) ($row->device_id ?? 0);
+        if ($deviceId <= 0) {
+            continue;
+        }
+
+        $selectedEventDeviceIds[] = $deviceId;
+        if ($deviceEventInterfaceScopeReady) {
+            $eventInterfaceMap[$deviceId] = trim((string) ($row->allowed_interfaces ?? ''));
+        }
+    }
 }
+
 $oldSelectedEventDeviceIds = old('event_device_ids');
 if (is_array($oldSelectedEventDeviceIds)) {
     $selectedEventDeviceIds = array_values(array_unique(array_map(
@@ -403,6 +421,32 @@ $selectedEventDeviceIds = array_values(array_unique(array_map(
     'intval',
     array_filter($selectedEventDeviceIds, static fn ($id): bool => is_numeric($id))
 )));
+
+if ($deviceEventInterfaceScopeReady) {
+    $oldEventInterfaceMap = old('event_device_interfaces');
+    if (is_array($oldEventInterfaceMap)) {
+        foreach ($oldEventInterfaceMap as $deviceId => $value) {
+            if (!is_numeric($deviceId)) {
+                continue;
+            }
+            $eventInterfaceMap[(int) $deviceId] = trim((string) $value);
+        }
+    }
+}
+
+$eventInterfaceSelectedLookupMap = [];
+foreach ($eventInterfaceMap as $deviceId => $expression) {
+    $tokens = preg_split('/\s*,\s*/', trim((string) $expression)) ?: [];
+    $lookup = [];
+    foreach ($tokens as $token) {
+        $token = strtolower(trim((string) $token));
+        if ($token !== '') {
+            $lookup[$token] = true;
+        }
+    }
+    $eventInterfaceSelectedLookupMap[(int) $deviceId] = $lookup;
+}
+
 $selectedGraphDeviceIds = [];
 $graphInterfaceMap = [];
 if ($deviceGraphScopeReady && \App\Models\DeviceGraphPermission::supportsScopedAccess()) {
@@ -615,6 +659,7 @@ Upload Picture
 </label>
 <p class="text-xs text-gray-400">Admins always have event access; this toggle applies to user accounts.</p>
 <?php if($deviceEventScopeReady): ?>
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
 <div class="flex flex-col gap-2" data-checkbox-group>
 <div class="flex items-center justify-between gap-2">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Event Devices</label>
@@ -623,7 +668,7 @@ Upload Picture
 <div class="max-h-44 overflow-y-auto rounded-lg border border-[#cfd7e7] bg-white p-3 dark:border-gray-700 dark:bg-gray-800 space-y-2">
 <?php $__currentLoopData = $devices; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $device): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
 <label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-<input class="rounded border-gray-300 text-primary focus:ring-primary" type="checkbox" name="event_device_ids[]" value="<?php echo e($device->id); ?>" data-checkbox-item <?php if(in_array((int) $device->id, $selectedEventDeviceIds, true)): echo 'checked'; endif; ?>/>
+<input class="rounded border-gray-300 text-primary focus:ring-primary" type="checkbox" name="event_device_ids[]" value="<?php echo e($device->id); ?>" data-checkbox-item data-event-device-checkbox <?php if(in_array((int) $device->id, $selectedEventDeviceIds, true)): echo 'checked'; endif; ?>/>
 <span><?php echo e($device->name); ?> <?php if($device->serial_number): ?>(<?php echo e($device->serial_number); ?>)<?php endif; ?></span>
 </label>
 <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
@@ -633,6 +678,64 @@ Upload Picture
 <button class="px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-checkbox-action="none">Clear</button>
 <button class="px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-checkbox-action="invert">Invert</button>
 </div>
+</div>
+<?php if($deviceEventInterfaceScopeReady): ?>
+<div class="flex flex-col gap-2" data-device-event-interface-permissions>
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Event Interfaces Per Device (optional)</label>
+<div class="border border-[#cfd7e7] dark:border-gray-700 rounded-lg p-3 space-y-3 bg-white dark:bg-gray-800">
+<?php $__currentLoopData = $devices; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $device): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+<?php
+$deviceId = (int) $device->id;
+$eventAllowedInterfaces = trim((string) ($eventInterfaceMap[$deviceId] ?? ''));
+$hasEventDevice = in_array($deviceId, $selectedEventDeviceIds, true);
+$interfaceOptions = $graphInterfaceOptionsByDevice[$deviceId] ?? [];
+$selectedEventInterfaceLookup = $eventInterfaceSelectedLookupMap[$deviceId] ?? [];
+?>
+<div class="<?php if(!$hasEventDevice): echo 'hidden'; endif; ?> rounded-lg border border-slate-200 dark:border-gray-700 p-3" data-device-event-interface-item data-device-id="<?php echo e($deviceId); ?>">
+<div class="text-xs font-semibold text-slate-500 mb-2"><?php echo e($device->name); ?> <?php if($device->serial_number): ?>(<?php echo e($device->serial_number); ?>)<?php endif; ?></div>
+<input type="hidden" name="event_device_interfaces[<?php echo e($deviceId); ?>]" value="<?php echo e($eventAllowedInterfaces); ?>" data-event-interface-hidden/>
+<?php if(!empty($interfaceOptions)): ?>
+<div class="space-y-2">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<span class="text-[11px] font-semibold text-gray-500"><span data-event-interface-count>0</span> selected</span>
+<div class="flex flex-wrap gap-2">
+<button class="px-2 py-1 text-[11px] font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-event-interface-action="all">Select all</button>
+<button class="px-2 py-1 text-[11px] font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-event-interface-action="none">Clear</button>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-40 overflow-y-auto rounded-lg border border-[#cfd7e7] dark:border-gray-700 p-2">
+<?php $__currentLoopData = $interfaceOptions; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $option): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+<?php
+$optionValue = trim((string) ($option['value'] ?? ''));
+$optionLabel = trim((string) ($option['label'] ?? $optionValue));
+$isChecked = $optionValue !== '' && isset($selectedEventInterfaceLookup[strtolower($optionValue)]);
+?>
+<?php if($optionValue !== ''): ?>
+<label class="flex items-center gap-2 text-xs text-gray-700 dark:text-gray-200">
+<input class="rounded border-gray-300 text-primary focus:ring-primary" type="checkbox" value="<?php echo e($optionValue); ?>" data-event-interface-option <?php if($isChecked): echo 'checked'; endif; ?>/>
+<span><?php echo e($optionLabel); ?></span>
+</label>
+<?php endif; ?>
+<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+</div>
+</div>
+<?php else: ?>
+<p class="text-xs text-gray-400">No discovered interfaces yet for this device.</p>
+<?php if($eventAllowedInterfaces !== ''): ?>
+<p class="text-xs text-gray-500">Current saved scope: <code><?php echo e($eventAllowedInterfaces); ?></code></p>
+<?php endif; ?>
+<?php endif; ?>
+</div>
+<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+<p class="text-xs text-gray-400 <?php if(!empty($selectedEventDeviceIds)): echo 'hidden'; endif; ?>" data-device-event-interface-empty>Select one or more event devices to set interface scope.</p>
+</div>
+<p class="text-xs text-gray-400">Leave blank to allow all interfaces on that device.</p>
+</div>
+<?php else: ?>
+<div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300">
+Run <code>php artisan migrate --force</code> to enable per-device event interface scope controls.
+</div>
+<?php endif; ?>
 </div>
 <p class="text-xs text-gray-400">If no event devices are selected, enabled users can view events for all assigned/permitted devices.</p>
 <?php else: ?>

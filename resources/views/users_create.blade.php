@@ -99,12 +99,32 @@ $assignedDeviceGraphAccessReady = (bool) ($assignedDeviceGraphAccessReady ?? fal
 $assignedDeviceEventAccessReady = (bool) ($assignedDeviceEventAccessReady ?? false);
 $deviceGraphScopeReady = (bool) ($deviceGraphScopeReady ?? false);
 $deviceEventScopeReady = (bool) ($deviceEventScopeReady ?? false);
+$deviceEventInterfaceScopeReady = (bool) ($deviceEventInterfaceScopeReady ?? false);
 $selectedGraphDeviceIds = old('graph_device_ids', []);
 if (!is_array($selectedGraphDeviceIds)) { $selectedGraphDeviceIds = []; }
 $selectedGraphDeviceIds = array_values(array_unique(array_map('intval', array_filter($selectedGraphDeviceIds, static fn ($id): bool => is_numeric($id)))));
 $selectedEventDeviceIds = old('event_device_ids', []);
 if (!is_array($selectedEventDeviceIds)) { $selectedEventDeviceIds = []; }
 $selectedEventDeviceIds = array_values(array_unique(array_map('intval', array_filter($selectedEventDeviceIds, static fn ($id): bool => is_numeric($id)))));
+$eventInterfaceMap = [];
+$oldEventInterfaceMap = old('event_device_interfaces');
+if (is_array($oldEventInterfaceMap)) {
+    foreach ($oldEventInterfaceMap as $deviceId => $value) {
+        if (is_numeric($deviceId)) { $eventInterfaceMap[(int) $deviceId] = trim((string) $value); }
+    }
+}
+$eventInterfaceSelectedLookupMap = [];
+foreach ($eventInterfaceMap as $deviceId => $expression) {
+    $tokens = preg_split('/\s*,\s*/', trim((string) $expression)) ?: [];
+    $lookup = [];
+    foreach ($tokens as $token) {
+        $token = strtolower(trim((string) $token));
+        if ($token !== '') {
+            $lookup[$token] = true;
+        }
+    }
+    $eventInterfaceSelectedLookupMap[(int) $deviceId] = $lookup;
+}
 $graphInterfaceMap = [];
 $oldGraphInterfaceMap = old('graph_device_interfaces');
 if (is_array($oldGraphInterfaceMap)) {
@@ -275,6 +295,7 @@ Upload Picture
 </label>
 <p class="text-xs text-slate-400">Admins always have event access; this toggle applies to user accounts.</p>
 @if ($deviceEventScopeReady)
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
 <div class="flex flex-col gap-2" data-checkbox-group>
 <div class="flex items-center justify-between gap-2">
 <label class="text-sm font-semibold text-slate-700 dark:text-slate-200">Event Devices</label>
@@ -283,7 +304,7 @@ Upload Picture
 <div class="max-h-44 overflow-y-auto rounded-lg border border-slate-300 bg-white p-3 dark:border-slate-700 dark:bg-slate-800 space-y-2">
 @foreach ($devices as $device)
 <label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
-<input class="rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" name="event_device_ids[]" value="{{ $device->id }}" data-checkbox-item @checked(in_array((int) $device->id, $selectedEventDeviceIds, true))/>
+<input class="rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" name="event_device_ids[]" value="{{ $device->id }}" data-checkbox-item data-event-device-checkbox @checked(in_array((int) $device->id, $selectedEventDeviceIds, true))/>
 <span>{{ $device->name }}@if ($device->serial_number) ({{ $device->serial_number }})@endif</span>
 </label>
 @endforeach
@@ -293,6 +314,64 @@ Upload Picture
 <button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-checkbox-action="none">Clear</button>
 <button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-checkbox-action="invert">Invert</button>
 </div>
+</div>
+@if ($deviceEventInterfaceScopeReady)
+<div class="flex flex-col gap-2" data-device-event-interface-permissions>
+<label class="text-sm font-semibold text-slate-700 dark:text-slate-200">Event Interfaces Per Device (optional)</label>
+<div class="rounded-lg border border-slate-200 dark:border-slate-700 p-3 space-y-3 bg-slate-50/70 dark:bg-slate-800/40">
+@foreach ($devices as $device)
+@php
+$deviceId = (int) $device->id;
+$eventAllowedInterfaces = trim((string) ($eventInterfaceMap[$deviceId] ?? ''));
+$hasEventDevice = in_array($deviceId, $selectedEventDeviceIds, true);
+$interfaceOptions = $graphInterfaceOptionsByDevice[$deviceId] ?? [];
+$selectedEventInterfaceLookup = $eventInterfaceSelectedLookupMap[$deviceId] ?? [];
+@endphp
+<div class="{{ $hasEventDevice ? '' : 'hidden' }} rounded-lg border border-slate-200 dark:border-slate-700 p-3 bg-white dark:bg-slate-900" data-device-event-interface-item data-device-id="{{ $deviceId }}">
+<div class="text-xs font-semibold text-slate-500 mb-2">{{ $device->name }}@if ($device->serial_number) ({{ $device->serial_number }})@endif</div>
+<input type="hidden" name="event_device_interfaces[{{ $deviceId }}]" value="{{ $eventAllowedInterfaces }}" data-event-interface-hidden/>
+@if (!empty($interfaceOptions))
+<div class="space-y-2">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<span class="text-[11px] font-semibold text-slate-500"><span data-event-interface-count>0</span> selected</span>
+<div class="flex flex-wrap gap-2">
+<button class="px-2 py-1 text-[11px] font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-event-interface-action="all">Select all</button>
+<button class="px-2 py-1 text-[11px] font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-event-interface-action="none">Clear</button>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-40 overflow-y-auto rounded-lg border border-slate-200 p-2 dark:border-slate-700">
+@foreach ($interfaceOptions as $option)
+@php
+$optionValue = trim((string) ($option['value'] ?? ''));
+$optionLabel = trim((string) ($option['label'] ?? $optionValue));
+$isChecked = $optionValue !== '' && isset($selectedEventInterfaceLookup[strtolower($optionValue)]);
+@endphp
+@if ($optionValue !== '')
+<label class="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-200">
+<input class="rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" value="{{ $optionValue }}" data-event-interface-option @checked($isChecked)/>
+<span>{{ $optionLabel }}</span>
+</label>
+@endif
+@endforeach
+</div>
+</div>
+@else
+<p class="text-xs text-slate-400">No discovered interfaces yet for this device.</p>
+@if ($eventAllowedInterfaces !== '')
+<p class="text-xs text-slate-500">Current saved scope: <code>{{ $eventAllowedInterfaces }}</code></p>
+@endif
+@endif
+</div>
+@endforeach
+<p class="text-xs text-slate-400 {{ !empty($selectedEventDeviceIds) ? 'hidden' : '' }}" data-device-event-interface-empty>Select one or more event devices to set interface scope.</p>
+</div>
+<p class="text-xs text-slate-400">Leave blank to allow all interfaces on that device.</p>
+</div>
+@else
+<div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300">
+Run <code>php artisan migrate --force</code> to enable per-device event interface scope controls.
+</div>
+@endif
 </div>
 <p class="text-xs text-slate-400">If no event devices are selected, enabled users can view events for all assigned/permitted devices.</p>
 @else

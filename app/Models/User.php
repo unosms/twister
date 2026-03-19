@@ -108,7 +108,7 @@ class User extends Authenticatable
     public function eventScopedDevices()
     {
         return $this->belongsToMany(Device::class, 'device_event_permissions')
-            ->withPivot(['granted_by', 'granted_at'])
+            ->withPivot(['granted_by', 'granted_at', 'allowed_interfaces'])
             ->withTimestamps();
     }
 

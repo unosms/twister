@@ -21,6 +21,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained('users')->cascadeOnDelete();
             $table->foreignId('granted_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamp('granted_at')->useCurrent();
+            $table->string('allowed_interfaces', 500)->nullable();
             $table->timestamps();
 
             $table->unique(['device_id', 'user_id']);

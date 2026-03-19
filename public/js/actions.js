@@ -1771,6 +1771,144 @@
     });
   };
 
+  const setupEventDeviceInterfaceInputs = () => {
+    const containers = Array.from(document.querySelectorAll('[data-device-event-interface-permissions]'));
+    if (!containers.length) {
+      return;
+    }
+
+    containers.forEach((container) => {
+      const form = container.closest('form');
+      if (!form) {
+        return;
+      }
+      const select = form.querySelector('select[name="event_device_ids[]"]');
+      const checkboxes = Array.from(
+        form.querySelectorAll(
+          'input[type="checkbox"][name="event_device_ids[]"][data-event-device-checkbox]'
+        )
+      );
+      if (!select && !checkboxes.length) {
+        return;
+      }
+
+      const items = Array.from(
+        container.querySelectorAll('[data-device-event-interface-item][data-device-id]')
+      );
+      if (!items.length) {
+        return;
+      }
+
+      const empty = container.querySelector('[data-device-event-interface-empty]');
+
+      const updateVisibility = () => {
+        const selectedIds = new Set(
+          select
+            ? Array.from(select.selectedOptions || []).map((option) => String(option.value || ''))
+            : checkboxes
+                .filter((item) => item.checked)
+                .map((item) => String(item.value || ''))
+        );
+
+        let visibleCount = 0;
+        items.forEach((item) => {
+          const deviceId = String(item.dataset.deviceId || '');
+          const visible = selectedIds.has(deviceId);
+          item.classList.toggle('hidden', !visible);
+          if (visible) {
+            visibleCount += 1;
+          }
+        });
+
+        if (empty) {
+          empty.classList.toggle('hidden', visibleCount > 0);
+        }
+      };
+
+      if (select) {
+        select.addEventListener('change', updateVisibility);
+      }
+      checkboxes.forEach((item) => {
+        item.addEventListener('change', updateVisibility);
+      });
+      updateVisibility();
+    });
+  };
+
+  const setupEventInterfaceOptionPickers = () => {
+    const items = Array.from(document.querySelectorAll('[data-device-event-interface-item]'));
+    if (!items.length) {
+      return;
+    }
+
+    items.forEach((item) => {
+      if (item.dataset.eventInterfaceBound === 'true') {
+        return;
+      }
+
+      const hiddenInput = item.querySelector('input[data-event-interface-hidden]');
+      const options = Array.from(item.querySelectorAll('input[type="checkbox"][data-event-interface-option]'));
+      if (!hiddenInput || !options.length) {
+        item.dataset.eventInterfaceBound = 'true';
+        return;
+      }
+
+      const countTarget = item.querySelector('[data-event-interface-count]');
+
+      const selectedValues = () =>
+        options
+          .filter((option) => option.checked)
+          .map((option) => String(option.value || '').trim())
+          .filter((value) => value !== '');
+
+      const updateCount = () => {
+        if (!countTarget) {
+          return;
+        }
+        countTarget.textContent = String(selectedValues().length);
+      };
+
+      const syncHiddenValue = (force = false) => {
+        const values = selectedValues();
+        if (force || values.length > 0 || String(hiddenInput.value || '').trim() === '') {
+          hiddenInput.value = values.join(',');
+        }
+        updateCount();
+      };
+
+      item.querySelectorAll('[data-event-interface-action]').forEach((button) => {
+        button.addEventListener('click', (event) => {
+          event.preventDefault();
+          const mode = String(button.dataset.eventInterfaceAction || '').toLowerCase();
+          if (mode === 'all') {
+            options.forEach((option) => {
+              option.checked = true;
+            });
+          } else if (mode === 'none') {
+            options.forEach((option) => {
+              option.checked = false;
+            });
+          } else if (mode === 'invert') {
+            options.forEach((option) => {
+              option.checked = !option.checked;
+            });
+          }
+
+          syncHiddenValue(true);
+        });
+      });
+
+      options.forEach((option) => {
+        option.addEventListener('change', () => {
+          syncHiddenValue(true);
+        });
+      });
+
+      syncHiddenValue(false);
+      item.dataset.eventInterfaceBound = 'true';
+    });
+  };
+
   const setupGraphDeviceInterfaceInputs = () => {
     const containers = Array.from(document.querySelectorAll('[data-device-graph-interface-permissions]'));
     if (!containers.length) {
@@ -3676,6 +3814,8 @@
     setupDevicePermissionPortInputs();
     setupDevicePortOptionPickers();
     setupDevicePermissionCommandInputs();
+    setupEventDeviceInterfaceInputs();
+    setupEventInterfaceOptionPickers();
     setupGraphDeviceInterfaceInputs();
     setupGraphInterfaceOptionPickers();
     setupDeviceEditToggles();

@@ -178,6 +178,8 @@ class ScriptController extends Controller
         $isPortalContext = $eventsContext === 'portal';
         $role = (string) $request->session()->get('auth.role', '');
         $userId = (int) $request->session()->get('auth.user_id', 0);
+        $eventScopeRestricted = false;
+        $eventScopeInterfaceMap = [];
 
         if ($isPortalContext) {
             if ($role !== 'admin') {
@@ -201,13 +203,32 @@ class ScriptController extends Controller
                 }
 
                 if (DeviceEventPermission::supportsScopedAccess()) {
-                    $eventScopeDeviceIds = DB::table('device_event_permissions')
-                        ->where('user_id', $userId)
-                        ->pluck('device_id')
-                        ->map(static fn ($id): int => (int) $id)
-                        ->all();
+                    $eventScopeColumns = ['device_id'];
+                    $supportsEventInterfaceScope = DeviceEventPermission::supportsInterfaceScope();
+                    if ($supportsEventInterfaceScope) {
+                        $eventScopeColumns[] = 'allowed_interfaces';
+                    }
 
-                    if (!empty($eventScopeDeviceIds)) {
+                    $eventScopeRows = DB::table('device_event_permissions')
+                        ->where('user_id', $userId)
+                        ->get($eventScopeColumns);
+
+                    if ($eventScopeRows->isNotEmpty()) {
+                        $eventScopeRestricted = true;
+                        $eventScopeDeviceIds = [];
+                        foreach ($eventScopeRows as $eventScopeRow) {
+                            $scopeDeviceId = (int) ($eventScopeRow->device_id ?? 0);
+                            if ($scopeDeviceId <= 0) {
+                                continue;
+                            }
+
+                            $eventScopeDeviceIds[] = $scopeDeviceId;
+                            if ($supportsEventInterfaceScope) {
+                                $eventScopeInterfaceMap[$scopeDeviceId] = trim((string) ($eventScopeRow->allowed_interfaces ?? ''));
+                            }
+                        }
+
+                        $eventScopeDeviceIds = array_values(array_unique($eventScopeDeviceIds));
                         $accessibleDeviceIds = array_values(array_intersect($accessibleDeviceIds, $eventScopeDeviceIds));
                     }
                 }
@@ -246,6 +267,17 @@ class ScriptController extends Controller
         }
 
         $html = (string) ($eventsResult['output'] ?? '');
+        if (
+            $isPortalContext
+            && $role !== 'admin'
+            && $eventScopeRestricted
+        ) {
+            $eventScopeExpression = trim((string) ($eventScopeInterfaceMap[(int) $device->id] ?? ''));
+            if ($eventScopeExpression !== '') {
+                $html = $this->filterInterfaceEventsHtmlByAllowedInterfaces($html, $eventScopeExpression);
+            }
+        }
+
         if ($pollerResult && !$pollerResult['ok']) {
             Log::warning('poller.php execution failed before events view render.', [
                 'device_id' => $device->id,
@@ -2089,6 +2121,116 @@ class ScriptController extends Controller
         }
 
         return false;
+    }
+
+    private function filterInterfaceEventsHtmlByAllowedInterfaces(string $html, string $allowedInterfaces): string
+    {
+        $allowedInterfaces = trim($allowedInterfaces);
+        if ($allowedInterfaces === '' || trim($html) === '') {
+            return $html;
+        }
+
+        $previousLibxmlUseErrors = libxml_use_internal_errors(true);
+        $dom = new \DOMDocument();
+        $loaded = $dom->loadHTML('<?xml encoding="utf-8" ?>' . $html);
+        if (!$loaded) {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previousLibxmlUseErrors);
+            return $html;
+        }
+
+        $xpath = new \DOMXPath($dom);
+        $cardNodes = $xpath->query("//div[contains(concat(' ', normalize-space(@class), ' '), ' card ')]");
+        if ($cardNodes === false) {
+            libxml_clear_errors();
+            libxml_use_internal_errors($previousLibxmlUseErrors);
+            return $html;
+        }
+
+        $cards = [];
+        foreach ($cardNodes as $cardNode) {
+            if ($cardNode instanceof \DOMElement) {
+                $cards[] = $cardNode;
+            }
+        }
+
+        foreach ($cards as $cardNode) {
+            $titleNode = $xpath->query(
+                ".//div[contains(concat(' ', normalize-space(@class), ' '), ' title ')]",
+                $cardNode
+            )?->item(0);
+
+            $title = trim((string) ($titleNode?->textContent ?? ''));
+            $interfaceName = $this->extractInterfaceNameFromEventCardTitle($title);
+
+            // Keep non-interface cards untouched; filter only interface cards.
+            if ($interfaceName === null) {
+                continue;
+            }
+
+            if ($this->interfaceMatchesAllowedList($interfaceName, $allowedInterfaces)) {
+                continue;
+            }
+
+            $parent = $cardNode->parentNode;
+            if ($parent instanceof \DOMNode) {
+                $parent->removeChild($cardNode);
+            }
+        }
+
+        $eventContainers = $xpath->query("//div[contains(concat(' ', normalize-space(@class), ' '), ' events ')]");
+        if ($eventContainers !== false) {
+            foreach ($eventContainers as $eventContainer) {
+                if (!($eventContainer instanceof \DOMElement)) {
+                    continue;
+                }
+
+                $remainingCards = $xpath->query(
+                    ".//div[contains(concat(' ', normalize-space(@class), ' '), ' card ')]",
+                    $eventContainer
+                );
+                if ($remainingCards !== false && $remainingCards->length > 0) {
+                    continue;
+                }
+
+                $existingEmpty = $xpath->query(
+                    ".//div[contains(concat(' ', normalize-space(@class), ' '), ' empty ')]",
+                    $eventContainer
+                );
+                if ($existingEmpty !== false && $existingEmpty->length > 0) {
+                    continue;
+                }
+
+                $emptyNode = $dom->createElement('div', "No interface events match this user's interface scope.");
+                $emptyNode->setAttribute('class', 'empty');
+                $eventContainer->appendChild($emptyNode);
+            }
+        }
+
+        $output = $dom->saveHTML();
+        libxml_clear_errors();
+        libxml_use_internal_errors($previousLibxmlUseErrors);
+
+        if (!is_string($output) || trim($output) === '') {
+            return $html;
+        }
+
+        return (string) preg_replace('/^<\?xml[^>]*>\s*/', '', $output);
+    }
+
+    private function extractInterfaceNameFromEventCardTitle(string $title): ?string
+    {
+        $title = trim($title);
+        if ($title === '') {
+            return null;
+        }
+
+        if (preg_match('/Interface\s+(.+?)\(\)\s*:/i', $title, $matches) !== 1) {
+            return null;
+        }
+
+        $value = trim((string) ($matches[1] ?? ''));
+        return $value !== '' ? $value : null;
     }
 
     private function interfaceRowMatchesAllowedList(object $interface, string $allowedPorts): bool
