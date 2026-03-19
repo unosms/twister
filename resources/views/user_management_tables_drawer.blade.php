@@ -842,7 +842,7 @@ Run <code>php artisan migrate --force</code> to enable user graph access toggles
 </div>
 <?php endif; ?>
 </div>
-<div class="flex flex-col gap-2 lg:col-span-12 order-10" data-device-port-permissions>
+<div class="flex flex-col gap-2 lg:col-span-12 order-20" data-device-port-permissions>
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Port Access Per Device (optional)</label>
 <div class="border border-[#cfd7e7] dark:border-gray-700 rounded-lg p-3 space-y-3 bg-white dark:bg-gray-800">
 <?php $__currentLoopData = $devices; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $device): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
@@ -893,7 +893,7 @@ $isChecked = $optionValue !== '' && isset($selectedPortLookup[strtolower($option
 </div>
 <p class="text-xs text-gray-400">Leave clear to allow all ports on that device.</p>
 </div>
-<div class="flex flex-col gap-2 lg:col-span-12 order-20" data-device-command-permissions>
+<div class="flex flex-col gap-2 lg:col-span-12 order-10" data-device-command-permissions>
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Command Scope Per Device (optional)</label>
 <?php if($deviceCommandRestrictionsReady ?? false): ?>
 <div class="border border-[#cfd7e7] dark:border-gray-700 rounded-lg p-3 space-y-3 bg-white dark:bg-gray-800">

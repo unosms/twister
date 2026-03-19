@@ -480,7 +480,7 @@ Run <code>php artisan migrate --force</code> to enable user graph access toggles
 @endif
 </div>
 
-<div class="xl:col-span-2 order-10 flex flex-col gap-2" data-device-port-permissions>
+<div class="xl:col-span-2 order-20 flex flex-col gap-2" data-device-port-permissions>
 <label class="text-sm font-semibold text-slate-700 dark:text-slate-200">Port Access Per Device (optional)</label>
 <div class="rounded-lg border border-slate-200 dark:border-slate-700 p-3 space-y-3 bg-slate-50/70 dark:bg-slate-800/40">
 @foreach ($devices as $device)
@@ -531,7 +531,7 @@ $isChecked = $optionValue !== '' && isset($selectedPortLookup[strtolower($option
 </div>
 <p class="text-xs text-slate-400">Leave clear to allow all ports on that device.</p>
 </div>
-<div class="xl:col-span-2 order-20 flex flex-col gap-2" data-device-command-permissions>
+<div class="xl:col-span-2 order-10 flex flex-col gap-2" data-device-command-permissions>
 <label class="text-sm font-semibold text-slate-700 dark:text-slate-200">Command Scope Per Device (optional)</label>
 @if ($deviceCommandRestrictionsReady ?? false)
 <div class="rounded-lg border border-slate-200 dark:border-slate-700 p-3 space-y-3 bg-slate-50/70 dark:bg-slate-800/40">
