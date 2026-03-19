@@ -1615,6 +1615,15 @@
           const deviceId = String(item.dataset.deviceId || '');
           const visible = selectedIds.has(deviceId);
           item.classList.toggle('hidden', !visible);
+          const hiddenInput = item.querySelector('input[data-device-port-hidden]');
+          if (hiddenInput) {
+            hiddenInput.disabled = !visible;
+          }
+          item
+            .querySelectorAll('input[type="checkbox"][data-device-port-option]')
+            .forEach((option) => {
+              option.disabled = !visible;
+            });
           if (visible) {
             visibleCount += 1;
           }
@@ -1677,6 +1686,15 @@
           const deviceId = String(item.dataset.deviceId || '');
           const visible = selectedIds.has(deviceId);
           item.classList.toggle('hidden', !visible);
+          const hiddenInput = item.querySelector('input[data-event-interface-hidden]');
+          if (hiddenInput) {
+            hiddenInput.disabled = !visible;
+          }
+          item
+            .querySelectorAll('input[type="checkbox"][data-event-interface-option]')
+            .forEach((option) => {
+              option.disabled = !visible;
+            });
           if (visible) {
             visibleCount += 1;
           }
@@ -1815,6 +1833,15 @@
           const deviceId = String(item.dataset.deviceId || '');
           const visible = selectedIds.has(deviceId);
           item.classList.toggle('hidden', !visible);
+          const hiddenInput = item.querySelector('input[data-graph-interface-hidden]');
+          if (hiddenInput) {
+            hiddenInput.disabled = !visible;
+          }
+          item
+            .querySelectorAll('input[type="checkbox"][data-graph-interface-option]')
+            .forEach((option) => {
+              option.disabled = !visible;
+            });
           if (visible) {
             visibleCount += 1;
           }
@@ -2174,6 +2201,11 @@
           const deviceId = String(item.dataset.deviceId || '');
           const visible = selectedIds.has(deviceId);
           item.classList.toggle('hidden', !visible);
+          item
+            .querySelectorAll('input[type="checkbox"][data-telegram-device-interface-option]')
+            .forEach((option) => {
+              option.disabled = !visible;
+            });
           if (visible) {
             visibleCount += 1;
             if (wasHidden) {

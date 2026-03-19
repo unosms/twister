@@ -1078,8 +1078,8 @@ class UserController extends Controller
                 continue;
             }
 
-            if (!preg_match('/^[A-Za-z0-9_\-.:\/\*]+$/', $token)) {
-                return 'Interface access values must be comma-separated names (e.g. Gi1/0/1,Gi1/0/2 or Gi1/0/*).';
+            if (!preg_match('/^[A-Za-z0-9 _\-\.:\/\*\(\)\[\]#]+$/', $token)) {
+                return 'Interface access values must be comma-separated entries (for example Gi1/0/1,Gi1/0/2 or Gi1/0/*).';
             }
         }
 
