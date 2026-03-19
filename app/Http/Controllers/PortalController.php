@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Device;
 use App\Models\DeviceAssignment;
 use App\Models\CommandTemplate;
+use App\Models\DeviceEventPermission;
 use App\Models\DeviceGraphPermission;
 use App\Models\DevicePermission;
 use App\Models\User;
@@ -19,10 +20,15 @@ class PortalController extends Controller
         $role = request()->session()->get('auth.role');
         $authUser = $userId ? User::find($userId) : null;
         $canViewAssignedDeviceGraphs = $role === 'admin';
+        $canViewAssignedDeviceEvents = $role === 'admin';
         $graphAccessibleDeviceLookup = [];
+        $eventAccessibleDeviceLookup = [];
         if ($role !== 'admin') {
             $canViewAssignedDeviceGraphs = User::supportsAssignedDeviceGraphAccess()
                 ? (bool) ($authUser?->can_view_assigned_device_graphs ?? false)
+                : true;
+            $canViewAssignedDeviceEvents = User::supportsAssignedDeviceEventAccess()
+                ? (bool) ($authUser?->can_view_assigned_device_events ?? false)
                 : true;
         }
         $devices = collect();
@@ -36,6 +42,10 @@ class PortalController extends Controller
                 ->orderBy('name')
                 ->get();
             $graphAccessibleDeviceLookup = array_fill_keys(
+                $allDevices->pluck('id')->map(static fn ($id): int => (int) $id)->all(),
+                true
+            );
+            $eventAccessibleDeviceLookup = array_fill_keys(
                 $allDevices->pluck('id')->map(static fn ($id): int => (int) $id)->all(),
                 true
             );
@@ -101,6 +111,29 @@ class PortalController extends Controller
                 }
 
                 $graphAccessibleDeviceLookup = array_fill_keys($graphVisibleDeviceIds, true);
+            }
+
+            if ($canViewAssignedDeviceEvents) {
+                $eventVisibleDeviceIds = $allDevices->pluck('id')
+                    ->map(static fn ($id): int => (int) $id)
+                    ->all();
+
+                if (DeviceEventPermission::supportsScopedAccess()) {
+                    $eventScopeDeviceIds = DB::table('device_event_permissions')
+                        ->where('user_id', $userId)
+                        ->pluck('device_id')
+                        ->map(static fn ($id): int => (int) $id)
+                        ->all();
+
+                    if (!empty($eventScopeDeviceIds)) {
+                        $eventVisibleDeviceIds = array_values(array_intersect(
+                            $eventVisibleDeviceIds,
+                            $eventScopeDeviceIds
+                        ));
+                    }
+                }
+
+                $eventAccessibleDeviceLookup = array_fill_keys($eventVisibleDeviceIds, true);
             }
 
             $user = User::with('commandTemplates')->find($userId);
@@ -221,6 +254,8 @@ class PortalController extends Controller
             'commandTemplatesByDevice' => $commandTemplatesByDevice,
             'canViewAssignedDeviceGraphs' => $canViewAssignedDeviceGraphs,
             'graphAccessibleDeviceLookup' => $graphAccessibleDeviceLookup,
+            'canViewAssignedDeviceEvents' => $canViewAssignedDeviceEvents,
+            'eventAccessibleDeviceLookup' => $eventAccessibleDeviceLookup,
             'healthPercent' => $healthPercent,
             'accessibleScopeLabel' => $accessibleScopeLabel,
             'deviceTypeBreakdown' => $deviceTypeBreakdown,

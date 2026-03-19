@@ -36,6 +36,7 @@ Route::middleware(['auth.session', 'audit.log'])->group(function () {
     Route::get('/portal', [PortalController::class, 'index'])->name('portal.index');
     Route::get('/exec.php', [ScriptController::class, 'execLegacy'])->name('scripts.exec');
     Route::get('/portal/devices/graphs', [ScriptController::class, 'showPortalGraphsPage'])->name('portal.devices.graphs');
+    Route::get('/portal/devices/{device}/events', [ScriptController::class, 'showPortalEventsPage'])->name('portal.devices.events');
 });
 
 Route::middleware(['admin.auth', 'audit.log'])->group(function () {

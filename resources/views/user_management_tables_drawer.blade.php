@@ -375,9 +375,34 @@ $canViewAssignedDeviceGraphs = (bool) old(
     'can_view_assigned_device_graphs',
     (bool) ($user->can_view_assigned_device_graphs ?? false)
 );
+$canViewAssignedDeviceEvents = (bool) old(
+    'can_view_assigned_device_events',
+    (bool) ($user->can_view_assigned_device_events ?? false)
+);
 $assignedDeviceGraphAccessReady = (bool) ($assignedDeviceGraphAccessReady ?? false);
+$assignedDeviceEventAccessReady = (bool) ($assignedDeviceEventAccessReady ?? false);
 $deviceGraphScopeReady = (bool) ($deviceGraphScopeReady ?? false);
+$deviceEventScopeReady = (bool) ($deviceEventScopeReady ?? false);
 $graphInterfaceOptionsByDevice = is_array($graphInterfaceOptionsByDevice ?? null) ? $graphInterfaceOptionsByDevice : [];
+$selectedEventDeviceIds = [];
+if ($deviceEventScopeReady && \App\Models\DeviceEventPermission::supportsScopedAccess()) {
+    $selectedEventDeviceIds = \Illuminate\Support\Facades\DB::table('device_event_permissions')
+        ->where('user_id', $user->id)
+        ->pluck('device_id')
+        ->map(static fn ($id): int => (int) $id)
+        ->all();
+}
+$oldSelectedEventDeviceIds = old('event_device_ids');
+if (is_array($oldSelectedEventDeviceIds)) {
+    $selectedEventDeviceIds = array_values(array_unique(array_map(
+        'intval',
+        array_filter($oldSelectedEventDeviceIds, static fn ($id): bool => is_numeric($id))
+    )));
+}
+$selectedEventDeviceIds = array_values(array_unique(array_map(
+    'intval',
+    array_filter($selectedEventDeviceIds, static fn ($id): bool => is_numeric($id))
+)));
 $selectedGraphDeviceIds = [];
 $graphInterfaceMap = [];
 if ($deviceGraphScopeReady && \App\Models\DeviceGraphPermission::supportsScopedAccess()) {
@@ -581,7 +606,47 @@ Upload Picture
 </div>
 <p class="text-xs text-gray-400">Grant command access to devices even if assigned to another user.</p>
 </div>
-<div class="flex flex-col gap-2 lg:col-span-12">
+<div class="flex flex-col gap-2 lg:col-span-12 order-25">
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Device Event Access</label>
+<?php if($assignedDeviceEventAccessReady): ?>
+<label class="inline-flex items-center gap-2 rounded-lg border border-[#cfd7e7] bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
+<input class="rounded border-gray-300 text-primary focus:ring-primary" type="checkbox" name="can_view_assigned_device_events" value="1" <?php if($canViewAssignedDeviceEvents): echo 'checked'; endif; ?> />
+<span>Enable event visibility for this user account.</span>
+</label>
+<p class="text-xs text-gray-400">Admins always have event access; this toggle applies to user accounts.</p>
+<?php if($deviceEventScopeReady): ?>
+<div class="flex flex-col gap-2" data-checkbox-group>
+<div class="flex items-center justify-between gap-2">
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Event Devices</label>
+<span class="text-[11px] font-semibold text-gray-500"><span data-checkbox-count>0</span> selected</span>
+</div>
+<div class="max-h-44 overflow-y-auto rounded-lg border border-[#cfd7e7] bg-white p-3 dark:border-gray-700 dark:bg-gray-800 space-y-2">
+<?php $__currentLoopData = $devices; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $device): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+<label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+<input class="rounded border-gray-300 text-primary focus:ring-primary" type="checkbox" name="event_device_ids[]" value="<?php echo e($device->id); ?>" data-checkbox-item <?php if(in_array((int) $device->id, $selectedEventDeviceIds, true)): echo 'checked'; endif; ?>/>
+<span><?php echo e($device->name); ?> <?php if($device->serial_number): ?>(<?php echo e($device->serial_number); ?>)<?php endif; ?></span>
+</label>
+<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+</div>
+<div class="flex flex-wrap gap-2">
+<button class="px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-checkbox-action="all">Select all</button>
+<button class="px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-checkbox-action="none">Clear</button>
+<button class="px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-checkbox-action="invert">Invert</button>
+</div>
+</div>
+<p class="text-xs text-gray-400">If no event devices are selected, enabled users can view events for all assigned/permitted devices.</p>
+<?php else: ?>
+<div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300">
+Run <code>php artisan migrate --force</code> to enable per-device event scope controls.
+</div>
+<?php endif; ?>
+<?php else: ?>
+<div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300">
+Run <code>php artisan migrate --force</code> to enable user event access toggles.
+</div>
+<?php endif; ?>
+</div>
+<div class="flex flex-col gap-2 lg:col-span-12 order-30">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Device Graph Access</label>
 <?php if($assignedDeviceGraphAccessReady): ?>
 <label class="inline-flex items-center gap-2 rounded-lg border border-[#cfd7e7] bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
@@ -674,7 +739,7 @@ Run <code>php artisan migrate --force</code> to enable user graph access toggles
 </div>
 <?php endif; ?>
 </div>
-<div class="flex flex-col gap-2 lg:col-span-12" data-device-port-permissions>
+<div class="flex flex-col gap-2 lg:col-span-12 order-10" data-device-port-permissions>
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Port Access Per Device (optional)</label>
 <div class="border border-[#cfd7e7] dark:border-gray-700 rounded-lg p-3 space-y-3 bg-white dark:bg-gray-800">
 <?php $__currentLoopData = $devices; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $device): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
@@ -725,7 +790,7 @@ $isChecked = $optionValue !== '' && isset($selectedPortLookup[strtolower($option
 </div>
 <p class="text-xs text-gray-400">Leave clear to allow all ports on that device.</p>
 </div>
-<div class="flex flex-col gap-2 lg:col-span-12" data-device-command-permissions>
+<div class="flex flex-col gap-2 lg:col-span-12 order-20" data-device-command-permissions>
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Command Scope Per Device (optional)</label>
 <?php if($deviceCommandRestrictionsReady ?? false): ?>
 <div class="border border-[#cfd7e7] dark:border-gray-700 rounded-lg p-3 space-y-3 bg-white dark:bg-gray-800">

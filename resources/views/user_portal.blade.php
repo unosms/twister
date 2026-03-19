@@ -466,12 +466,21 @@ $lastSeenText = $device->last_seen_at ? $device->last_seen_at->diffForHumans() :
 </select>
 </div>
 
+@if ((($canViewAssignedDeviceGraphs ?? false) && ($graphAccessibleDeviceLookup[(int) $device->id] ?? false))
+    || (($canViewAssignedDeviceEvents ?? false) && ($eventAccessibleDeviceLookup[(int) $device->id] ?? false)))
+<div class="mt-4 flex flex-wrap gap-2">
 @if (($canViewAssignedDeviceGraphs ?? false) && ($graphAccessibleDeviceLookup[(int) $device->id] ?? false))
-<div class="mt-4">
 <a class="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-950/20 dark:text-blue-200 dark:hover:bg-blue-900/30" href="{{ route('portal.devices.graphs', ['id' => $device->id]) }}">
 <span class="material-symbols-outlined text-[16px]">monitoring</span>
 View Device Graphs
 </a>
+@endif
+@if (($canViewAssignedDeviceEvents ?? false) && ($eventAccessibleDeviceLookup[(int) $device->id] ?? false))
+<a class="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-200 dark:hover:bg-emerald-900/30" href="{{ route('portal.devices.events', ['device' => $device->id]) }}">
+<span class="material-symbols-outlined text-[16px]">event</span>
+View Device Events
+</a>
+@endif
 </div>
 @endif
 </div>

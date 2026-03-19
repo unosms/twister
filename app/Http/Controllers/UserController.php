@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CommandTemplate;
 use App\Models\Device;
 use App\Models\DeviceAssignment;
+use App\Models\DeviceEventPermission;
 use App\Models\DeviceGraphPermission;
 use App\Models\DevicePermission;
 use App\Models\User;
@@ -277,7 +278,9 @@ class UserController extends Controller
             'graphInterfaceOptionsByDevice' => $graphInterfaceOptionsByDevice,
             'avatarStorageReady' => User::supportsAvatarStorage(),
             'assignedDeviceGraphAccessReady' => User::supportsAssignedDeviceGraphAccess(),
+            'assignedDeviceEventAccessReady' => User::supportsAssignedDeviceEventAccess(),
             'deviceGraphScopeReady' => DeviceGraphPermission::supportsScopedAccess(),
+            'deviceEventScopeReady' => DeviceEventPermission::supportsScopedAccess(),
             'telegramDeviceInterfaceScopeReady' => User::supportsTelegramDeviceInterfaceScope(),
             'deviceCommandRestrictionsReady' => DevicePermission::supportsAllowedCommandTemplateIds(),
             'telegramSeverityOptions' => self::TELEGRAM_SEVERITIES,
@@ -521,8 +524,11 @@ class UserController extends Controller
             'custom_command_script_code' => ['nullable', 'string', 'max:65535', 'required_if:custom_command_type,custom'],
 
             'can_view_assigned_device_graphs' => ['nullable', 'boolean'],
+            'can_view_assigned_device_events' => ['nullable', 'boolean'],
             'graph_device_ids' => ['nullable', 'array'],
             'graph_device_ids.*' => ['integer', 'exists:devices,id'],
+            'event_device_ids' => ['nullable', 'array'],
+            'event_device_ids.*' => ['integer', 'exists:devices,id'],
             'graph_device_interfaces' => ['nullable', 'array'],
             'graph_device_interfaces.*' => [
                 'nullable',
@@ -585,7 +591,9 @@ class UserController extends Controller
 
         $telegramEnabled = $request->boolean('telegram_enabled');
         $canViewAssignedDeviceGraphs = $request->boolean('can_view_assigned_device_graphs');
+        $canViewAssignedDeviceEvents = $request->boolean('can_view_assigned_device_events');
         $assignedDeviceGraphAccessReady = User::supportsAssignedDeviceGraphAccess();
+        $assignedDeviceEventAccessReady = User::supportsAssignedDeviceEventAccess();
         $telegramChatId = trim((string) ($data['telegram_chat_id'] ?? ''));
         $telegramChatId = $telegramChatId !== '' ? $telegramChatId : null;
         $telegramBotToken = trim((string) ($data['telegram_bot_token'] ?? ''));
@@ -637,6 +645,9 @@ class UserController extends Controller
 
         if ($assignedDeviceGraphAccessReady) {
             $updates['can_view_assigned_device_graphs'] = $canViewAssignedDeviceGraphs;
+        }
+        if ($assignedDeviceEventAccessReady) {
+            $updates['can_view_assigned_device_events'] = $canViewAssignedDeviceEvents;
         }
 
         if ($avatarStorageReady) {
@@ -907,6 +918,37 @@ class UserController extends Controller
                 $user->graphScopedDevices()->sync($graphPayload);
             } else {
                 $user->graphScopedDevices()->detach();
+            }
+        }
+
+        if (DeviceEventPermission::supportsScopedAccess()) {
+            $eventDeviceIds = $data['event_device_ids'] ?? [];
+            $eventDeviceIds = array_values(array_unique(array_map(
+                static fn ($id): int => (int) $id,
+                array_filter($eventDeviceIds, static fn ($id): bool => is_numeric($id) && (int) $id > 0)
+            )));
+
+            $eventPayload = [];
+            if (!empty($eventDeviceIds)) {
+                $existingEventMeta = DB::table('device_event_permissions')
+                    ->where('user_id', $user->id)
+                    ->whereIn('device_id', $eventDeviceIds)
+                    ->get(['device_id', 'granted_by', 'granted_at'])
+                    ->keyBy(static fn ($row): int => (int) $row->device_id);
+
+                foreach ($eventDeviceIds as $deviceId) {
+                    $existing = $existingEventMeta->get($deviceId);
+                    $eventPayload[$deviceId] = [
+                        'granted_by' => $existing?->granted_by ?? $assignedBy,
+                        'granted_at' => $existing?->granted_at ?? now(),
+                    ];
+                }
+            }
+
+            if (!empty($eventPayload)) {
+                $user->eventScopedDevices()->sync($eventPayload);
+            } else {
+                $user->eventScopedDevices()->detach();
             }
         }
 

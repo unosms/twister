@@ -18,6 +18,7 @@ class User extends Authenticatable
 
     protected static ?bool $avatarStorageSupported = null;
     protected static ?bool $assignedDeviceGraphAccessSupported = null;
+    protected static ?bool $assignedDeviceEventAccessSupported = null;
     protected static ?bool $telegramDeviceInterfaceScopeSupported = null;
 
     /**
@@ -42,6 +43,7 @@ class User extends Authenticatable
         'telegram_event_types',
         'telegram_template',
         'can_view_assigned_device_graphs',
+        'can_view_assigned_device_events',
 
     ];
 
@@ -75,6 +77,7 @@ class User extends Authenticatable
         'telegram_event_types' => 'array',
         'telegram_template' => 'string',
         'can_view_assigned_device_graphs' => 'boolean',
+        'can_view_assigned_device_events' => 'boolean',
         ];
     }
 
@@ -99,6 +102,13 @@ class User extends Authenticatable
     {
         return $this->belongsToMany(Device::class, 'device_graph_permissions')
             ->withPivot(['granted_by', 'granted_at', 'allowed_interfaces'])
+            ->withTimestamps();
+    }
+
+    public function eventScopedDevices()
+    {
+        return $this->belongsToMany(Device::class, 'device_event_permissions')
+            ->withPivot(['granted_by', 'granted_at'])
             ->withTimestamps();
     }
 
@@ -153,6 +163,22 @@ class User extends Authenticatable
         }
 
         return static::$assignedDeviceGraphAccessSupported;
+    }
+
+    public static function supportsAssignedDeviceEventAccess(): bool
+    {
+        if (static::$assignedDeviceEventAccessSupported !== null) {
+            return static::$assignedDeviceEventAccessSupported;
+        }
+
+        try {
+            static::$assignedDeviceEventAccessSupported = Schema::hasTable('users')
+                && Schema::hasColumn('users', 'can_view_assigned_device_events');
+        } catch (\Throwable) {
+            static::$assignedDeviceEventAccessSupported = false;
+        }
+
+        return static::$assignedDeviceEventAccessSupported;
     }
 
     public static function supportsTelegramDeviceInterfaceScope(): bool

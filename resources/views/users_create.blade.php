@@ -94,11 +94,17 @@ $customCommandScriptCode = old('custom_command_script_code', '');
 $showCustomCommandFields = $customCommandType === 'custom';
 $telegramEnabled = (bool) old('telegram_enabled', false);
 $canViewAssignedDeviceGraphs = (bool) old('can_view_assigned_device_graphs', false);
+$canViewAssignedDeviceEvents = (bool) old('can_view_assigned_device_events', false);
 $assignedDeviceGraphAccessReady = (bool) ($assignedDeviceGraphAccessReady ?? false);
+$assignedDeviceEventAccessReady = (bool) ($assignedDeviceEventAccessReady ?? false);
 $deviceGraphScopeReady = (bool) ($deviceGraphScopeReady ?? false);
+$deviceEventScopeReady = (bool) ($deviceEventScopeReady ?? false);
 $selectedGraphDeviceIds = old('graph_device_ids', []);
 if (!is_array($selectedGraphDeviceIds)) { $selectedGraphDeviceIds = []; }
 $selectedGraphDeviceIds = array_values(array_unique(array_map('intval', array_filter($selectedGraphDeviceIds, static fn ($id): bool => is_numeric($id)))));
+$selectedEventDeviceIds = old('event_device_ids', []);
+if (!is_array($selectedEventDeviceIds)) { $selectedEventDeviceIds = []; }
+$selectedEventDeviceIds = array_values(array_unique(array_map('intval', array_filter($selectedEventDeviceIds, static fn ($id): bool => is_numeric($id)))));
 $graphInterfaceMap = [];
 $oldGraphInterfaceMap = old('graph_device_interfaces');
 if (is_array($oldGraphInterfaceMap)) {
@@ -260,7 +266,48 @@ Upload Picture
 </div>
 </div>
 
-<div class="xl:col-span-2 flex flex-col gap-2">
+<div class="xl:col-span-2 order-25 flex flex-col gap-2">
+<label class="text-sm font-semibold text-slate-700 dark:text-slate-200">Device Event Access</label>
+@if ($assignedDeviceEventAccessReady)
+<label class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-200">
+<input class="rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" name="can_view_assigned_device_events" value="1" @checked($canViewAssignedDeviceEvents) />
+<span>Enable event visibility for this user account.</span>
+</label>
+<p class="text-xs text-slate-400">Admins always have event access; this toggle applies to user accounts.</p>
+@if ($deviceEventScopeReady)
+<div class="flex flex-col gap-2" data-checkbox-group>
+<div class="flex items-center justify-between gap-2">
+<label class="text-sm font-semibold text-slate-700 dark:text-slate-200">Event Devices</label>
+<span class="text-[11px] font-semibold text-slate-500"><span data-checkbox-count>0</span> selected</span>
+</div>
+<div class="max-h-44 overflow-y-auto rounded-lg border border-slate-300 bg-white p-3 dark:border-slate-700 dark:bg-slate-800 space-y-2">
+@foreach ($devices as $device)
+<label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+<input class="rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" name="event_device_ids[]" value="{{ $device->id }}" data-checkbox-item @checked(in_array((int) $device->id, $selectedEventDeviceIds, true))/>
+<span>{{ $device->name }}@if ($device->serial_number) ({{ $device->serial_number }})@endif</span>
+</label>
+@endforeach
+</div>
+<div class="flex flex-wrap gap-2">
+<button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-checkbox-action="all">Select all</button>
+<button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-checkbox-action="none">Clear</button>
+<button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-checkbox-action="invert">Invert</button>
+</div>
+</div>
+<p class="text-xs text-slate-400">If no event devices are selected, enabled users can view events for all assigned/permitted devices.</p>
+@else
+<div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300">
+Run <code>php artisan migrate --force</code> to enable per-device event scope controls.
+</div>
+@endif
+@else
+<div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300">
+Run <code>php artisan migrate --force</code> to enable user event access toggles.
+</div>
+@endif
+</div>
+
+<div class="xl:col-span-2 order-30 flex flex-col gap-2">
 <label class="text-sm font-semibold text-slate-700 dark:text-slate-200">Device Graph Access</label>
 @if ($assignedDeviceGraphAccessReady)
 <label class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-200">
@@ -354,7 +401,7 @@ Run <code>php artisan migrate --force</code> to enable user graph access toggles
 @endif
 </div>
 
-<div class="xl:col-span-2 flex flex-col gap-2" data-device-port-permissions>
+<div class="xl:col-span-2 order-10 flex flex-col gap-2" data-device-port-permissions>
 <label class="text-sm font-semibold text-slate-700 dark:text-slate-200">Port Access Per Device (optional)</label>
 <div class="rounded-lg border border-slate-200 dark:border-slate-700 p-3 space-y-3 bg-slate-50/70 dark:bg-slate-800/40">
 @foreach ($devices as $device)
@@ -405,7 +452,7 @@ $isChecked = $optionValue !== '' && isset($selectedPortLookup[strtolower($option
 </div>
 <p class="text-xs text-slate-400">Leave clear to allow all ports on that device.</p>
 </div>
-<div class="xl:col-span-2 flex flex-col gap-2" data-device-command-permissions>
+<div class="xl:col-span-2 order-20 flex flex-col gap-2" data-device-command-permissions>
 <label class="text-sm font-semibold text-slate-700 dark:text-slate-200">Command Scope Per Device (optional)</label>
 @if ($deviceCommandRestrictionsReady ?? false)
 <div class="rounded-lg border border-slate-200 dark:border-slate-700 p-3 space-y-3 bg-slate-50/70 dark:bg-slate-800/40">

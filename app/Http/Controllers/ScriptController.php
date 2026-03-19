@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\CommandTemplate;
 use App\Models\Device;
+use App\Models\DeviceEventPermission;
 use App\Models\DeviceGraphPermission;
 use App\Models\DevicePermission;
 use App\Models\User;
@@ -173,6 +174,56 @@ class ScriptController extends Controller
 
     public function showEventsPage(Request $request, Device $device)
     {
+        $eventsContext = strtolower(trim((string) $request->attributes->get('events_context', 'admin')));
+        $isPortalContext = $eventsContext === 'portal';
+        $role = (string) $request->session()->get('auth.role', '');
+        $userId = (int) $request->session()->get('auth.user_id', 0);
+
+        if ($isPortalContext) {
+            if ($role !== 'admin') {
+                if ($userId <= 0) {
+                    return $this->plainError('Unauthorized.', 401);
+                }
+
+                if (User::supportsAssignedDeviceEventAccess()) {
+                    $canViewAssignedDeviceEvents = (bool) User::query()
+                        ->where('id', $userId)
+                        ->value('can_view_assigned_device_events');
+
+                    if (!$canViewAssignedDeviceEvents) {
+                        return $this->plainError('Forbidden: event access is not enabled for this account.', 403);
+                    }
+                }
+
+                $accessibleDeviceIds = $this->resolveGraphAccessibleDeviceIds($userId);
+                if (empty($accessibleDeviceIds)) {
+                    return $this->plainError('Forbidden: no assigned devices are available for event access.', 403);
+                }
+
+                if (DeviceEventPermission::supportsScopedAccess()) {
+                    $eventScopeDeviceIds = DB::table('device_event_permissions')
+                        ->where('user_id', $userId)
+                        ->pluck('device_id')
+                        ->map(static fn ($id): int => (int) $id)
+                        ->all();
+
+                    if (!empty($eventScopeDeviceIds)) {
+                        $accessibleDeviceIds = array_values(array_intersect($accessibleDeviceIds, $eventScopeDeviceIds));
+                    }
+                }
+
+                if (empty($accessibleDeviceIds)) {
+                    return $this->plainError('Forbidden: no event-scoped devices are available for this account.', 403);
+                }
+
+                if (!in_array((int) $device->id, $accessibleDeviceIds, true)) {
+                    return $this->plainError('Forbidden: device is not enabled for event access.', 403);
+                }
+            }
+        } elseif ($role !== 'admin') {
+            return $this->plainError('Unauthorized.', 401);
+        }
+
         // Render quickly from stored DB events by default.
         // Pass poll=1/true/yes/on only when an immediate manual poll is needed.
         $runPoller = in_array(
@@ -211,6 +262,13 @@ class ScriptController extends Controller
         $request->attributes->set('graph_context', 'portal');
 
         return $this->showGraphsPage($request);
+    }
+
+    public function showPortalEventsPage(Request $request, Device $device)
+    {
+        $request->attributes->set('events_context', 'portal');
+
+        return $this->showEventsPage($request, $device);
     }
 
     public function showGraphsPage(Request $request)
