@@ -650,7 +650,7 @@ Upload Picture
 </div>
 <p class="text-xs text-gray-400">Grant command access to devices even if assigned to another user.</p>
 </div>
-<div class="flex flex-col gap-2 lg:col-span-12 order-25">
+<div class="flex flex-col gap-2 lg:col-span-12 order-12">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Device Event Access</label>
 <?php if($assignedDeviceEventAccessReady): ?>
 <label class="inline-flex items-center gap-2 rounded-lg border border-[#cfd7e7] bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
@@ -749,7 +749,7 @@ Run <code>php artisan migrate --force</code> to enable user event access toggles
 </div>
 <?php endif; ?>
 </div>
-<div class="flex flex-col gap-2 lg:col-span-12 order-30">
+<div class="flex flex-col gap-2 lg:col-span-12 order-last">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Device Graph Access</label>
 <?php if($assignedDeviceGraphAccessReady): ?>
 <label class="inline-flex items-center gap-2 rounded-lg border border-[#cfd7e7] bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
@@ -842,7 +842,7 @@ Run <code>php artisan migrate --force</code> to enable user graph access toggles
 </div>
 <?php endif; ?>
 </div>
-<div class="flex flex-col gap-2 lg:col-span-12 order-20" data-device-port-permissions>
+<div class="flex flex-col gap-2 lg:col-span-12 order-11" data-device-port-permissions>
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Port Access Per Device (optional)</label>
 <div class="border border-[#cfd7e7] dark:border-gray-700 rounded-lg p-3 space-y-3 bg-white dark:bg-gray-800">
 <?php $__currentLoopData = $devices; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $device): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
@@ -892,6 +892,10 @@ $isChecked = $optionValue !== '' && isset($selectedPortLookup[strtolower($option
 <p class="text-xs text-gray-400 <?php if(!empty($selectedPermissionDeviceIds)): echo 'hidden'; endif; ?>" data-device-port-empty>Select one or more command devices to set port-level access.</p>
 </div>
 <p class="text-xs text-gray-400">Leave clear to allow all ports on that device.</p>
+</div>
+<div class="flex flex-col gap-2 lg:col-span-12 order-9 rounded-lg border border-[#cfd7e7] bg-white p-3 dark:border-gray-700 dark:bg-gray-800">
+<p class="text-xs font-bold uppercase tracking-wider text-gray-500">Command Access Scope</p>
+<p class="mt-1 text-xs text-gray-400">These controls refine access for devices selected in Command Device Access.</p>
 </div>
 <div class="flex flex-col gap-2 lg:col-span-12 order-10" data-device-command-permissions>
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Command Scope Per Device (optional)</label>

@@ -286,7 +286,7 @@ Upload Picture
 </div>
 </div>
 
-<div class="xl:col-span-2 order-25 flex flex-col gap-2">
+<div class="xl:col-span-2 order-12 flex flex-col gap-2">
 <label class="text-sm font-semibold text-slate-700 dark:text-slate-200">Device Event Access</label>
 @if ($assignedDeviceEventAccessReady)
 <label class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-200">
@@ -386,7 +386,7 @@ Run <code>php artisan migrate --force</code> to enable user event access toggles
 @endif
 </div>
 
-<div class="xl:col-span-2 order-30 flex flex-col gap-2">
+<div class="xl:col-span-2 order-last flex flex-col gap-2">
 <label class="text-sm font-semibold text-slate-700 dark:text-slate-200">Device Graph Access</label>
 @if ($assignedDeviceGraphAccessReady)
 <label class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-200">
@@ -480,7 +480,7 @@ Run <code>php artisan migrate --force</code> to enable user graph access toggles
 @endif
 </div>
 
-<div class="xl:col-span-2 order-20 flex flex-col gap-2" data-device-port-permissions>
+<div class="xl:col-span-2 order-11 flex flex-col gap-2" data-device-port-permissions>
 <label class="text-sm font-semibold text-slate-700 dark:text-slate-200">Port Access Per Device (optional)</label>
 <div class="rounded-lg border border-slate-200 dark:border-slate-700 p-3 space-y-3 bg-slate-50/70 dark:bg-slate-800/40">
 @foreach ($devices as $device)
@@ -530,6 +530,10 @@ $isChecked = $optionValue !== '' && isset($selectedPortLookup[strtolower($option
 <p class="text-xs text-slate-400 {{ !empty($selectedPermissionDeviceIds) ? 'hidden' : '' }}" data-device-port-empty>Select one or more command devices to set port-level access.</p>
 </div>
 <p class="text-xs text-slate-400">Leave clear to allow all ports on that device.</p>
+</div>
+<div class="xl:col-span-2 order-9 rounded-lg border border-slate-200 bg-slate-50/70 p-3 dark:border-slate-700 dark:bg-slate-800/40">
+<p class="text-xs font-bold uppercase tracking-wider text-slate-500">Command Access Scope</p>
+<p class="mt-1 text-xs text-slate-400">These controls refine access for devices selected in Command Device Access.</p>
 </div>
 <div class="xl:col-span-2 order-10 flex flex-col gap-2" data-device-command-permissions>
 <label class="text-sm font-semibold text-slate-700 dark:text-slate-200">Command Scope Per Device (optional)</label>
