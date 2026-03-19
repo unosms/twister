@@ -92,6 +92,13 @@ class User extends Authenticatable
             ->withTimestamps();
     }
 
+    public function graphScopedDevices()
+    {
+        return $this->belongsToMany(Device::class, 'device_graph_permissions')
+            ->withPivot(['granted_by', 'granted_at', 'allowed_interfaces'])
+            ->withTimestamps();
+    }
+
     public function isSuperAdmin(): bool
     {
         if (($this->role ?? 'user') !== 'admin') {

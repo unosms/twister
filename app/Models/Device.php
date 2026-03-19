@@ -79,4 +79,11 @@ class Device extends Model
             ->withPivot(['granted_by', 'granted_at', 'allowed_ports'])
             ->withTimestamps();
     }
+
+    public function graphScopedUsers()
+    {
+        return $this->belongsToMany(User::class, 'device_graph_permissions')
+            ->withPivot(['granted_by', 'granted_at', 'allowed_interfaces'])
+            ->withTimestamps();
+    }
 }

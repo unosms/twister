@@ -466,7 +466,7 @@ $lastSeenText = $device->last_seen_at ? $device->last_seen_at->diffForHumans() :
 </select>
 </div>
 
-@if ($canViewAssignedDeviceGraphs ?? false)
+@if (($canViewAssignedDeviceGraphs ?? false) && ($graphAccessibleDeviceLookup[(int) $device->id] ?? false))
 <div class="mt-4">
 <a class="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-950/20 dark:text-blue-200 dark:hover:bg-blue-900/30" href="{{ route('portal.devices.graphs', ['id' => $device->id]) }}">
 <span class="material-symbols-outlined text-[16px]">monitoring</span>

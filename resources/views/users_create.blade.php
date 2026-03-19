@@ -79,6 +79,17 @@ $showCustomCommandFields = $customCommandType === 'custom';
 $telegramEnabled = (bool) old('telegram_enabled', false);
 $canViewAssignedDeviceGraphs = (bool) old('can_view_assigned_device_graphs', false);
 $assignedDeviceGraphAccessReady = (bool) ($assignedDeviceGraphAccessReady ?? false);
+$deviceGraphScopeReady = (bool) ($deviceGraphScopeReady ?? false);
+$selectedGraphDeviceIds = old('graph_device_ids', []);
+if (!is_array($selectedGraphDeviceIds)) { $selectedGraphDeviceIds = []; }
+$selectedGraphDeviceIds = array_values(array_unique(array_map('intval', array_filter($selectedGraphDeviceIds, static fn ($id): bool => is_numeric($id)))));
+$graphInterfaceMap = [];
+$oldGraphInterfaceMap = old('graph_device_interfaces');
+if (is_array($oldGraphInterfaceMap)) {
+    foreach ($oldGraphInterfaceMap as $deviceId => $value) {
+        if (is_numeric($deviceId)) { $graphInterfaceMap[(int) $deviceId] = trim((string) $value); }
+    }
+}
 @endphp
 
 <div class="flex h-screen overflow-hidden">
@@ -226,9 +237,55 @@ Upload Picture
 @if ($assignedDeviceGraphAccessReady)
 <label class="inline-flex items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700 dark:border-slate-700 dark:bg-slate-800/40 dark:text-slate-200">
 <input class="rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" name="can_view_assigned_device_graphs" value="1" @checked($canViewAssignedDeviceGraphs) />
-<span>Allow this user to view graphs for assigned/permitted devices.</span>
+<span>Enable graph visibility for this user account.</span>
 </label>
 <p class="text-xs text-slate-400">Admins always have graph access; this toggle applies to user accounts.</p>
+@if ($deviceGraphScopeReady)
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+<div class="flex flex-col gap-2" data-checkbox-group>
+<div class="flex items-center justify-between gap-2">
+<label class="text-sm font-semibold text-slate-700 dark:text-slate-200">Graph Devices</label>
+<span class="text-[11px] font-semibold text-slate-500"><span data-checkbox-count>0</span> selected</span>
+</div>
+<div class="max-h-44 overflow-y-auto rounded-lg border border-slate-300 bg-white p-3 dark:border-slate-700 dark:bg-slate-800 space-y-2">
+@foreach ($devices as $device)
+<label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+<input class="rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" name="graph_device_ids[]" value="{{ $device->id }}" data-checkbox-item data-graph-device-checkbox @checked(in_array((int) $device->id, $selectedGraphDeviceIds, true))/>
+<span>{{ $device->name }}@if ($device->serial_number) ({{ $device->serial_number }})@endif</span>
+</label>
+@endforeach
+</div>
+<div class="flex flex-wrap gap-2">
+<button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-checkbox-action="all">Select all</button>
+<button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-checkbox-action="none">Clear</button>
+<button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-checkbox-action="invert">Invert</button>
+</div>
+</div>
+<div class="flex flex-col gap-2" data-device-graph-interface-permissions>
+<label class="text-sm font-semibold text-slate-700 dark:text-slate-200">Graph Interfaces Per Device (optional)</label>
+<div class="rounded-lg border border-slate-200 dark:border-slate-700 p-3 space-y-3 bg-slate-50/70 dark:bg-slate-800/40">
+@foreach ($devices as $device)
+@php
+$deviceId = (int) $device->id;
+$graphAllowedInterfaces = trim((string) ($graphInterfaceMap[$deviceId] ?? ''));
+$hasGraphDevice = in_array($deviceId, $selectedGraphDeviceIds, true);
+@endphp
+<div class="{{ $hasGraphDevice ? '' : 'hidden' }} rounded-lg border border-slate-200 dark:border-slate-700 p-3 bg-white dark:bg-slate-900" data-device-graph-interface-item data-device-id="{{ $deviceId }}">
+<div class="text-xs font-semibold text-slate-500 mb-2">{{ $device->name }}@if ($device->serial_number) ({{ $device->serial_number }})@endif</div>
+<input class="h-10 w-full rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:border-primary focus:ring-primary" type="text" name="graph_device_interfaces[{{ $deviceId }}]" value="{{ $graphAllowedInterfaces }}" placeholder="Gi1/0/1,Gi1/0/2,Gi1/0/* or *"/>
+</div>
+@endforeach
+<p class="text-xs text-slate-400 {{ !empty($selectedGraphDeviceIds) ? 'hidden' : '' }}" data-device-graph-interface-empty>Select one or more graph devices to set interface scope.</p>
+</div>
+<p class="text-xs text-slate-400">Leave blank to allow all interfaces on that device.</p>
+</div>
+</div>
+<p class="text-xs text-slate-400">If no graph devices are selected, enabled users can view graphs for all assigned/permitted devices.</p>
+@else
+<div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300">
+Run <code>php artisan migrate --force</code> to enable per-device and per-interface graph scope controls.
+</div>
+@endif
 @else
 <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300">
 Run <code>php artisan migrate --force</code> to enable user graph access toggles.

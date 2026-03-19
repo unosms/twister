@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Device;
 use App\Models\DeviceAssignment;
 use App\Models\CommandTemplate;
+use App\Models\DeviceGraphPermission;
 use App\Models\DevicePermission;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -18,6 +19,7 @@ class PortalController extends Controller
         $role = request()->session()->get('auth.role');
         $authUser = $userId ? User::find($userId) : null;
         $canViewAssignedDeviceGraphs = $role === 'admin';
+        $graphAccessibleDeviceLookup = [];
         if ($role !== 'admin') {
             $canViewAssignedDeviceGraphs = User::supportsAssignedDeviceGraphAccess()
                 ? (bool) ($authUser?->can_view_assigned_device_graphs ?? false)
@@ -33,6 +35,10 @@ class PortalController extends Controller
             $commandTemplates = CommandTemplate::where('active', true)
                 ->orderBy('name')
                 ->get();
+            $graphAccessibleDeviceLookup = array_fill_keys(
+                $allDevices->pluck('id')->map(static fn ($id): int => (int) $id)->all(),
+                true
+            );
         } elseif ($userId) {
             $allActiveCommandTemplates = CommandTemplate::where('active', true)
                 ->orderBy('name')
@@ -73,6 +79,29 @@ class PortalController extends Controller
                 ->get();
 
             $devices = $deviceQuery->paginate(12)->withQueryString();
+
+            if ($canViewAssignedDeviceGraphs) {
+                $graphVisibleDeviceIds = $allDevices->pluck('id')
+                    ->map(static fn ($id): int => (int) $id)
+                    ->all();
+
+                if (DeviceGraphPermission::supportsScopedAccess()) {
+                    $graphScopeDeviceIds = DB::table('device_graph_permissions')
+                        ->where('user_id', $userId)
+                        ->pluck('device_id')
+                        ->map(static fn ($id): int => (int) $id)
+                        ->all();
+
+                    if (!empty($graphScopeDeviceIds)) {
+                        $graphVisibleDeviceIds = array_values(array_intersect(
+                            $graphVisibleDeviceIds,
+                            $graphScopeDeviceIds
+                        ));
+                    }
+                }
+
+                $graphAccessibleDeviceLookup = array_fill_keys($graphVisibleDeviceIds, true);
+            }
 
             $user = User::with('commandTemplates')->find($userId);
             if ($user) {
@@ -191,6 +220,7 @@ class PortalController extends Controller
             'commandTemplates' => $commandTemplates,
             'commandTemplatesByDevice' => $commandTemplatesByDevice,
             'canViewAssignedDeviceGraphs' => $canViewAssignedDeviceGraphs,
+            'graphAccessibleDeviceLookup' => $graphAccessibleDeviceLookup,
             'healthPercent' => $healthPercent,
             'accessibleScopeLabel' => $accessibleScopeLabel,
             'deviceTypeBreakdown' => $deviceTypeBreakdown,

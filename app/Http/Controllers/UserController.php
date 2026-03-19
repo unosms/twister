@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\CommandTemplate;
 use App\Models\Device;
 use App\Models\DeviceAssignment;
+use App\Models\DeviceGraphPermission;
 use App\Models\DevicePermission;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Builder;
@@ -274,6 +275,7 @@ class UserController extends Controller
             'commandTemplates' => $commandTemplates,
             'avatarStorageReady' => User::supportsAvatarStorage(),
             'assignedDeviceGraphAccessReady' => User::supportsAssignedDeviceGraphAccess(),
+            'deviceGraphScopeReady' => DeviceGraphPermission::supportsScopedAccess(),
             'deviceCommandRestrictionsReady' => DevicePermission::supportsAllowedCommandTemplateIds(),
             'telegramSeverityOptions' => self::TELEGRAM_SEVERITIES,
             'telegramEventTypeOptions' => self::TELEGRAM_EVENT_TYPES,
@@ -429,6 +431,20 @@ class UserController extends Controller
             'custom_command_script_code' => ['nullable', 'string', 'max:65535', 'required_if:custom_command_type,custom'],
 
             'can_view_assigned_device_graphs' => ['nullable', 'boolean'],
+            'graph_device_ids' => ['nullable', 'array'],
+            'graph_device_ids.*' => ['integer', 'exists:devices,id'],
+            'graph_device_interfaces' => ['nullable', 'array'],
+            'graph_device_interfaces.*' => [
+                'nullable',
+                'string',
+                'max:500',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    $error = $this->validateInterfaceExpression(is_string($value) ? $value : '');
+                    if ($error !== null) {
+                        $fail($error);
+                    }
+                },
+            ],
             'telegram_enabled' => ['nullable', 'boolean'],
             'telegram_chat_id' => ['nullable', 'string', 'max:500'],
             'telegram_bot_token' => ['nullable', 'string', 'max:255'],
@@ -703,6 +719,59 @@ class UserController extends Controller
             $user->permittedDevices()->detach();
         }
 
+        if (DeviceGraphPermission::supportsScopedAccess()) {
+            $graphDeviceIds = $data['graph_device_ids'] ?? [];
+            $graphDeviceIds = array_values(array_unique(array_map(
+                static fn ($id): int => (int) $id,
+                array_filter($graphDeviceIds, static fn ($id): bool => is_numeric($id) && (int) $id > 0)
+            )));
+
+            $graphInterfaceRaw = $data['graph_device_interfaces'] ?? [];
+            if (!is_array($graphInterfaceRaw)) {
+                $graphInterfaceRaw = [];
+            }
+
+            $graphInterfaceMap = [];
+            foreach ($graphInterfaceRaw as $deviceIdRaw => $expressionRaw) {
+                if (!is_numeric($deviceIdRaw)) {
+                    continue;
+                }
+
+                $deviceId = (int) $deviceIdRaw;
+                if (!in_array($deviceId, $graphDeviceIds, true)) {
+                    continue;
+                }
+
+                $graphInterfaceMap[$deviceId] = $this->normalizeInterfaceExpression(
+                    is_string($expressionRaw) ? $expressionRaw : null
+                );
+            }
+
+            $graphPayload = [];
+            if (!empty($graphDeviceIds)) {
+                $existingGraphMeta = DB::table('device_graph_permissions')
+                    ->where('user_id', $user->id)
+                    ->whereIn('device_id', $graphDeviceIds)
+                    ->get(['device_id', 'granted_by', 'granted_at'])
+                    ->keyBy(static fn ($row): int => (int) $row->device_id);
+
+                foreach ($graphDeviceIds as $deviceId) {
+                    $existing = $existingGraphMeta->get($deviceId);
+                    $graphPayload[$deviceId] = [
+                        'granted_by' => $existing?->granted_by ?? $assignedBy,
+                        'granted_at' => $existing?->granted_at ?? now(),
+                        'allowed_interfaces' => $graphInterfaceMap[$deviceId] ?? null,
+                    ];
+                }
+            }
+
+            if (!empty($graphPayload)) {
+                $user->graphScopedDevices()->sync($graphPayload);
+            } else {
+                $user->graphScopedDevices()->detach();
+            }
+        }
+
         if (($user->role ?? 'user') === 'admin') {
             $this->grantAdminFullAccess($user, (int) $request->session()->get('auth.user_id', 0));
         }
@@ -850,7 +919,7 @@ class UserController extends Controller
             }
 
             if (!preg_match('/^[A-Za-z0-9_\-.:\/\*]+$/', $token)) {
-                return 'Port access values must be comma-separated interface names (e.g. Gi1/0/1,Gi1/0/2 or Gi1/0/*).';
+                return 'Interface access values must be comma-separated names (e.g. Gi1/0/1,Gi1/0/2 or Gi1/0/*).';
             }
         }
 

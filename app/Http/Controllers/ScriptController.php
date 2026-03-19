@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\CommandTemplate;
 use App\Models\Device;
+use App\Models\DeviceGraphPermission;
 use App\Models\DevicePermission;
 use App\Models\User;
 use App\Support\ProvisioningTrace;
@@ -264,6 +265,9 @@ class ScriptController extends Controller
         }
 
         $accessibleDeviceIds = null;
+        $graphScopeDeviceIds = [];
+        $graphScopeInterfaceMap = [];
+        $graphScopeRestricted = false;
         if ($isPortalContext) {
             if ($role !== 'admin') {
                 if ($userId <= 0) {
@@ -285,8 +289,34 @@ class ScriptController extends Controller
                     return $this->plainError('Forbidden: no assigned devices are available for graph access.', 403);
                 }
 
+                if (DeviceGraphPermission::supportsScopedAccess()) {
+                    $graphScopeRows = DB::table('device_graph_permissions')
+                        ->where('user_id', $userId)
+                        ->get(['device_id', 'allowed_interfaces']);
+
+                    if ($graphScopeRows->isNotEmpty()) {
+                        $graphScopeRestricted = true;
+                        foreach ($graphScopeRows as $graphScopeRow) {
+                            $scopeDeviceId = (int) ($graphScopeRow->device_id ?? 0);
+                            if ($scopeDeviceId <= 0) {
+                                continue;
+                            }
+
+                            $graphScopeDeviceIds[] = $scopeDeviceId;
+                            $graphScopeInterfaceMap[$scopeDeviceId] = trim((string) ($graphScopeRow->allowed_interfaces ?? ''));
+                        }
+
+                        $graphScopeDeviceIds = array_values(array_unique($graphScopeDeviceIds));
+                        $accessibleDeviceIds = array_values(array_intersect($accessibleDeviceIds, $graphScopeDeviceIds));
+                    }
+                }
+
+                if (empty($accessibleDeviceIds)) {
+                    return $this->plainError('Forbidden: no graph-scoped devices are available for this account.', 403);
+                }
+
                 if (!in_array((int) $device->id, $accessibleDeviceIds, true)) {
-                    return $this->plainError('Forbidden: device is not assigned for graph access.', 403);
+                    return $this->plainError('Forbidden: device is not enabled for graph access.', 403);
                 }
             }
         } elseif ($role !== 'admin') {
@@ -351,7 +381,26 @@ class ScriptController extends Controller
             ->orderBy('ifIndex')
             ->get(['id', 'ifIndex', 'ifName', 'ifDescr', 'ifAlias', 'speed_bps', 'is_up']);
 
+        $graphScopeExpression = '';
+        if (
+            $isPortalContext
+            && $role !== 'admin'
+            && $graphScopeRestricted
+        ) {
+            $graphScopeExpression = trim((string) ($graphScopeInterfaceMap[(int) $device->id] ?? ''));
+            if ($graphScopeExpression !== '') {
+                $interfaces = $interfaces
+                    ->filter(fn ($iface): bool => $this->interfaceRowMatchesAllowedList($iface, $graphScopeExpression))
+                    ->values();
+            }
+        }
+
         if ($interfaces->isEmpty()) {
+            $emptyInterfaceNote = 'No SNMP interfaces discovered yet for this device. Check SNMP community and poller.';
+            if ($graphScopeExpression !== '') {
+                $emptyInterfaceNote = 'No interfaces match this user\'s graph interface scope for the selected device.';
+            }
+
             return view($graphView, [
                 'device' => $device,
                 'unit' => $unit,
@@ -370,7 +419,7 @@ class ScriptController extends Controller
                     $unitMap[$unit]['label']
                 ),
                 'error' => null,
-                'note' => 'No SNMP interfaces discovered yet for this device. Check SNMP community and poller.',
+                'note' => $emptyInterfaceNote,
                 'trendMode' => $trendMode,
                 'trendModes' => $trendModes,
                 'trendStartDate' => '',
@@ -1977,6 +2026,29 @@ class ScriptController extends Controller
             }
 
             if (strcasecmp($pattern, $interfaceToken) === 0) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function interfaceRowMatchesAllowedList(object $interface, string $allowedPorts): bool
+    {
+        $candidates = [
+            (string) ($interface->ifName ?? ''),
+            (string) ($interface->ifDescr ?? ''),
+            (string) ($interface->ifAlias ?? ''),
+            (string) ($interface->ifIndex ?? ''),
+        ];
+
+        foreach ($candidates as $candidate) {
+            $candidate = trim($candidate);
+            if ($candidate === '') {
+                continue;
+            }
+
+            if ($this->interfaceMatchesAllowedList($candidate, $allowedPorts)) {
                 return true;
             }
         }

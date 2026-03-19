@@ -358,6 +358,46 @@ $canViewAssignedDeviceGraphs = (bool) old(
     (bool) ($user->can_view_assigned_device_graphs ?? false)
 );
 $assignedDeviceGraphAccessReady = (bool) ($assignedDeviceGraphAccessReady ?? false);
+$deviceGraphScopeReady = (bool) ($deviceGraphScopeReady ?? false);
+$selectedGraphDeviceIds = [];
+$graphInterfaceMap = [];
+if ($deviceGraphScopeReady && \App\Models\DeviceGraphPermission::supportsScopedAccess()) {
+    $storedGraphScopeMap = \Illuminate\Support\Facades\DB::table('device_graph_permissions')
+        ->where('user_id', $user->id)
+        ->pluck('allowed_interfaces', 'device_id')
+        ->all();
+
+    foreach ($storedGraphScopeMap as $deviceId => $value) {
+        if (!is_numeric($deviceId)) {
+            continue;
+        }
+        $deviceId = (int) $deviceId;
+        $selectedGraphDeviceIds[] = $deviceId;
+        $graphInterfaceMap[$deviceId] = trim((string) $value);
+    }
+}
+
+$oldSelectedGraphDeviceIds = old('graph_device_ids');
+if (is_array($oldSelectedGraphDeviceIds)) {
+    $selectedGraphDeviceIds = array_values(array_unique(array_map(
+        'intval',
+        array_filter($oldSelectedGraphDeviceIds, static fn ($id): bool => is_numeric($id))
+    )));
+}
+
+$oldGraphInterfaceMap = old('graph_device_interfaces');
+if (is_array($oldGraphInterfaceMap)) {
+    foreach ($oldGraphInterfaceMap as $deviceId => $value) {
+        if (!is_numeric($deviceId)) {
+            continue;
+        }
+        $graphInterfaceMap[(int) $deviceId] = trim((string) $value);
+    }
+}
+$selectedGraphDeviceIds = array_values(array_unique(array_map(
+    'intval',
+    array_filter($selectedGraphDeviceIds, static fn ($id): bool => is_numeric($id))
+)));
 ?>
 <div class="rounded-lg border border-[#cfd7e7] dark:border-gray-700 bg-white dark:bg-gray-900/50 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
 <div>
@@ -503,9 +543,55 @@ Upload Picture
 <?php if($assignedDeviceGraphAccessReady): ?>
 <label class="inline-flex items-center gap-2 rounded-lg border border-[#cfd7e7] bg-white px-3 py-2 text-sm text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200">
 <input class="rounded border-gray-300 text-primary focus:ring-primary" type="checkbox" name="can_view_assigned_device_graphs" value="1" <?php if($canViewAssignedDeviceGraphs): echo 'checked'; endif; ?> />
-<span>Allow this user to view graphs for assigned/permitted devices.</span>
+<span>Enable graph visibility for this user account.</span>
 </label>
 <p class="text-xs text-gray-400">Admins always have graph access; this toggle applies to user accounts.</p>
+<?php if($deviceGraphScopeReady): ?>
+<div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
+<div class="flex flex-col gap-2" data-checkbox-group>
+<div class="flex items-center justify-between gap-2">
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Graph Devices</label>
+<span class="text-[11px] font-semibold text-gray-500"><span data-checkbox-count>0</span> selected</span>
+</div>
+<div class="max-h-44 overflow-y-auto rounded-lg border border-[#cfd7e7] bg-white p-3 dark:border-gray-700 dark:bg-gray-800 space-y-2">
+<?php $__currentLoopData = $devices; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $device): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+<label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+<input class="rounded border-gray-300 text-primary focus:ring-primary" type="checkbox" name="graph_device_ids[]" value="<?php echo e($device->id); ?>" data-checkbox-item data-graph-device-checkbox <?php if(in_array((int) $device->id, $selectedGraphDeviceIds, true)): echo 'checked'; endif; ?>/>
+<span><?php echo e($device->name); ?> <?php if($device->serial_number): ?>(<?php echo e($device->serial_number); ?>)<?php endif; ?></span>
+</label>
+<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+</div>
+<div class="flex flex-wrap gap-2">
+<button class="px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-checkbox-action="all">Select all</button>
+<button class="px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-checkbox-action="none">Clear</button>
+<button class="px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-checkbox-action="invert">Invert</button>
+</div>
+</div>
+<div class="flex flex-col gap-2" data-device-graph-interface-permissions>
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Graph Interfaces Per Device (optional)</label>
+<div class="border border-[#cfd7e7] dark:border-gray-700 rounded-lg p-3 space-y-3 bg-white dark:bg-gray-800">
+<?php $__currentLoopData = $devices; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $device): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+<?php
+$deviceId = (int) $device->id;
+$graphAllowedInterfaces = trim((string) ($graphInterfaceMap[$deviceId] ?? ''));
+$hasGraphDevice = in_array($deviceId, $selectedGraphDeviceIds, true);
+?>
+<div class="<?php if(!$hasGraphDevice): echo 'hidden'; endif; ?> rounded-lg border border-slate-200 dark:border-gray-700 p-3" data-device-graph-interface-item data-device-id="<?php echo e($deviceId); ?>">
+<div class="text-xs font-semibold text-slate-500 mb-2"><?php echo e($device->name); ?> <?php if($device->serial_number): ?>(<?php echo e($device->serial_number); ?>)<?php endif; ?></div>
+<input class="w-full rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-900 dark:text-white focus:border-primary focus:ring-primary h-10" type="text" name="graph_device_interfaces[<?php echo e($deviceId); ?>]" value="<?php echo e($graphAllowedInterfaces); ?>" placeholder="e.g. Gi1/0/1,Gi1/0/2,Gi1/0/* or *"/>
+</div>
+<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+<p class="text-xs text-gray-400 <?php if(!empty($selectedGraphDeviceIds)): echo 'hidden'; endif; ?>" data-device-graph-interface-empty>Select one or more graph devices to set interface scope.</p>
+</div>
+<p class="text-xs text-gray-400">Leave blank to allow all interfaces on that device.</p>
+</div>
+</div>
+<p class="text-xs text-gray-400">If no graph devices are selected, enabled users can view graphs for all assigned/permitted devices.</p>
+<?php else: ?>
+<div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300">
+Run <code>php artisan migrate --force</code> to enable per-device and per-interface graph scope controls.
+</div>
+<?php endif; ?>
 <?php else: ?>
 <div class="rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300">
 Run <code>php artisan migrate --force</code> to enable user graph access toggles.

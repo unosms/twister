@@ -1650,6 +1650,70 @@
     });
   };
 
+  const setupGraphDeviceInterfaceInputs = () => {
+    const containers = Array.from(document.querySelectorAll('[data-device-graph-interface-permissions]'));
+    if (!containers.length) {
+      return;
+    }
+
+    containers.forEach((container) => {
+      const form = container.closest('form');
+      if (!form) {
+        return;
+      }
+      const select = form.querySelector('select[name="graph_device_ids[]"]');
+      const checkboxes = Array.from(
+        form.querySelectorAll(
+          'input[type="checkbox"][name="graph_device_ids[]"][data-graph-device-checkbox]'
+        )
+      );
+      if (!select && !checkboxes.length) {
+        return;
+      }
+
+      const items = Array.from(
+        container.querySelectorAll('[data-device-graph-interface-item][data-device-id]')
+      );
+      if (!items.length) {
+        return;
+      }
+
+      const empty = container.querySelector('[data-device-graph-interface-empty]');
+
+      const updateVisibility = () => {
+        const selectedIds = new Set(
+          select
+            ? Array.from(select.selectedOptions || []).map((option) => String(option.value || ''))
+            : checkboxes
+                .filter((item) => item.checked)
+                .map((item) => String(item.value || ''))
+        );
+
+        let visibleCount = 0;
+        items.forEach((item) => {
+          const deviceId = String(item.dataset.deviceId || '');
+          const visible = selectedIds.has(deviceId);
+          item.classList.toggle('hidden', !visible);
+          if (visible) {
+            visibleCount += 1;
+          }
+        });
+
+        if (empty) {
+          empty.classList.toggle('hidden', visibleCount > 0);
+        }
+      };
+
+      if (select) {
+        select.addEventListener('change', updateVisibility);
+      }
+      checkboxes.forEach((item) => {
+        item.addEventListener('change', updateVisibility);
+      });
+      updateVisibility();
+    });
+  };
+
   const setupMultiSelectShortcuts = () => {
     const groups = Array.from(document.querySelectorAll('[data-multi-select]'));
     if (!groups.length) {
@@ -3262,6 +3326,7 @@
     setupCustomCommandPermissions();
     setupDevicePermissionPortInputs();
     setupDevicePermissionCommandInputs();
+    setupGraphDeviceInterfaceInputs();
     setupDeviceEditToggles();
     setupDeviceEditTypeFields();
     setupDeviceRowLinks();
