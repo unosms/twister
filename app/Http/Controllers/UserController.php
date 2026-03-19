@@ -499,6 +499,11 @@ class UserController extends Controller
         $passwordRules = ['string', 'min:6'];
         array_unshift($passwordRules, $requirePassword ? 'required' : 'nullable');
 
+        $selectedPermissionDeviceLookup = $this->normalizeDeviceIdLookup($request->input('device_permission_ids', []));
+        $selectedGraphDeviceLookup = $this->normalizeDeviceIdLookup($request->input('graph_device_ids', []));
+        $selectedEventDeviceLookup = $this->normalizeDeviceIdLookup($request->input('event_device_ids', []));
+        $selectedTelegramDeviceLookup = $this->normalizeDeviceIdLookup($request->input('telegram_devices', []));
+
         return $request->validate([
             'username' => $usernameRules,
             'role' => ['required', 'string', Rule::in(['admin', 'user'])],
@@ -515,7 +520,11 @@ class UserController extends Controller
                 'nullable',
                 'string',
                 'max:500',
-                function (string $attribute, mixed $value, \Closure $fail): void {
+                function (string $attribute, mixed $value, \Closure $fail) use ($selectedPermissionDeviceLookup): void {
+                    if (!$this->attributeTargetsSelectedDevice($attribute, 'device_permission_ports', $selectedPermissionDeviceLookup)) {
+                        return;
+                    }
+
                     $error = $this->validateInterfaceExpression(is_string($value) ? $value : '');
                     if ($error !== null) {
                         $fail($error);
@@ -543,7 +552,11 @@ class UserController extends Controller
                 'nullable',
                 'string',
                 'max:500',
-                function (string $attribute, mixed $value, \Closure $fail): void {
+                function (string $attribute, mixed $value, \Closure $fail) use ($selectedEventDeviceLookup): void {
+                    if (!$this->attributeTargetsSelectedDevice($attribute, 'event_device_interfaces', $selectedEventDeviceLookup)) {
+                        return;
+                    }
+
                     $error = $this->validateInterfaceExpression(is_string($value) ? $value : '');
                     if ($error !== null) {
                         $fail($error);
@@ -555,7 +568,11 @@ class UserController extends Controller
                 'nullable',
                 'string',
                 'max:500',
-                function (string $attribute, mixed $value, \Closure $fail): void {
+                function (string $attribute, mixed $value, \Closure $fail) use ($selectedGraphDeviceLookup): void {
+                    if (!$this->attributeTargetsSelectedDevice($attribute, 'graph_device_interfaces', $selectedGraphDeviceLookup)) {
+                        return;
+                    }
+
                     $error = $this->validateInterfaceExpression(is_string($value) ? $value : '');
                     if ($error !== null) {
                         $fail($error);
@@ -573,7 +590,11 @@ class UserController extends Controller
                 'nullable',
                 'string',
                 'max:255',
-                function (string $attribute, mixed $value, \Closure $fail): void {
+                function (string $attribute, mixed $value, \Closure $fail) use ($selectedTelegramDeviceLookup): void {
+                    if (!$this->attributeTargetsSelectedDevice($attribute, 'telegram_device_interfaces', $selectedTelegramDeviceLookup)) {
+                        return;
+                    }
+
                     $error = $this->validateInterfaceExpression(is_string($value) ? $value : '');
                     if ($error !== null) {
                         $fail($error);
@@ -587,6 +608,42 @@ class UserController extends Controller
             'telegram_event_types_custom' => ['nullable', 'string', 'max:500'],
             'telegram_template' => ['nullable', 'string', 'max:4000'],
         ]);
+    }
+
+    private function normalizeDeviceIdLookup(mixed $values): array
+    {
+        if (!is_array($values)) {
+            return [];
+        }
+
+        $lookup = [];
+        foreach ($values as $value) {
+            if (!is_numeric($value)) {
+                continue;
+            }
+
+            $deviceId = (int) $value;
+            if ($deviceId > 0) {
+                $lookup[$deviceId] = true;
+            }
+        }
+
+        return $lookup;
+    }
+
+    private function attributeTargetsSelectedDevice(string $attribute, string $prefix, array $selectedDeviceLookup): bool
+    {
+        $pattern = '/^' . preg_quote($prefix, '/') . '\.(\d+)(?:\..+)?$/';
+        if (!preg_match($pattern, $attribute, $matches)) {
+            return true;
+        }
+
+        $deviceId = (int) ($matches[1] ?? 0);
+        if ($deviceId <= 0) {
+            return false;
+        }
+
+        return isset($selectedDeviceLookup[$deviceId]);
     }
 
     private function persistUser(Request $request, User $user, array $data): void
@@ -1078,7 +1135,7 @@ class UserController extends Controller
                 continue;
             }
 
-            if (!preg_match('/^[A-Za-z0-9 _\-\.:\/\*\(\)\[\]#]+$/', $token)) {
+            if (preg_match('/[\x00-\x1F\x7F]/u', $token)) {
                 return 'Interface access values must be comma-separated entries (for example Gi1/0/1,Gi1/0/2 or Gi1/0/*).';
             }
         }
