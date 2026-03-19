@@ -440,38 +440,12 @@ function insert_iface_event(mysqli $conn, array $e) : int {
 }
 
 function ensure_device_down(mysqli $conn, int $device_id, string $device_name, string $ip, int $now): void {
-  $q = $conn->prepare("SELECT id FROM device_events WHERE device_id=? AND event_type='device_down' AND resolved_at IS NULL ORDER BY id DESC LIMIT 1");
-  $q->bind_param("i", $device_id);
-  $q->execute();
-  $row = $q->get_result()->fetch_assoc();
-  $q->close();
-  if ($row) return;
-
-  $ins = $conn->prepare("INSERT INTO device_events (device_id, device_name, ip, event_type, severity, opened_at) VALUES (?, ?, ?, 'device_down', 'High', ?)");
-  $ins->bind_param("issi", $device_id, $device_name, $ip, $now);
-  $ins->execute(); $ins->close();
-
-  tg_send_dev("Ã°Å¸Å¡Â¨ DEVICE DOWN\nHost: {$device_name}\nIP: {$ip}\nTime: " . date('Y-m-d H:i:s', $now));
+  // Device reachability events are intentionally not persisted.
+  return;
 }
 function resolve_device_down_and_log_up(mysqli $conn, int $device_id, string $device_name, string $ip, int $now): void {
-  $sel = $conn->prepare("SELECT id, opened_at FROM device_events WHERE device_id=? AND event_type='device_down' AND resolved_at IS NULL ORDER BY id DESC LIMIT 1");
-  $sel->bind_param("i", $device_id);
-  $sel->execute();
-  $row = $sel->get_result()->fetch_assoc();
-  $sel->close();
-
-  if ($row) {
-    $upd = $conn->prepare("UPDATE device_events SET resolved_at=? WHERE id=?");
-    $upd->bind_param("ii", $now, $row['id']);
-    $upd->execute(); $upd->close();
-
-    $dur = fmt_dur($now - (int)$row['opened_at']);
-    tg_send_dev("Ã¢Å“â€¦ DEVICE UP\nHost: {$device_name}\nIP: {$ip}\nResolved: " . date('Y-m-d H:i:s', $now) . "\nDowntime: {$dur}\nOriginal problem ID: {$row['id']}");
-  }
-
-  $ins = $conn->prepare("INSERT INTO device_events (device_id, device_name, ip, event_type, severity, opened_at) VALUES (?, ?, ?, 'device_up', 'Info', ?)");
-  $ins->bind_param("issi", $device_id, $device_name, $ip, $now);
-  $ins->execute(); $ins->close();
+  // Device reachability events are intentionally not persisted.
+  return;
 }
 
 /* ============================================================

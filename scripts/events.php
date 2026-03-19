@@ -143,15 +143,14 @@ function query_rows(mysqli $conn, string $sql, string $types, array $params, arr
 $hours = 1;
 $sinceEpoch = time() - ($hours * 3600);
 $deviceFilter = safe_str('device');
-$typeFilter = safe_str('type'); // '', 'iface', 'device'
-if (!in_array($typeFilter, ['', 'iface', 'device'], true)) {
+$typeFilter = safe_str('type'); // '', 'iface'
+if (!in_array($typeFilter, ['', 'iface'], true)) {
     $typeFilter = '';
 }
 
 $sqlErrors = [];
 
 $whereIface = "((ie.event_type='link_down' AND (ie.opened_at >= ? OR (ie.resolved_at IS NOT NULL AND ie.resolved_at >= ?))) OR (ie.event_type='speed_changed' AND ie.opened_at >= ?))";
-$whereDevice = "((de.event_type='device_down' AND (de.opened_at >= ? OR (de.resolved_at IS NOT NULL AND de.resolved_at >= ?))) OR (de.event_type='device_up' AND de.opened_at >= ?))";
 
 $ifaceRows = [];
 if ($typeFilter === '' || $typeFilter === 'iface') {
@@ -169,25 +168,6 @@ if ($typeFilter === '' || $typeFilter === 'iface') {
                      ORDER BY ie.opened_at DESC, ie.id DESC
                      LIMIT 5000";
         $ifaceRows = query_rows($conn, $ifaceSql, 'iii', [$sinceEpoch, $sinceEpoch, $sinceEpoch], $sqlErrors);
-    }
-}
-
-$deviceRows = [];
-if ($typeFilter === '' || $typeFilter === 'device') {
-    if ($deviceFilter !== '') {
-        $deviceSql = "SELECT de.*
-                      FROM device_events de
-                      WHERE {$whereDevice} AND de.device_name = ?
-                      ORDER BY de.opened_at DESC, de.id DESC
-                      LIMIT 2000";
-        $deviceRows = query_rows($conn, $deviceSql, 'iiis', [$sinceEpoch, $sinceEpoch, $sinceEpoch, $deviceFilter], $sqlErrors);
-    } else {
-        $deviceSql = "SELECT de.*
-                      FROM device_events de
-                      WHERE {$whereDevice}
-                      ORDER BY de.opened_at DESC, de.id DESC
-                      LIMIT 2000";
-        $deviceRows = query_rows($conn, $deviceSql, 'iii', [$sinceEpoch, $sinceEpoch, $sinceEpoch], $sqlErrors);
     }
 }
 
@@ -425,7 +405,6 @@ $titleSuffix = $deviceFilter !== '' ? ' &bull; ' . esc($deviceFilter) : '';
             <select name="type">
                 <option value="" <?= $typeFilter === '' ? 'selected' : '' ?>>All</option>
                 <option value="iface" <?= $typeFilter === 'iface' ? 'selected' : '' ?>>Interface</option>
-                <option value="device" <?= $typeFilter === 'device' ? 'selected' : '' ?>>Device reachability</option>
             </select>
         </label>
 
@@ -523,75 +502,6 @@ $titleSuffix = $deviceFilter !== '' ? ' &bull; ' . esc($deviceFilter) : '';
         </div>
     <?php endif; ?>
 
-    <?php if ($typeFilter === '' || $typeFilter === 'device'): ?>
-        <h2>Device reachability</h2>
-        <div class="events">
-            <?php if (!$deviceRows): ?>
-                <div class="empty">No device events in this window.</div>
-            <?php endif; ?>
-
-            <?php foreach ($deviceRows as $row): ?>
-                <?php
-                $opened = (int) ($row['opened_at'] ?? 0);
-                $closed = isset($row['resolved_at']) ? (int) $row['resolved_at'] : null;
-                $durSeconds = $closed ? ($closed - $opened) : (time() - $opened);
-                $durText = fmt_duration($durSeconds);
-                $host = (string) ($row['device_name'] ?? '');
-                $sev = (string) ($row['severity'] ?? 'Info');
-                $sevBorder = severity_border_class($sev);
-                $eventId = (int) ($row['id'] ?? 0);
-                $eventType = (string) ($row['event_type'] ?? '');
-
-                if ($eventType === 'device_down') {
-                    if ($closed) {
-                        $line1 = 'Resolved in ' . $durText . ': Device unreachable';
-                        $line2 = 'Problem has been resolved in ' . $durText . ' ' . fmt_when($closed);
-                        $line3 = 'Problem name: Device unreachable';
-                        $line4 = 'switch_name: ' . $host;
-                        $line5 = 'Severity: ' . $sev;
-                        $line6 = 'Original problem ID: ' . $eventId;
-                    } else {
-                        $line1 = 'Problem ongoing for ' . $durText . ': Device unreachable';
-                        $line2 = 'Problem started ' . fmt_when($opened);
-                        $line3 = 'switch_name: ' . $host;
-                        $line4 = 'Severity: ' . $sev;
-                        $line5 = 'Original problem ID: ' . $eventId;
-                        $line6 = '';
-                    }
-                } else {
-                    $line1 = device_problem_title($row);
-                    $line2 = 'Detected ' . fmt_when($opened);
-                    $line3 = 'switch_name: ' . $host;
-                    $line4 = 'Severity: ' . $sev;
-                    $line5 = 'Event ID: ' . $eventId;
-                    $line6 = '';
-                }
-                ?>
-                <div class="card <?= esc($sevBorder) ?>">
-                    <div class="title"><?= esc($line1) ?></div>
-                    <div class="line"><?= esc($line2) ?></div>
-                    <div class="line"><?= esc($line3) ?></div>
-                    <div class="line">
-                        Severity:
-                        <span class="sev-badge <?= esc(severity_badge_class($sev)) ?>"><?= esc($sev) ?></span>
-                    </div>
-                    <?php if ($line4 !== '' && stripos($line4, 'Severity:') !== 0): ?>
-                        <div class="line"><?= esc($line4) ?></div>
-                    <?php endif; ?>
-                    <?php if ($line5 !== ''): ?>
-                        <div class="line muted"><?= esc($line5) ?></div>
-                    <?php endif; ?>
-                    <?php if ($line6 !== ''): ?>
-                        <div class="line muted"><?= esc($line6) ?></div>
-                    <?php endif; ?>
-                    <div class="actions">
-                        <a class="btn" href="/devices/graphs?device=<?= urlencode($host) ?>&ifIndex=<?= (int) ($row['ifIndex'] ?? 0) ?>&window=3600" target="_blank" rel="noopener">Graphs</a>
-                        <a class="btn" href="/devices/graphs?device=<?= urlencode($host) ?>&ifIndex=<?= (int) ($row['ifIndex'] ?? 0) ?>&window=86400" target="_blank" rel="noopener">Graphs (24h)</a>
-                    </div>
-                </div>
-            <?php endforeach; ?>
-        </div>
-    <?php endif; ?>
 </div>
 </body>
 </html>
