@@ -1713,7 +1713,11 @@ class ScriptController extends Controller
             ];
         }
 
-        $hours = 1;
+        $allowedHours = [1, 3, 6, 9, 12, 24];
+        $hours = (int) $request->query('hours', 1);
+        if (!in_array($hours, $allowedHours, true)) {
+            $hours = 1;
+        }
 
         $type = strtolower(trim((string) $request->query('type', '')));
         if (!in_array($type, ['', 'iface', 'device'], true)) {

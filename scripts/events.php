@@ -140,7 +140,12 @@ function query_rows(mysqli $conn, string $sql, string $types, array $params, arr
     return $rows;
 }
 
-$hours = 1;
+$allowedHours = [1, 3, 6, 9, 12, 24];
+$hours = safe_int('hours', 1, 1, 24);
+if (!in_array($hours, $allowedHours, true)) {
+    $hours = 1;
+}
+$hoursLabel = (string) $hours . ' hour' . ($hours === 1 ? '' : 's');
 $sinceEpoch = time() - ($hours * 3600);
 $deviceFilter = safe_str('device');
 $typeFilter = safe_str('type'); // '', 'iface'
@@ -178,7 +183,7 @@ $titleSuffix = $deviceFilter !== '' ? ' &bull; ' . esc($deviceFilter) : '';
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Events (last <?= (int) $hours ?> hour<?= $titleSuffix ?>)</title>
+    <title>Events (last <?= esc($hoursLabel) ?><?= $titleSuffix ?>)</title>
     <meta http-equiv="refresh" content="60">
     <style>
         :root {
@@ -289,7 +294,7 @@ $titleSuffix = $deviceFilter !== '' ? ' &bull; ' . esc($deviceFilter) : '';
         .filters {
             display: grid;
             gap: 12px;
-            grid-template-columns: 1fr 220px auto;
+            grid-template-columns: 1fr 220px 180px auto;
             align-items: end;
         }
 
@@ -531,7 +536,7 @@ $titleSuffix = $deviceFilter !== '' ? ' &bull; ' . esc($deviceFilter) : '';
     <div class="page-header">
         <div class="page-header-top">
             <p class="kicker">Device Monitoring</p>
-            <h1>Interface Events (last <?= (int) $hours ?> hour<?= $titleSuffix ?>)</h1>
+            <h1>Interface Events (last <?= esc($hoursLabel) ?><?= $titleSuffix ?>)</h1>
             <p class="page-subtitle">Consistent event timeline with quick filtering and graph shortcuts.</p>
         </div>
         <div class="page-header-meta">
@@ -566,6 +571,17 @@ $titleSuffix = $deviceFilter !== '' ? ' &bull; ' . esc($deviceFilter) : '';
                 <select name="type">
                     <option value="" <?= $typeFilter === '' ? 'selected' : '' ?>>All</option>
                     <option value="iface" <?= $typeFilter === 'iface' ? 'selected' : '' ?>>Interface</option>
+                </select>
+            </label>
+
+            <label class="field">
+                <span class="field-label">Window</span>
+                <select name="hours">
+                    <?php foreach ($allowedHours as $hourOption): ?>
+                        <option value="<?= (int) $hourOption ?>" <?= $hours === (int) $hourOption ? 'selected' : '' ?>>
+                            <?= (int) $hourOption ?> hour<?= (int) $hourOption === 1 ? '' : 's' ?>
+                        </option>
+                    <?php endforeach; ?>
                 </select>
             </label>
 
