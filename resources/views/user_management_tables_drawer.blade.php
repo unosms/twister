@@ -446,10 +446,15 @@ foreach ($graphInterfaceMap as $deviceId => $expression) {
 </div>
 </div>
 <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
-<div class="lg:col-span-12">
+<details class="lg:col-span-12 group rounded-lg border border-[#cfd7e7] dark:border-gray-700 bg-white dark:bg-gray-800/40 p-4" data-user-edit-section data-section-id="account" open>
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3" data-user-edit-section-toggle>
+<div>
 <p class="text-xs font-bold uppercase tracking-wider text-gray-500">1) Account</p>
 <p class="text-xs text-gray-400 mt-1">Identity, role, and password rotation.</p>
 </div>
+<span class="material-symbols-outlined text-gray-400 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4" data-user-edit-section-body>
 <?php if($isSuperAdmin): ?>
 <input type="hidden" name="username" value="<?php echo e($user->name); ?>"/>
 <input type="hidden" name="role" value="<?php echo e($role); ?>"/>
@@ -525,10 +530,17 @@ Upload Picture
 <?php endif; ?>
 </div>
 </div>
-<div class="lg:col-span-12 pt-1">
+</div>
+</details>
+<details class="lg:col-span-12 group rounded-lg border border-[#cfd7e7] dark:border-gray-700 bg-white dark:bg-gray-800/40 p-4" data-user-edit-section data-section-id="device_scope" open>
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3" data-user-edit-section-toggle>
+<div>
 <p class="text-xs font-bold uppercase tracking-wider text-gray-500">2) Device Scope</p>
 <p class="text-xs text-gray-400 mt-1">Assign owned devices first, then grant command-only device access.</p>
 </div>
+<span class="material-symbols-outlined text-gray-400 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4" data-user-edit-section-body>
 <div class="flex flex-col gap-2 lg:col-span-6" data-checkbox-group>
 <div class="flex items-center justify-between gap-2">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Assigned Devices</label>
@@ -752,10 +764,17 @@ Run <code>php artisan migrate --force</code> to enable per-device command restri
 </div>
 <?php endif; ?>
 </div>
-<div class="lg:col-span-12 pt-1">
+</div>
+</details>
+<details class="lg:col-span-12 group rounded-lg border border-[#cfd7e7] dark:border-gray-700 bg-white dark:bg-gray-800/40 p-4" data-user-edit-section data-section-id="command_permissions">
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3" data-user-edit-section-toggle>
+<div>
 <p class="text-xs font-bold uppercase tracking-wider text-gray-500">3) Command Permissions</p>
 <p class="text-xs text-gray-400 mt-1">Keep only the commands this user should be allowed to execute.</p>
 </div>
+<span class="material-symbols-outlined text-gray-400 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4" data-user-edit-section-body>
 <div class="flex flex-col gap-2 lg:col-span-12" data-checkbox-group>
 <div class="flex flex-wrap items-center justify-between gap-2">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Command Permissions</label>
@@ -797,19 +816,23 @@ Run <code>php artisan migrate --force</code> to enable per-device command restri
 </div>
 <p class="text-xs text-gray-400"><span class="font-semibold" data-checkbox-count>0</span> commands selected.</p>
 </div>
-<div class="lg:col-span-12 rounded-lg border border-[#cfd7e7] dark:border-gray-700 p-4 bg-white dark:bg-gray-800/40 space-y-4">
-<div class="flex flex-wrap items-center justify-between gap-3">
+</div>
+</details>
+<details class="lg:col-span-12 group rounded-lg border border-[#cfd7e7] dark:border-gray-700 bg-white dark:bg-gray-800/40 p-4" data-user-edit-section data-section-id="telegram_notifications">
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3" data-user-edit-section-toggle>
 <div>
 <p class="text-sm font-semibold text-gray-700 dark:text-gray-200">4) Telegram Notifications</p>
 <p class="text-xs text-gray-400">Optional delivery settings for device and port alert events.</p>
 </div>
+<span class="material-symbols-outlined text-gray-400 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4" data-user-edit-section-body>
+<div class="md:col-span-2">
 <label class="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
 <input class="rounded border-gray-300 text-primary focus:ring-primary" type="checkbox" name="telegram_enabled" value="1" <?php if($telegramEnabled): echo 'checked'; endif; ?> />
 <span>Enabled</span>
 </label>
 </div>
-
-<div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 <div class="flex flex-col gap-2">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Telegram Chat ID</label>
 <input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="telegram_chat_id" type="text" value="<?php echo e(old('telegram_chat_id', $user->telegram_chat_id)); ?>" placeholder="e.g. 123456789, -1001234567890"/>
@@ -967,7 +990,7 @@ Run <code>php artisan migrate --force</code> to enable Telegram per-device inter
 <p class="text-xs text-gray-400">Available placeholders: {deviceName}, {deviceIp}, {port}, {severity}, {type}, {timestamp}, {message}</p>
 </div>
 </div>
-</div>
+</details>
 </div>
 <div class="sticky bottom-0 z-10 -mx-1 mt-1 px-1 py-3 flex flex-wrap items-center justify-end gap-3 border-t border-[#cfd7e7] dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 backdrop-blur">
 <?php if (\Illuminate\Support\Facades\Route::has('users.telegram.test')): ?>

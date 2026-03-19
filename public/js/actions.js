@@ -1527,6 +1527,53 @@
     });
   };
 
+  const setupUserEditSectionToggles = () => {
+    const sections = Array.from(
+      document.querySelectorAll('[data-user-edit-row] details[data-user-edit-section][data-section-id]')
+    );
+    if (!sections.length) {
+      return;
+    }
+
+    sections.forEach((section) => {
+      if (section.dataset.userEditSectionBound === 'true') {
+        return;
+      }
+
+      const row = section.closest('[data-user-edit-row]');
+      const rowId = String(row?.dataset.userEditRow || '').trim();
+      const sectionId = String(section.dataset.sectionId || '').trim();
+      const storageKey =
+        rowId && sectionId ? `user_edit_section:${rowId}:${sectionId}` : '';
+
+      if (storageKey !== '') {
+        try {
+          const savedState = window.localStorage.getItem(storageKey);
+          if (savedState === 'open') {
+            section.open = true;
+          } else if (savedState === 'closed') {
+            section.open = false;
+          }
+        } catch (_error) {
+          // Ignore storage errors in private mode or restricted environments.
+        }
+      }
+
+      section.addEventListener('toggle', () => {
+        if (storageKey === '') {
+          return;
+        }
+        try {
+          window.localStorage.setItem(storageKey, section.open ? 'open' : 'closed');
+        } catch (_error) {
+          // Ignore storage errors in private mode or restricted environments.
+        }
+      });
+
+      section.dataset.userEditSectionBound = 'true';
+    });
+  };
+
   const setupDevicePermissionPortInputs = () => {
     const containers = Array.from(document.querySelectorAll('[data-device-port-permissions]'));
     if (!containers.length) {
@@ -3620,6 +3667,7 @@
     setupOtpInputs();
     setupDeviceTypeFields();
     setupUserEditToggles();
+    setupUserEditSectionToggles();
     setupMultiSelectShortcuts();
     setupCheckboxShortcuts();
     setupTelegramDeviceInterfaceOptionPickers();
