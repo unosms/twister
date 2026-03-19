@@ -278,6 +278,7 @@ class UserController extends Controller
             'avatarStorageReady' => User::supportsAvatarStorage(),
             'assignedDeviceGraphAccessReady' => User::supportsAssignedDeviceGraphAccess(),
             'deviceGraphScopeReady' => DeviceGraphPermission::supportsScopedAccess(),
+            'telegramDeviceInterfaceScopeReady' => User::supportsTelegramDeviceInterfaceScope(),
             'deviceCommandRestrictionsReady' => DevicePermission::supportsAllowedCommandTemplateIds(),
             'telegramSeverityOptions' => self::TELEGRAM_SEVERITIES,
             'telegramEventTypeOptions' => self::TELEGRAM_EVENT_TYPES,
@@ -539,6 +540,19 @@ class UserController extends Controller
             'telegram_bot_token' => ['nullable', 'string', 'max:255'],
             'telegram_devices' => ['nullable', 'array'],
             'telegram_devices.*' => ['integer', 'exists:devices,id'],
+            'telegram_device_interfaces' => ['nullable', 'array'],
+            'telegram_device_interfaces.*' => ['nullable', 'array'],
+            'telegram_device_interfaces.*.*' => [
+                'nullable',
+                'string',
+                'max:255',
+                function (string $attribute, mixed $value, \Closure $fail): void {
+                    $error = $this->validateInterfaceExpression(is_string($value) ? $value : '');
+                    if ($error !== null) {
+                        $fail($error);
+                    }
+                },
+            ],
             'telegram_ports' => [
                 'nullable',
                 'string',
@@ -649,9 +663,44 @@ class UserController extends Controller
             array_filter($telegramDevices, static fn ($id): bool => is_numeric($id) && (int) $id > 0)
         )));
 
-        $user->update([
+        $telegramDeviceInterfaces = [];
+        if (User::supportsTelegramDeviceInterfaceScope()) {
+            $telegramDeviceInterfacesRaw = $data['telegram_device_interfaces'] ?? [];
+            if (!is_array($telegramDeviceInterfacesRaw)) {
+                $telegramDeviceInterfacesRaw = [];
+            }
+
+            foreach ($telegramDeviceInterfacesRaw as $deviceIdRaw => $interfacesRaw) {
+                if (!is_numeric($deviceIdRaw)) {
+                    continue;
+                }
+
+                $deviceId = (int) $deviceIdRaw;
+                if (!in_array($deviceId, $telegramDevices, true) || !is_array($interfacesRaw)) {
+                    continue;
+                }
+
+                $interfaces = array_values(array_unique(array_map(
+                    static fn ($value): string => trim((string) $value),
+                    array_filter($interfacesRaw, static fn ($value): bool => trim((string) $value) !== '')
+                )));
+
+                if (!empty($interfaces)) {
+                    $telegramDeviceInterfaces[(string) $deviceId] = $interfaces;
+                }
+            }
+        }
+
+        $telegramUpdates = [
             'telegram_devices' => $telegramDevices,
-        ]);
+        ];
+        if (User::supportsTelegramDeviceInterfaceScope()) {
+            $telegramUpdates['telegram_device_interfaces'] = !empty($telegramDeviceInterfaces)
+                ? $telegramDeviceInterfaces
+                : null;
+        }
+
+        $user->update($telegramUpdates);
 
         $assignedBy = $request->session()->get('auth.user_id');
         $currentlyAssigned = Device::where('assigned_user_id', $user->id)

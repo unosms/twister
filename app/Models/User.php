@@ -18,6 +18,7 @@ class User extends Authenticatable
 
     protected static ?bool $avatarStorageSupported = null;
     protected static ?bool $assignedDeviceGraphAccessSupported = null;
+    protected static ?bool $telegramDeviceInterfaceScopeSupported = null;
 
     /**
      * The attributes that are mass assignable.
@@ -35,6 +36,7 @@ class User extends Authenticatable
 'telegram_chat_id',
 'telegram_bot_token',
 'telegram_devices',
+        'telegram_device_interfaces',
         'telegram_ports',
         'telegram_severities',
         'telegram_event_types',
@@ -67,6 +69,7 @@ class User extends Authenticatable
         'telegram_chat_id' => 'string',
 'telegram_bot_token' => 'string',
         'telegram_devices' => 'array',
+        'telegram_device_interfaces' => 'array',
         'telegram_ports' => 'string',
         'telegram_severities' => 'array',
         'telegram_event_types' => 'array',
@@ -150,6 +153,22 @@ class User extends Authenticatable
         }
 
         return static::$assignedDeviceGraphAccessSupported;
+    }
+
+    public static function supportsTelegramDeviceInterfaceScope(): bool
+    {
+        if (static::$telegramDeviceInterfaceScopeSupported !== null) {
+            return static::$telegramDeviceInterfaceScopeSupported;
+        }
+
+        try {
+            static::$telegramDeviceInterfaceScopeSupported = Schema::hasTable('users')
+                && Schema::hasColumn('users', 'telegram_device_interfaces');
+        } catch (\Throwable) {
+            static::$telegramDeviceInterfaceScopeSupported = false;
+        }
+
+        return static::$telegramDeviceInterfaceScopeSupported;
     }
 
     public function profileAvatarUrl(): ?string

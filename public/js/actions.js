@@ -1862,6 +1862,157 @@
     });
   };
 
+  const setupTelegramDeviceInterfaceOptionPickers = () => {
+    const items = Array.from(document.querySelectorAll('[data-telegram-device-interface-item]'));
+    if (!items.length) {
+      return;
+    }
+
+    items.forEach((item) => {
+      if (item.dataset.telegramDeviceInterfaceOptionsBound === 'true') {
+        return;
+      }
+
+      const options = Array.from(
+        item.querySelectorAll('input[type="checkbox"][data-telegram-device-interface-option]')
+      );
+      if (!options.length) {
+        item.dataset.telegramDeviceInterfaceOptionsBound = 'true';
+        return;
+      }
+
+      const countTarget = item.querySelector('[data-telegram-device-interface-count]');
+      const updateCount = () => {
+        if (!countTarget) {
+          return;
+        }
+        const checkedCount = options.filter((option) => option.checked).length;
+        countTarget.textContent = String(checkedCount);
+      };
+
+      item.querySelectorAll('[data-telegram-device-interface-action]').forEach((button) => {
+        button.addEventListener('click', (event) => {
+          event.preventDefault();
+          const mode = String(button.dataset.telegramDeviceInterfaceAction || '').toLowerCase();
+          if (mode === 'all') {
+            options.forEach((option) => {
+              option.checked = true;
+            });
+          } else if (mode === 'none') {
+            options.forEach((option) => {
+              option.checked = false;
+            });
+          } else if (mode === 'invert') {
+            options.forEach((option) => {
+              option.checked = !option.checked;
+            });
+          }
+
+          updateCount();
+        });
+      });
+
+      options.forEach((option) => {
+        option.addEventListener('change', updateCount);
+      });
+
+      updateCount();
+      item.dataset.telegramDeviceInterfaceOptionsBound = 'true';
+    });
+  };
+
+  const setupTelegramDeviceInterfaceInputs = () => {
+    const containers = Array.from(document.querySelectorAll('[data-telegram-device-interface-permissions]'));
+    if (!containers.length) {
+      return;
+    }
+
+    containers.forEach((container) => {
+      const form = container.closest('form');
+      if (!form) {
+        return;
+      }
+
+      const select = form.querySelector('select[name="telegram_devices[]"]');
+      const checkboxes = Array.from(
+        form.querySelectorAll('input[type="checkbox"][name="telegram_devices[]"]')
+      );
+      if (!select && !checkboxes.length) {
+        return;
+      }
+
+      const items = Array.from(
+        container.querySelectorAll('[data-telegram-device-interface-item][data-device-id]')
+      );
+      if (!items.length) {
+        return;
+      }
+
+      const empty = container.querySelector('[data-telegram-device-interface-empty]');
+
+      const applyDefaultSelection = (item) => {
+        if (String(item.dataset.defaultSelectAll || '') !== '1') {
+          return;
+        }
+        if (item.dataset.defaultApplied === 'true') {
+          return;
+        }
+
+        const options = Array.from(
+          item.querySelectorAll('input[type="checkbox"][data-telegram-device-interface-option]')
+        );
+        if (!options.length) {
+          item.dataset.defaultApplied = 'true';
+          return;
+        }
+
+        options.forEach((option) => {
+          option.checked = true;
+          option.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+
+        item.dataset.defaultApplied = 'true';
+      };
+
+      const updateVisibility = () => {
+        const selectedIds = new Set(
+          select
+            ? Array.from(select.selectedOptions || []).map((option) => String(option.value || ''))
+            : checkboxes
+                .filter((item) => item.checked)
+                .map((item) => String(item.value || ''))
+        );
+
+        let visibleCount = 0;
+        items.forEach((item) => {
+          const wasHidden = item.classList.contains('hidden');
+          const deviceId = String(item.dataset.deviceId || '');
+          const visible = selectedIds.has(deviceId);
+          item.classList.toggle('hidden', !visible);
+          if (visible) {
+            visibleCount += 1;
+            if (wasHidden) {
+              applyDefaultSelection(item);
+            }
+          }
+        });
+
+        if (empty) {
+          empty.classList.toggle('hidden', visibleCount > 0);
+        }
+      };
+
+      if (select) {
+        select.addEventListener('change', updateVisibility);
+      }
+      checkboxes.forEach((item) => {
+        item.addEventListener('change', updateVisibility);
+      });
+
+      updateVisibility();
+    });
+  };
+
   const setupMultiSelectShortcuts = () => {
     const groups = Array.from(document.querySelectorAll('[data-multi-select]'));
     if (!groups.length) {
@@ -3471,6 +3622,8 @@
     setupUserEditToggles();
     setupMultiSelectShortcuts();
     setupCheckboxShortcuts();
+    setupTelegramDeviceInterfaceOptionPickers();
+    setupTelegramDeviceInterfaceInputs();
     setupCustomCommandPermissions();
     setupDevicePermissionPortInputs();
     setupDevicePortOptionPickers();

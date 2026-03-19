@@ -325,6 +325,11 @@ $selectedTelegramDevices = array_values(array_unique(array_map(
     'intval',
     array_filter($selectedTelegramDevices, static fn ($id): bool => is_numeric($id))
 )));
+$telegramDeviceInterfaceScopeReady = (bool) ($telegramDeviceInterfaceScopeReady ?? false);
+$telegramDeviceInterfacesMap = old('telegram_device_interfaces', $user->telegram_device_interfaces ?? []);
+if (!is_array($telegramDeviceInterfacesMap)) {
+    $telegramDeviceInterfacesMap = [];
+}
 
 $severityOptions = $telegramSeverityOptions ?? ['low', 'medium', 'high', 'critical'];
 $selectedTelegramSeverities = old('telegram_severities', $user->telegram_severities ?? ['high', 'critical']);
@@ -372,7 +377,6 @@ $canViewAssignedDeviceGraphs = (bool) old(
 );
 $assignedDeviceGraphAccessReady = (bool) ($assignedDeviceGraphAccessReady ?? false);
 $deviceGraphScopeReady = (bool) ($deviceGraphScopeReady ?? false);
-$graphInterfaceOptionsByDevice = is_array($graphInterfaceOptionsByDevice ?? null) ? $graphInterfaceOptionsByDevice : [];
 $graphInterfaceOptionsByDevice = is_array($graphInterfaceOptionsByDevice ?? null) ? $graphInterfaceOptionsByDevice : [];
 $selectedGraphDeviceIds = [];
 $graphInterfaceMap = [];
@@ -811,7 +815,7 @@ Run <code>php artisan migrate --force</code> to enable per-device command restri
 <input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="telegram_chat_id" type="text" value="<?php echo e(old('telegram_chat_id', $user->telegram_chat_id)); ?>" placeholder="e.g. 123456789, -1001234567890"/>
 </div>
 <div class="flex flex-col gap-2">
-<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Telegram Ports</label>
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Telegram Ports (fallback)</label>
 <input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="telegram_ports" type="text" value="<?php echo e(old('telegram_ports', $user->telegram_ports)); ?>" placeholder="80,443,1000-1010"/>
 <p class="text-xs text-gray-400">Optional comma-separated ports and ranges.</p>
 </div>
@@ -841,6 +845,76 @@ Run <code>php artisan migrate --force</code> to enable per-device command restri
 </div>
 <p class="text-xs text-gray-400">Defaults to assigned devices when empty.</p>
 </div>
+<?php if($telegramDeviceInterfaceScopeReady): ?>
+<div class="flex flex-col gap-2 md:col-span-2" data-telegram-device-interface-permissions>
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Telegram Interfaces Per Device</label>
+<div class="border border-[#cfd7e7] dark:border-gray-700 rounded-lg p-3 space-y-3 bg-white dark:bg-gray-800">
+<?php $__currentLoopData = $devices; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $device): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+<?php
+$deviceId = (int) $device->id;
+$hasTelegramDevice = in_array($deviceId, $selectedTelegramDevices, true);
+$telegramInterfaceOptions = $graphInterfaceOptionsByDevice[$deviceId] ?? [];
+$telegramInterfaceValuesRaw = $telegramDeviceInterfacesMap[$deviceId] ?? null;
+$explicitTelegramInterfaceScope = false;
+$selectedTelegramInterfaceLookup = [];
+if (is_array($telegramInterfaceValuesRaw)) {
+    foreach ($telegramInterfaceValuesRaw as $interfaceValueRaw) {
+        $interfaceValue = strtolower(trim((string) $interfaceValueRaw));
+        if ($interfaceValue === '') { continue; }
+        $selectedTelegramInterfaceLookup[$interfaceValue] = true;
+    }
+    $explicitTelegramInterfaceScope = !empty($selectedTelegramInterfaceLookup);
+}
+if (!$explicitTelegramInterfaceScope && $hasTelegramDevice) {
+    foreach ($telegramInterfaceOptions as $telegramInterfaceOption) {
+        $interfaceValue = strtolower(trim((string) ($telegramInterfaceOption['value'] ?? '')));
+        if ($interfaceValue !== '') {
+            $selectedTelegramInterfaceLookup[$interfaceValue] = true;
+        }
+    }
+}
+?>
+<div class="<?php if(!$hasTelegramDevice): echo 'hidden'; endif; ?> rounded-lg border border-slate-200 dark:border-gray-700 p-3" data-telegram-device-interface-item data-device-id="<?php echo e($deviceId); ?>" data-default-select-all="<?php echo e($explicitTelegramInterfaceScope ? '0' : '1'); ?>">
+<div class="text-xs font-semibold text-slate-500 mb-2"><?php echo e($device->name); ?> <?php if($device->serial_number): ?>(<?php echo e($device->serial_number); ?>)<?php endif; ?></div>
+<?php if(!empty($telegramInterfaceOptions)): ?>
+<div class="space-y-2">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<span class="text-[11px] font-semibold text-gray-500"><span data-telegram-device-interface-count>0</span> selected</span>
+<div class="flex flex-wrap gap-2">
+<button class="px-2 py-1 text-[11px] font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-telegram-device-interface-action="all">Select all</button>
+<button class="px-2 py-1 text-[11px] font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-telegram-device-interface-action="none">Clear</button>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-40 overflow-y-auto rounded-lg border border-[#cfd7e7] dark:border-gray-700 p-2">
+<?php $__currentLoopData = $telegramInterfaceOptions; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $telegramInterfaceOption): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+<?php
+$telegramInterfaceValue = trim((string) ($telegramInterfaceOption['value'] ?? ''));
+$telegramInterfaceLabel = trim((string) ($telegramInterfaceOption['label'] ?? $telegramInterfaceValue));
+$telegramInterfaceChecked = $telegramInterfaceValue !== '' && isset($selectedTelegramInterfaceLookup[strtolower($telegramInterfaceValue)]);
+?>
+<?php if($telegramInterfaceValue !== ''): ?>
+<label class="flex items-center gap-2 text-xs text-gray-700 dark:text-gray-200">
+<input class="rounded border-gray-300 text-primary focus:ring-primary" type="checkbox" name="telegram_device_interfaces[<?php echo e($deviceId); ?>][]" value="<?php echo e($telegramInterfaceValue); ?>" data-telegram-device-interface-option <?php if($telegramInterfaceChecked): echo 'checked'; endif; ?>/>
+<span><?php echo e($telegramInterfaceLabel); ?></span>
+</label>
+<?php endif; ?>
+<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+</div>
+</div>
+<?php else: ?>
+<p class="text-xs text-gray-400">No discovered interfaces yet for this device.</p>
+<?php endif; ?>
+</div>
+<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+<p class="text-xs text-gray-400 <?php if(!empty($selectedTelegramDevices)): echo 'hidden'; endif; ?>" data-telegram-device-interface-empty>Select one or more Telegram devices to scope interfaces.</p>
+</div>
+<p class="text-xs text-gray-400">When a Telegram device is selected, all discovered interfaces start selected by default.</p>
+</div>
+<?php else: ?>
+<div class="md:col-span-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-3 text-sm text-amber-700 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-300">
+Run <code>php artisan migrate --force</code> to enable Telegram per-device interface scope controls.
+</div>
+<?php endif; ?>
 
 <div class="flex flex-col gap-2" data-checkbox-group>
 <div class="flex items-center justify-between gap-2">

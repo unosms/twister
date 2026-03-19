@@ -203,8 +203,18 @@ class TelegramEventNotifier
             }
         }
 
+        $deviceId = is_numeric($event['device_id'] ?? null) ? (int) $event['device_id'] : 0;
+        $deviceInterfaceMap = $this->normalizeDeviceInterfaceMap($user->telegram_device_interfaces ?? []);
+        $hasDeviceSpecificInterfaces = $deviceId > 0 && isset($deviceInterfaceMap[$deviceId]);
+        if ($hasDeviceSpecificInterfaces) {
+            $allowedInterfaces = $deviceInterfaceMap[$deviceId];
+            if (!empty($allowedInterfaces) && !$this->portMatchesExpression($event['port'], implode(',', $allowedInterfaces))) {
+                return false;
+            }
+        }
+
         $ports = trim((string) ($user->telegram_ports ?? ''));
-        if ($ports !== '' && !$this->portMatchesExpression($event['port'], $ports)) {
+        if (!$hasDeviceSpecificInterfaces && $ports !== '' && !$this->portMatchesExpression($event['port'], $ports)) {
             return false;
         }
 
@@ -349,6 +359,41 @@ class TelegramEventNotifier
             static fn ($id) => (int) $id,
             array_filter($ids, static fn ($id) => is_numeric($id) && (int) $id > 0)
         )));
+    }
+
+    private function normalizeDeviceInterfaceMap(array|string|null $value): array
+    {
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            $value = is_array($decoded) ? $decoded : [];
+        }
+
+        if (!is_array($value)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($value as $deviceIdRaw => $interfacesRaw) {
+            if (!is_numeric($deviceIdRaw) || !is_array($interfacesRaw)) {
+                continue;
+            }
+
+            $deviceId = (int) $deviceIdRaw;
+            if ($deviceId <= 0) {
+                continue;
+            }
+
+            $interfaces = array_values(array_unique(array_map(
+                static fn ($item): string => trim((string) $item),
+                array_filter($interfacesRaw, static fn ($item): bool => trim((string) $item) !== '')
+            )));
+
+            if (!empty($interfaces)) {
+                $normalized[$deviceId] = $interfaces;
+            }
+        }
+
+        return $normalized;
     }
 
     private function normalizeSimpleList(array|string|null $values): array
