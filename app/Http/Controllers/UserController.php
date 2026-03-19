@@ -269,10 +269,12 @@ class UserController extends Controller
         $devices = Device::orderBy('name')->get();
         $this->ensureExecCommandTemplates();
         $commandTemplates = CommandTemplate::where('active', true)->orderBy('name')->get();
+        $graphInterfaceOptionsByDevice = $this->buildGraphInterfaceOptionsByDevice($devices);
 
         return [
             'devices' => $devices,
             'commandTemplates' => $commandTemplates,
+            'graphInterfaceOptionsByDevice' => $graphInterfaceOptionsByDevice,
             'avatarStorageReady' => User::supportsAvatarStorage(),
             'assignedDeviceGraphAccessReady' => User::supportsAssignedDeviceGraphAccess(),
             'deviceGraphScopeReady' => DeviceGraphPermission::supportsScopedAccess(),
@@ -280,6 +282,93 @@ class UserController extends Controller
             'telegramSeverityOptions' => self::TELEGRAM_SEVERITIES,
             'telegramEventTypeOptions' => self::TELEGRAM_EVENT_TYPES,
         ];
+    }
+
+    private function buildGraphInterfaceOptionsByDevice(\Illuminate\Support\Collection $devices): array
+    {
+        $deviceIds = $devices->pluck('id')
+            ->map(static fn ($id): int => (int) $id)
+            ->filter(static fn (int $id): bool => $id > 0)
+            ->values()
+            ->all();
+
+        if (empty($deviceIds)) {
+            return [];
+        }
+
+        $schema = DB::getSchemaBuilder();
+        if (!$schema->hasTable('interfaces')) {
+            return [];
+        }
+
+        $rows = DB::table('interfaces')
+            ->whereIn('device_id', $deviceIds)
+            ->orderBy('device_id')
+            ->orderBy('ifIndex')
+            ->get(['device_id', 'ifIndex', 'ifName', 'ifDescr', 'ifAlias']);
+
+        $optionsByDevice = [];
+        $seenByDevice = [];
+
+        foreach ($rows as $row) {
+            $deviceId = (int) ($row->device_id ?? 0);
+            if ($deviceId <= 0) {
+                continue;
+            }
+
+            $value = $this->resolveGraphInterfaceValue($row);
+            if ($value === '') {
+                continue;
+            }
+
+            $valueKey = strtolower($value);
+            if (isset($seenByDevice[$deviceId][$valueKey])) {
+                continue;
+            }
+            $seenByDevice[$deviceId][$valueKey] = true;
+
+            $optionsByDevice[$deviceId][] = [
+                'value' => $value,
+                'label' => $this->formatGraphInterfaceLabel($row, $value),
+            ];
+        }
+
+        return $optionsByDevice;
+    }
+
+    private function resolveGraphInterfaceValue(object $row): string
+    {
+        $ifName = trim((string) ($row->ifName ?? ''));
+        if ($ifName !== '') {
+            return $ifName;
+        }
+
+        $ifDescr = trim((string) ($row->ifDescr ?? ''));
+        if ($ifDescr !== '') {
+            return $ifDescr;
+        }
+
+        $ifIndex = (int) ($row->ifIndex ?? 0);
+        return $ifIndex > 0 ? (string) $ifIndex : '';
+    }
+
+    private function formatGraphInterfaceLabel(object $row, string $fallbackValue): string
+    {
+        $ifIndex = (int) ($row->ifIndex ?? 0);
+        $ifName = trim((string) ($row->ifName ?? ''));
+        $ifAlias = trim((string) ($row->ifAlias ?? ''));
+        if ($ifAlias === '') {
+            $ifAlias = trim((string) ($row->ifDescr ?? ''));
+        }
+
+        $namePart = $ifName !== '' ? $ifName : $fallbackValue;
+        $label = $ifIndex > 0 ? ('[#' . $ifIndex . '] ' . $namePart) : $namePart;
+
+        if ($ifAlias !== '' && strcasecmp($ifAlias, $namePart) !== 0) {
+            $label .= ' - ' . $ifAlias;
+        }
+
+        return $label;
     }
 
     private function resolveCurrentUserId(Request $request): ?int

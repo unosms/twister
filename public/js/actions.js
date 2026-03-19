@@ -1714,6 +1714,80 @@
     });
   };
 
+  const setupGraphInterfaceOptionPickers = () => {
+    const items = Array.from(document.querySelectorAll('[data-device-graph-interface-item]'));
+    if (!items.length) {
+      return;
+    }
+
+    items.forEach((item) => {
+      if (item.dataset.graphInterfaceBound === 'true') {
+        return;
+      }
+
+      const hiddenInput = item.querySelector('input[data-graph-interface-hidden]');
+      const options = Array.from(item.querySelectorAll('input[type="checkbox"][data-graph-interface-option]'));
+      if (!hiddenInput || !options.length) {
+        item.dataset.graphInterfaceBound = 'true';
+        return;
+      }
+
+      const countTarget = item.querySelector('[data-graph-interface-count]');
+
+      const selectedValues = () =>
+        options
+          .filter((option) => option.checked)
+          .map((option) => String(option.value || '').trim())
+          .filter((value) => value !== '');
+
+      const updateCount = () => {
+        if (!countTarget) {
+          return;
+        }
+        countTarget.textContent = String(selectedValues().length);
+      };
+
+      const syncHiddenValue = (force = false) => {
+        const values = selectedValues();
+        if (force || values.length > 0 || String(hiddenInput.value || '').trim() === '') {
+          hiddenInput.value = values.join(',');
+        }
+        updateCount();
+      };
+
+      item.querySelectorAll('[data-graph-interface-action]').forEach((button) => {
+        button.addEventListener('click', (event) => {
+          event.preventDefault();
+          const mode = String(button.dataset.graphInterfaceAction || '').toLowerCase();
+          if (mode === 'all') {
+            options.forEach((option) => {
+              option.checked = true;
+            });
+          } else if (mode === 'none') {
+            options.forEach((option) => {
+              option.checked = false;
+            });
+          } else if (mode === 'invert') {
+            options.forEach((option) => {
+              option.checked = !option.checked;
+            });
+          }
+
+          syncHiddenValue(true);
+        });
+      });
+
+      options.forEach((option) => {
+        option.addEventListener('change', () => {
+          syncHiddenValue(true);
+        });
+      });
+
+      syncHiddenValue(false);
+      item.dataset.graphInterfaceBound = 'true';
+    });
+  };
+
   const setupMultiSelectShortcuts = () => {
     const groups = Array.from(document.querySelectorAll('[data-multi-select]'));
     if (!groups.length) {
@@ -3327,6 +3401,7 @@
     setupDevicePermissionPortInputs();
     setupDevicePermissionCommandInputs();
     setupGraphDeviceInterfaceInputs();
+    setupGraphInterfaceOptionPickers();
     setupDeviceEditToggles();
     setupDeviceEditTypeFields();
     setupDeviceRowLinks();

@@ -359,6 +359,7 @@ $canViewAssignedDeviceGraphs = (bool) old(
 );
 $assignedDeviceGraphAccessReady = (bool) ($assignedDeviceGraphAccessReady ?? false);
 $deviceGraphScopeReady = (bool) ($deviceGraphScopeReady ?? false);
+$graphInterfaceOptionsByDevice = is_array($graphInterfaceOptionsByDevice ?? null) ? $graphInterfaceOptionsByDevice : [];
 $selectedGraphDeviceIds = [];
 $graphInterfaceMap = [];
 if ($deviceGraphScopeReady && \App\Models\DeviceGraphPermission::supportsScopedAccess()) {
@@ -398,6 +399,18 @@ $selectedGraphDeviceIds = array_values(array_unique(array_map(
     'intval',
     array_filter($selectedGraphDeviceIds, static fn ($id): bool => is_numeric($id))
 )));
+$graphInterfaceSelectedLookupMap = [];
+foreach ($graphInterfaceMap as $deviceId => $expression) {
+    $tokens = preg_split('/\s*,\s*/', trim((string) $expression)) ?: [];
+    $lookup = [];
+    foreach ($tokens as $token) {
+        $token = strtolower(trim((string) $token));
+        if ($token !== '') {
+            $lookup[$token] = true;
+        }
+    }
+    $graphInterfaceSelectedLookupMap[(int) $deviceId] = $lookup;
+}
 ?>
 <div class="rounded-lg border border-[#cfd7e7] dark:border-gray-700 bg-white dark:bg-gray-900/50 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
 <div>
@@ -575,10 +588,43 @@ Upload Picture
 $deviceId = (int) $device->id;
 $graphAllowedInterfaces = trim((string) ($graphInterfaceMap[$deviceId] ?? ''));
 $hasGraphDevice = in_array($deviceId, $selectedGraphDeviceIds, true);
+$interfaceOptions = $graphInterfaceOptionsByDevice[$deviceId] ?? [];
+$selectedGraphInterfaceLookup = $graphInterfaceSelectedLookupMap[$deviceId] ?? [];
 ?>
 <div class="<?php if(!$hasGraphDevice): echo 'hidden'; endif; ?> rounded-lg border border-slate-200 dark:border-gray-700 p-3" data-device-graph-interface-item data-device-id="<?php echo e($deviceId); ?>">
 <div class="text-xs font-semibold text-slate-500 mb-2"><?php echo e($device->name); ?> <?php if($device->serial_number): ?>(<?php echo e($device->serial_number); ?>)<?php endif; ?></div>
-<input class="w-full rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-900 dark:text-white focus:border-primary focus:ring-primary h-10" type="text" name="graph_device_interfaces[<?php echo e($deviceId); ?>]" value="<?php echo e($graphAllowedInterfaces); ?>" placeholder="e.g. Gi1/0/1,Gi1/0/2,Gi1/0/* or *"/>
+<input type="hidden" name="graph_device_interfaces[<?php echo e($deviceId); ?>]" value="<?php echo e($graphAllowedInterfaces); ?>" data-graph-interface-hidden/>
+<?php if(!empty($interfaceOptions)): ?>
+<div class="space-y-2">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<span class="text-[11px] font-semibold text-gray-500"><span data-graph-interface-count>0</span> selected</span>
+<div class="flex flex-wrap gap-2">
+<button class="px-2 py-1 text-[11px] font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-graph-interface-action="all">Select all</button>
+<button class="px-2 py-1 text-[11px] font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-graph-interface-action="none">Clear</button>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-40 overflow-y-auto rounded-lg border border-[#cfd7e7] dark:border-gray-700 p-2">
+<?php $__currentLoopData = $interfaceOptions; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $option): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
+<?php
+$optionValue = trim((string) ($option['value'] ?? ''));
+$optionLabel = trim((string) ($option['label'] ?? $optionValue));
+$isChecked = $optionValue !== '' && isset($selectedGraphInterfaceLookup[strtolower($optionValue)]);
+?>
+<?php if($optionValue !== ''): ?>
+<label class="flex items-center gap-2 text-xs text-gray-700 dark:text-gray-200">
+<input class="rounded border-gray-300 text-primary focus:ring-primary" type="checkbox" value="<?php echo e($optionValue); ?>" data-graph-interface-option <?php if($isChecked): echo 'checked'; endif; ?>/>
+<span><?php echo e($optionLabel); ?></span>
+</label>
+<?php endif; ?>
+<?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
+</div>
+</div>
+<?php else: ?>
+<p class="text-xs text-gray-400">No discovered interfaces yet for this device.</p>
+<?php if($graphAllowedInterfaces !== ''): ?>
+<p class="text-xs text-gray-500">Current saved scope: <code><?php echo e($graphAllowedInterfaces); ?></code></p>
+<?php endif; ?>
+<?php endif; ?>
 </div>
 <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
 <p class="text-xs text-gray-400 <?php if(!empty($selectedGraphDeviceIds)): echo 'hidden'; endif; ?>" data-device-graph-interface-empty>Select one or more graph devices to set interface scope.</p>

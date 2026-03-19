@@ -83,12 +83,25 @@ $deviceGraphScopeReady = (bool) ($deviceGraphScopeReady ?? false);
 $selectedGraphDeviceIds = old('graph_device_ids', []);
 if (!is_array($selectedGraphDeviceIds)) { $selectedGraphDeviceIds = []; }
 $selectedGraphDeviceIds = array_values(array_unique(array_map('intval', array_filter($selectedGraphDeviceIds, static fn ($id): bool => is_numeric($id)))));
+$graphInterfaceOptionsByDevice = is_array($graphInterfaceOptionsByDevice ?? null) ? $graphInterfaceOptionsByDevice : [];
 $graphInterfaceMap = [];
 $oldGraphInterfaceMap = old('graph_device_interfaces');
 if (is_array($oldGraphInterfaceMap)) {
     foreach ($oldGraphInterfaceMap as $deviceId => $value) {
         if (is_numeric($deviceId)) { $graphInterfaceMap[(int) $deviceId] = trim((string) $value); }
     }
+}
+$graphInterfaceSelectedLookupMap = [];
+foreach ($graphInterfaceMap as $deviceId => $expression) {
+    $tokens = preg_split('/\s*,\s*/', trim((string) $expression)) ?: [];
+    $lookup = [];
+    foreach ($tokens as $token) {
+        $token = strtolower(trim((string) $token));
+        if ($token !== '') {
+            $lookup[$token] = true;
+        }
+    }
+    $graphInterfaceSelectedLookupMap[(int) $deviceId] = $lookup;
 }
 @endphp
 
@@ -269,10 +282,43 @@ Upload Picture
 $deviceId = (int) $device->id;
 $graphAllowedInterfaces = trim((string) ($graphInterfaceMap[$deviceId] ?? ''));
 $hasGraphDevice = in_array($deviceId, $selectedGraphDeviceIds, true);
+$interfaceOptions = $graphInterfaceOptionsByDevice[$deviceId] ?? [];
+$selectedGraphInterfaceLookup = $graphInterfaceSelectedLookupMap[$deviceId] ?? [];
 @endphp
 <div class="{{ $hasGraphDevice ? '' : 'hidden' }} rounded-lg border border-slate-200 dark:border-slate-700 p-3 bg-white dark:bg-slate-900" data-device-graph-interface-item data-device-id="{{ $deviceId }}">
 <div class="text-xs font-semibold text-slate-500 mb-2">{{ $device->name }}@if ($device->serial_number) ({{ $device->serial_number }})@endif</div>
-<input class="h-10 w-full rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:border-primary focus:ring-primary" type="text" name="graph_device_interfaces[{{ $deviceId }}]" value="{{ $graphAllowedInterfaces }}" placeholder="Gi1/0/1,Gi1/0/2,Gi1/0/* or *"/>
+<input type="hidden" name="graph_device_interfaces[{{ $deviceId }}]" value="{{ $graphAllowedInterfaces }}" data-graph-interface-hidden/>
+@if (!empty($interfaceOptions))
+<div class="space-y-2">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<span class="text-[11px] font-semibold text-slate-500"><span data-graph-interface-count>0</span> selected</span>
+<div class="flex flex-wrap gap-2">
+<button class="px-2 py-1 text-[11px] font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-graph-interface-action="all">Select all</button>
+<button class="px-2 py-1 text-[11px] font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-graph-interface-action="none">Clear</button>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-40 overflow-y-auto rounded-lg border border-slate-200 p-2 dark:border-slate-700">
+@foreach ($interfaceOptions as $option)
+@php
+$optionValue = trim((string) ($option['value'] ?? ''));
+$optionLabel = trim((string) ($option['label'] ?? $optionValue));
+$isChecked = $optionValue !== '' && isset($selectedGraphInterfaceLookup[strtolower($optionValue)]);
+@endphp
+@if ($optionValue !== '')
+<label class="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-200">
+<input class="rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" value="{{ $optionValue }}" data-graph-interface-option @checked($isChecked)/>
+<span>{{ $optionLabel }}</span>
+</label>
+@endif
+@endforeach
+</div>
+</div>
+@else
+<p class="text-xs text-slate-400">No discovered interfaces yet for this device.</p>
+@if ($graphAllowedInterfaces !== '')
+<p class="text-xs text-slate-500">Current saved scope: <code>{{ $graphAllowedInterfaces }}</code></p>
+@endif
+@endif
 </div>
 @endforeach
 <p class="text-xs text-slate-400 {{ !empty($selectedGraphDeviceIds) ? 'hidden' : '' }}" data-device-graph-interface-empty>Select one or more graph devices to set interface scope.</p>
