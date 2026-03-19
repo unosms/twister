@@ -41,12 +41,25 @@ $assignedDeviceIds = array_values(array_unique(array_map('intval', array_filter(
 $selectedPermissionDeviceIds = old('device_permission_ids', []);
 if (!is_array($selectedPermissionDeviceIds)) { $selectedPermissionDeviceIds = []; }
 $selectedPermissionDeviceIds = array_values(array_unique(array_map('intval', array_filter($selectedPermissionDeviceIds, static fn ($id): bool => is_numeric($id)))));
+$graphInterfaceOptionsByDevice = is_array($graphInterfaceOptionsByDevice ?? null) ? $graphInterfaceOptionsByDevice : [];
 $permissionPortMap = [];
 $oldPermissionPortMap = old('device_permission_ports');
 if (is_array($oldPermissionPortMap)) {
     foreach ($oldPermissionPortMap as $deviceId => $value) {
         if (is_numeric($deviceId)) { $permissionPortMap[(int) $deviceId] = trim((string) $value); }
     }
+}
+$permissionPortSelectedLookupMap = [];
+foreach ($permissionPortMap as $deviceId => $expression) {
+    $tokens = preg_split('/\s*,\s*/', trim((string) $expression)) ?: [];
+    $lookup = [];
+    foreach ($tokens as $token) {
+        $token = strtolower(trim((string) $token));
+        if ($token !== '') {
+            $lookup[$token] = true;
+        }
+    }
+    $permissionPortSelectedLookupMap[(int) $deviceId] = $lookup;
 }
 $permissionCommandTemplateMap = [];
 $oldPermissionCommandTemplateMap = old('device_permission_command_template_ids');
@@ -83,7 +96,6 @@ $deviceGraphScopeReady = (bool) ($deviceGraphScopeReady ?? false);
 $selectedGraphDeviceIds = old('graph_device_ids', []);
 if (!is_array($selectedGraphDeviceIds)) { $selectedGraphDeviceIds = []; }
 $selectedGraphDeviceIds = array_values(array_unique(array_map('intval', array_filter($selectedGraphDeviceIds, static fn ($id): bool => is_numeric($id)))));
-$graphInterfaceOptionsByDevice = is_array($graphInterfaceOptionsByDevice ?? null) ? $graphInterfaceOptionsByDevice : [];
 $graphInterfaceMap = [];
 $oldGraphInterfaceMap = old('graph_device_interfaces');
 if (is_array($oldGraphInterfaceMap)) {
@@ -347,15 +359,48 @@ Run <code>php artisan migrate --force</code> to enable user graph access toggles
 $deviceId = (int) $device->id;
 $deviceAllowedPorts = trim((string) ($permissionPortMap[$deviceId] ?? ''));
 $hasDevicePermission = in_array($deviceId, $selectedPermissionDeviceIds, true);
+$interfaceOptions = $graphInterfaceOptionsByDevice[$deviceId] ?? [];
+$selectedPortLookup = $permissionPortSelectedLookupMap[$deviceId] ?? [];
 @endphp
 <div class="{{ $hasDevicePermission ? '' : 'hidden' }} rounded-lg border border-slate-200 dark:border-slate-700 p-3 bg-white dark:bg-slate-900" data-device-port-item data-device-id="{{ $deviceId }}">
 <div class="text-xs font-semibold text-slate-500 mb-2">{{ $device->name }}@if ($device->serial_number) ({{ $device->serial_number }})@endif</div>
-<input class="h-10 w-full rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:border-primary focus:ring-primary" type="text" name="device_permission_ports[{{ $deviceId }}]" value="{{ $deviceAllowedPorts }}" placeholder="Gi1/0/1,Gi1/0/2,Gi1/0/* or *"/>
+<input type="hidden" name="device_permission_ports[{{ $deviceId }}]" value="{{ $deviceAllowedPorts }}" data-device-port-hidden/>
+@if (!empty($interfaceOptions))
+<div class="space-y-2">
+<div class="flex flex-wrap items-center justify-between gap-2">
+<span class="text-[11px] font-semibold text-slate-500"><span data-device-port-count>0</span> selected</span>
+<div class="flex flex-wrap gap-2">
+<button class="px-2 py-1 text-[11px] font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-device-port-action="all">Select all</button>
+<button class="px-2 py-1 text-[11px] font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-device-port-action="none">Clear</button>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-40 overflow-y-auto rounded-lg border border-slate-200 p-2 dark:border-slate-700">
+@foreach ($interfaceOptions as $option)
+@php
+$optionValue = trim((string) ($option['value'] ?? ''));
+$optionLabel = trim((string) ($option['label'] ?? $optionValue));
+$isChecked = $optionValue !== '' && isset($selectedPortLookup[strtolower($optionValue)]);
+@endphp
+@if ($optionValue !== '')
+<label class="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-200">
+<input class="rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" value="{{ $optionValue }}" data-device-port-option @checked($isChecked)/>
+<span>{{ $optionLabel }}</span>
+</label>
+@endif
+@endforeach
+</div>
+</div>
+@else
+<p class="text-xs text-slate-400">No discovered interfaces yet for this device.</p>
+@if ($deviceAllowedPorts !== '')
+<p class="text-xs text-slate-500">Current saved scope: <code>{{ $deviceAllowedPorts }}</code></p>
+@endif
+@endif
 </div>
 @endforeach
 <p class="text-xs text-slate-400 {{ !empty($selectedPermissionDeviceIds) ? 'hidden' : '' }}" data-device-port-empty>Select one or more command devices to set port-level access.</p>
 </div>
-<p class="text-xs text-slate-400">Leave blank to allow all ports on that device.</p>
+<p class="text-xs text-slate-400">Leave clear to allow all ports on that device.</p>
 </div>
 <div class="xl:col-span-2 flex flex-col gap-2" data-device-command-permissions>
 <label class="text-sm font-semibold text-slate-700 dark:text-slate-200">Command Scope Per Device (optional)</label>

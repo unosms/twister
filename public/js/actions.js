@@ -1650,6 +1650,80 @@
     });
   };
 
+  const setupDevicePortOptionPickers = () => {
+    const items = Array.from(document.querySelectorAll('[data-device-port-item]'));
+    if (!items.length) {
+      return;
+    }
+
+    items.forEach((item) => {
+      if (item.dataset.devicePortBound === 'true') {
+        return;
+      }
+
+      const hiddenInput = item.querySelector('input[data-device-port-hidden]');
+      const options = Array.from(item.querySelectorAll('input[type="checkbox"][data-device-port-option]'));
+      if (!hiddenInput || !options.length) {
+        item.dataset.devicePortBound = 'true';
+        return;
+      }
+
+      const countTarget = item.querySelector('[data-device-port-count]');
+
+      const selectedValues = () =>
+        options
+          .filter((option) => option.checked)
+          .map((option) => String(option.value || '').trim())
+          .filter((value) => value !== '');
+
+      const updateCount = () => {
+        if (!countTarget) {
+          return;
+        }
+        countTarget.textContent = String(selectedValues().length);
+      };
+
+      const syncHiddenValue = (force = false) => {
+        const values = selectedValues();
+        if (force || values.length > 0 || String(hiddenInput.value || '').trim() === '') {
+          hiddenInput.value = values.join(',');
+        }
+        updateCount();
+      };
+
+      item.querySelectorAll('[data-device-port-action]').forEach((button) => {
+        button.addEventListener('click', (event) => {
+          event.preventDefault();
+          const mode = String(button.dataset.devicePortAction || '').toLowerCase();
+          if (mode === 'all') {
+            options.forEach((option) => {
+              option.checked = true;
+            });
+          } else if (mode === 'none') {
+            options.forEach((option) => {
+              option.checked = false;
+            });
+          } else if (mode === 'invert') {
+            options.forEach((option) => {
+              option.checked = !option.checked;
+            });
+          }
+
+          syncHiddenValue(true);
+        });
+      });
+
+      options.forEach((option) => {
+        option.addEventListener('change', () => {
+          syncHiddenValue(true);
+        });
+      });
+
+      syncHiddenValue(false);
+      item.dataset.devicePortBound = 'true';
+    });
+  };
+
   const setupGraphDeviceInterfaceInputs = () => {
     const containers = Array.from(document.querySelectorAll('[data-device-graph-interface-permissions]'));
     if (!containers.length) {
@@ -3399,6 +3473,7 @@
     setupCheckboxShortcuts();
     setupCustomCommandPermissions();
     setupDevicePermissionPortInputs();
+    setupDevicePortOptionPickers();
     setupDevicePermissionCommandInputs();
     setupGraphDeviceInterfaceInputs();
     setupGraphInterfaceOptionPickers();
