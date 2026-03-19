@@ -1718,6 +1718,7 @@ class ScriptController extends Controller
         if (!in_array($hours, $allowedHours, true)) {
             $hours = 1;
         }
+        $isPortalContext = strtolower(trim((string) $request->attributes->get('events_context', 'admin'))) === 'portal';
 
         $type = strtolower(trim((string) $request->query('type', '')));
         if (!in_array($type, ['', 'iface', 'device'], true)) {
@@ -1728,13 +1729,26 @@ class ScriptController extends Controller
             data_get($device->metadata ?? [], 'cisco.name'),
             $device->name
         );
+        $requestedDeviceName = trim((string) $request->query('device', ''));
+        if (!$isPortalContext && $requestedDeviceName !== '') {
+            $deviceName = $requestedDeviceName;
+        }
+
+        $ifaceIndex = trim((string) $request->query('iface', ''));
+        $ifaceIndex = preg_match('/^\d+$/', $ifaceIndex) === 1 ? (string) ((int) $ifaceIndex) : '';
 
         $query = [
             'hours' => $hours,
             'device' => $deviceName,
         ];
+        if ($isPortalContext) {
+            $query['lock_device'] = '1';
+        }
         if ($type !== '') {
             $query['type'] = $type;
+        }
+        if ($ifaceIndex !== '') {
+            $query['iface'] = $ifaceIndex;
         }
 
         $phpBinary = PHP_BINARY ?: 'php';

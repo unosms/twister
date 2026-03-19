@@ -148,35 +148,133 @@ if (!in_array($hours, $allowedHours, true)) {
 $hoursLabel = (string) $hours . ' hour' . ($hours === 1 ? '' : 's');
 $sinceEpoch = time() - ($hours * 3600);
 $deviceFilter = safe_str('device');
+$ifaceFilterRaw = safe_str('iface');
+$ifaceFilter = preg_match('/^\d+$/', $ifaceFilterRaw) === 1 ? (int) $ifaceFilterRaw : 0;
+$deviceLocked = safe_str('lock_device') === '1';
 $typeFilter = safe_str('type'); // '', 'iface'
 if (!in_array($typeFilter, ['', 'iface'], true)) {
     $typeFilter = '';
 }
 
 $sqlErrors = [];
+$availableDevices = [];
+if (!$deviceLocked) {
+    $deviceOptionsSql = "SELECT DISTINCT ie.device_name
+                         FROM interface_events ie
+                         WHERE ie.device_name IS NOT NULL
+                           AND TRIM(ie.device_name) <> ''
+                         ORDER BY ie.device_name ASC
+                         LIMIT 2000";
+    $deviceOptionRows = query_rows($conn, $deviceOptionsSql, '', [], $sqlErrors);
+    foreach ($deviceOptionRows as $deviceOptionRow) {
+        $deviceName = trim((string) ($deviceOptionRow['device_name'] ?? ''));
+        if ($deviceName === '') {
+            continue;
+        }
+        $availableDevices[] = $deviceName;
+    }
+}
+
+if ($deviceFilter !== '' && !in_array($deviceFilter, $availableDevices, true)) {
+    $availableDevices[] = $deviceFilter;
+}
+if (empty($availableDevices) && $deviceFilter !== '') {
+    $availableDevices = [$deviceFilter];
+}
+sort($availableDevices, SORT_NATURAL | SORT_FLAG_CASE);
+
+$availableInterfaces = [];
+if ($deviceFilter !== '') {
+    $ifaceOptionsSql = "SELECT ie.ifIndex,
+                               MAX(COALESCE(NULLIF(TRIM(ie.ifName), ''), '')) AS ifName,
+                               MAX(COALESCE(NULLIF(TRIM(ie.ifAlias), ''), '')) AS ifAlias,
+                               MAX(COALESCE(NULLIF(TRIM(ie.ifDescr), ''), '')) AS ifDescr
+                        FROM interface_events ie
+                        WHERE ie.device_name = ?
+                          AND ie.ifIndex IS NOT NULL
+                        GROUP BY ie.ifIndex
+                        ORDER BY ie.ifIndex ASC
+                        LIMIT 2000";
+    $ifaceOptionRows = query_rows($conn, $ifaceOptionsSql, 's', [$deviceFilter], $sqlErrors);
+    foreach ($ifaceOptionRows as $ifaceOptionRow) {
+        $ifIndex = (int) ($ifaceOptionRow['ifIndex'] ?? 0);
+        if ($ifIndex <= 0) {
+            continue;
+        }
+
+        $ifName = trim((string) ($ifaceOptionRow['ifName'] ?? ''));
+        $ifAlias = trim((string) ($ifaceOptionRow['ifAlias'] ?? ''));
+        if ($ifAlias === '') {
+            $ifAlias = trim((string) ($ifaceOptionRow['ifDescr'] ?? ''));
+        }
+
+        if ($ifName === '') {
+            $ifName = 'ifIndex ' . $ifIndex;
+        }
+
+        $ifLabel = '[#' . $ifIndex . '] ' . $ifName;
+        if ($ifAlias !== '') {
+            $ifLabel .= ' - ' . $ifAlias;
+        }
+
+        $availableInterfaces[] = [
+            'ifIndex' => $ifIndex,
+            'label' => $ifLabel,
+        ];
+    }
+}
+
+$selectedInterfaceLabel = 'All interfaces';
+if ($ifaceFilter > 0) {
+    foreach ($availableInterfaces as $ifaceOption) {
+        if ((int) ($ifaceOption['ifIndex'] ?? 0) !== $ifaceFilter) {
+            continue;
+        }
+        $selectedInterfaceLabel = (string) ($ifaceOption['label'] ?? ('ifIndex ' . $ifaceFilter));
+        break;
+    }
+
+    if ($selectedInterfaceLabel === 'All interfaces') {
+        $selectedInterfaceLabel = 'ifIndex ' . $ifaceFilter;
+    }
+}
 
 $whereIface = "((ie.event_type='link_down' AND (ie.opened_at >= ? OR (ie.resolved_at IS NOT NULL AND ie.resolved_at >= ?))) OR (ie.event_type='speed_changed' AND ie.opened_at >= ?))";
 
 $ifaceRows = [];
 if ($typeFilter === '' || $typeFilter === 'iface') {
+    $ifaceWhereParts = [$whereIface];
+    $ifaceTypes = 'iii';
+    $ifaceParams = [$sinceEpoch, $sinceEpoch, $sinceEpoch];
+
     if ($deviceFilter !== '') {
-        $ifaceSql = "SELECT ie.*, NULL AS cur_alias
-                     FROM interface_events ie
-                     WHERE {$whereIface} AND ie.device_name = ?
-                     ORDER BY ie.opened_at DESC, ie.id DESC
-                     LIMIT 5000";
-        $ifaceRows = query_rows($conn, $ifaceSql, 'iiis', [$sinceEpoch, $sinceEpoch, $sinceEpoch, $deviceFilter], $sqlErrors);
-    } else {
-        $ifaceSql = "SELECT ie.*, NULL AS cur_alias
-                     FROM interface_events ie
-                     WHERE {$whereIface}
-                     ORDER BY ie.opened_at DESC, ie.id DESC
-                     LIMIT 5000";
-        $ifaceRows = query_rows($conn, $ifaceSql, 'iii', [$sinceEpoch, $sinceEpoch, $sinceEpoch], $sqlErrors);
+        $ifaceWhereParts[] = 'ie.device_name = ?';
+        $ifaceTypes .= 's';
+        $ifaceParams[] = $deviceFilter;
     }
+
+    if ($ifaceFilter > 0) {
+        $ifaceWhereParts[] = 'ie.ifIndex = ?';
+        $ifaceTypes .= 'i';
+        $ifaceParams[] = $ifaceFilter;
+    }
+
+    $ifaceSql = "SELECT ie.*, NULL AS cur_alias
+                 FROM interface_events ie
+                 WHERE " . implode(' AND ', $ifaceWhereParts) . "
+                 ORDER BY ie.opened_at DESC, ie.id DESC
+                 LIMIT 5000";
+    $ifaceRows = query_rows($conn, $ifaceSql, $ifaceTypes, $ifaceParams, $sqlErrors);
 }
 
 $titleSuffix = $deviceFilter !== '' ? ' &bull; ' . esc($deviceFilter) : '';
+$graphLink = '/devices/graphs';
+if ($deviceFilter !== '') {
+    $graphLink .= '?device=' . urlencode($deviceFilter) . '&window=3600';
+    if ($ifaceFilter > 0) {
+        $graphLink .= '&ifIndex=' . $ifaceFilter;
+    }
+}
 ?>
 <!doctype html>
 <html lang="en">
@@ -294,7 +392,7 @@ $titleSuffix = $deviceFilter !== '' ? ' &bull; ' . esc($deviceFilter) : '';
         .filters {
             display: grid;
             gap: 12px;
-            grid-template-columns: 1fr 220px 180px auto;
+            grid-template-columns: minmax(220px, 1fr) minmax(220px, 1fr) 170px 170px auto;
             align-items: end;
         }
 
@@ -545,6 +643,12 @@ $titleSuffix = $deviceFilter !== '' ? ' &bull; ' . esc($deviceFilter) : '';
             <?php if ($deviceFilter !== ''): ?>
                 <span class="pill">Device: <?= esc($deviceFilter) ?></span>
             <?php endif; ?>
+            <?php if ($ifaceFilter > 0): ?>
+                <span class="pill">Interface: <?= esc($selectedInterfaceLabel) ?></span>
+            <?php endif; ?>
+            <?php if ($deviceLocked): ?>
+                <span class="pill">Device locked by portal scope</span>
+            <?php endif; ?>
         </div>
     </div>
 
@@ -558,17 +662,43 @@ $titleSuffix = $deviceFilter !== '' ? ' &bull; ' . esc($deviceFilter) : '';
     <?php endif; ?>
 
     <div class="filters-card">
-        <form class="filters" method="get" action="">
-            <input type="hidden" name="hours" value="<?= (int) $hours ?>">
+        <form class="filters" method="get" action="" data-events-filter-form>
+            <?php if ($deviceLocked): ?>
+                <input type="hidden" name="device" value="<?= esc($deviceFilter) ?>">
+                <input type="hidden" name="lock_device" value="1">
+            <?php endif; ?>
 
             <label class="field">
                 <span class="field-label">Device</span>
-                <input type="text" name="device" value="<?= esc($deviceFilter) ?>" placeholder="switch_name (optional)">
+                <select name="device" data-auto-submit <?= $deviceLocked ? 'disabled' : '' ?>>
+                    <?php if (empty($availableDevices)): ?>
+                        <option value="">No devices found</option>
+                    <?php else: ?>
+                        <?php foreach ($availableDevices as $deviceOption): ?>
+                            <option value="<?= esc($deviceOption) ?>" <?= $deviceFilter === $deviceOption ? 'selected' : '' ?>>
+                                <?= esc($deviceOption) ?>
+                            </option>
+                        <?php endforeach; ?>
+                    <?php endif; ?>
+                </select>
+            </label>
+
+            <label class="field">
+                <span class="field-label">Interface</span>
+                <select name="iface" data-auto-submit>
+                    <option value="" <?= $ifaceFilter <= 0 ? 'selected' : '' ?>>All interfaces</option>
+                    <?php foreach ($availableInterfaces as $ifaceOption): ?>
+                        <?php $ifIndex = (int) ($ifaceOption['ifIndex'] ?? 0); ?>
+                        <option value="<?= $ifIndex ?>" <?= $ifaceFilter === $ifIndex ? 'selected' : '' ?>>
+                            <?= esc((string) ($ifaceOption['label'] ?? ('ifIndex ' . $ifIndex))) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
             </label>
 
             <label class="field">
                 <span class="field-label">Type</span>
-                <select name="type">
+                <select name="type" data-auto-submit>
                     <option value="" <?= $typeFilter === '' ? 'selected' : '' ?>>All</option>
                     <option value="iface" <?= $typeFilter === 'iface' ? 'selected' : '' ?>>Interface</option>
                 </select>
@@ -576,7 +706,7 @@ $titleSuffix = $deviceFilter !== '' ? ' &bull; ' . esc($deviceFilter) : '';
 
             <label class="field">
                 <span class="field-label">Window</span>
-                <select name="hours">
+                <select name="hours" data-auto-submit>
                     <?php foreach ($allowedHours as $hourOption): ?>
                         <option value="<?= (int) $hourOption ?>" <?= $hours === (int) $hourOption ? 'selected' : '' ?>>
                             <?= (int) $hourOption ?> hour<?= (int) $hourOption === 1 ? '' : 's' ?>
@@ -586,10 +716,9 @@ $titleSuffix = $deviceFilter !== '' ? ' &bull; ' . esc($deviceFilter) : '';
             </label>
 
             <div class="filters-actions">
-                <button class="btn btn-primary" type="submit">Apply</button>
-                <button class="btn" type="submit" name="poll" value="1">Apply + Poll</button>
+                <button class="btn" type="submit" name="poll" value="1">Poll now</button>
                 <?php if ($deviceFilter !== ''): ?>
-                    <a class="btn" href="/devices/graphs?device=<?= urlencode($deviceFilter) ?>&window=3600" target="_blank" rel="noopener">Graphs</a>
+                    <a class="btn" href="<?= esc($graphLink) ?>" target="_blank" rel="noopener">Graphs</a>
                 <?php endif; ?>
             </div>
         </form>
@@ -688,5 +817,24 @@ $titleSuffix = $deviceFilter !== '' ? ' &bull; ' . esc($deviceFilter) : '';
     <?php endif; ?>
 
 </div>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var form = document.querySelector('[data-events-filter-form]');
+        if (!form) {
+            return;
+        }
+
+        var autoSubmitInputs = form.querySelectorAll('select[data-auto-submit]');
+        autoSubmitInputs.forEach(function (input) {
+            input.addEventListener('change', function () {
+                if (typeof form.requestSubmit === 'function') {
+                    form.requestSubmit();
+                } else {
+                    form.submit();
+                }
+            });
+        });
+    });
+</script>
 </body>
 </html>
