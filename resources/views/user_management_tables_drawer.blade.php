@@ -458,41 +458,43 @@ Upload Picture
 <p class="text-xs font-bold uppercase tracking-wider text-gray-500">2) Device Scope</p>
 <p class="text-xs text-gray-400 mt-1">Assign owned devices first, then grant command-only device access.</p>
 </div>
-<div class="flex flex-col gap-2 lg:col-span-6" data-multi-select>
+<div class="flex flex-col gap-2 lg:col-span-6" data-checkbox-group>
 <div class="flex items-center justify-between gap-2">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Assigned Devices</label>
-<span class="text-[11px] font-semibold text-gray-500"><span data-selected-count>0</span> selected</span>
+<span class="text-[11px] font-semibold text-gray-500"><span data-checkbox-count>0</span> selected</span>
 </div>
-<select class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-28" multiple name="device_ids[]" data-multi-select-input>
+<div class="max-h-44 overflow-y-auto rounded-lg border border-[#cfd7e7] bg-white p-3 dark:border-gray-700 dark:bg-gray-800 space-y-2">
 <?php $__currentLoopData = $devices; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $device): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-<option value="<?php echo e($device->id); ?>" <?php if($device->assigned_user_id === $user->id): echo 'selected'; endif; ?>>
-<?php echo e($device->name); ?> <?php if($device->serial_number): ?>(<?php echo e($device->serial_number); ?>)<?php endif; ?>
-</option>
+<label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+<input class="rounded border-gray-300 text-primary focus:ring-primary" type="checkbox" name="device_ids[]" value="<?php echo e($device->id); ?>" data-checkbox-item <?php if(in_array((int) $device->id, $assignedDeviceIds, true)): echo 'checked'; endif; ?>/>
+<span><?php echo e($device->name); ?> <?php if($device->serial_number): ?>(<?php echo e($device->serial_number); ?>)<?php endif; ?></span>
+</label>
 <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-</select>
+</div>
 <div class="flex flex-wrap gap-2">
-<button class="px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-select-action="all">Select all</button>
-<button class="px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-select-action="none">Clear</button>
-<button class="px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-select-action="invert">Invert</button>
+<button class="px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-checkbox-action="all">Select all</button>
+<button class="px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-checkbox-action="none">Clear</button>
+<button class="px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-checkbox-action="invert">Invert</button>
 </div>
 <p class="text-xs text-gray-400">Use quick actions for faster selection.</p>
 </div>
-<div class="flex flex-col gap-2 lg:col-span-6" data-multi-select>
+<div class="flex flex-col gap-2 lg:col-span-6" data-checkbox-group>
 <div class="flex items-center justify-between gap-2">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Command Device Access</label>
-<span class="text-[11px] font-semibold text-gray-500"><span data-selected-count>0</span> selected</span>
+<span class="text-[11px] font-semibold text-gray-500"><span data-checkbox-count>0</span> selected</span>
 </div>
-<select class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-28" multiple name="device_permission_ids[]" data-device-permission-select data-multi-select-input>
+<div class="max-h-44 overflow-y-auto rounded-lg border border-[#cfd7e7] bg-white p-3 dark:border-gray-700 dark:bg-gray-800 space-y-2">
 <?php $__currentLoopData = $devices; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $device): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-<option value="<?php echo e($device->id); ?>" <?php if(in_array((int) $device->id, $selectedPermissionDeviceIds, true)): echo 'selected'; endif; ?>>
-<?php echo e($device->name); ?> <?php if($device->serial_number): ?>(<?php echo e($device->serial_number); ?>)<?php endif; ?>
-</option>
+<label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+<input class="rounded border-gray-300 text-primary focus:ring-primary" type="checkbox" name="device_permission_ids[]" value="<?php echo e($device->id); ?>" data-checkbox-item data-device-permission-checkbox <?php if(in_array((int) $device->id, $selectedPermissionDeviceIds, true)): echo 'checked'; endif; ?>/>
+<span><?php echo e($device->name); ?> <?php if($device->serial_number): ?>(<?php echo e($device->serial_number); ?>)<?php endif; ?></span>
+</label>
 <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-</select>
+</div>
 <div class="flex flex-wrap gap-2">
-<button class="px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-select-action="all">Select all</button>
-<button class="px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-select-action="none">Clear</button>
-<button class="px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-select-action="invert">Invert</button>
+<button class="px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-checkbox-action="all">Select all</button>
+<button class="px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-checkbox-action="none">Clear</button>
+<button class="px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-checkbox-action="invert">Invert</button>
 </div>
 <p class="text-xs text-gray-400">Grant command access to devices even if assigned to another user.</p>
 </div>
@@ -641,21 +643,22 @@ Run <code>php artisan migrate --force</code> to enable per-device command restri
 <p class="text-xs text-gray-400">Leave blank to use the global TELEGRAM_BOT_TOKEN.</p>
 </div>
 
-<div class="flex flex-col gap-2" data-multi-select>
+<div class="flex flex-col gap-2" data-checkbox-group>
 <div class="flex items-center justify-between gap-2">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Telegram Devices</label>
-<span class="text-[11px] font-semibold text-gray-500"><span data-selected-count>0</span> selected</span>
+<span class="text-[11px] font-semibold text-gray-500"><span data-checkbox-count>0</span> selected</span>
 </div>
-<select class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-32" multiple name="telegram_devices[]" data-multi-select-input>
+<div class="max-h-44 overflow-y-auto rounded-lg border border-[#cfd7e7] bg-white p-3 dark:border-gray-700 dark:bg-gray-800 space-y-2">
 <?php $__currentLoopData = $devices; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $device): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-<option value="<?php echo e($device->id); ?>" <?php if(in_array((int) $device->id, $selectedTelegramDevices, true)): echo 'selected'; endif; ?>>
-<?php echo e($device->name); ?> <?php if($device->serial_number): ?>(<?php echo e($device->serial_number); ?>)<?php endif; ?>
-</option>
+<label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+<input class="rounded border-gray-300 text-primary focus:ring-primary" type="checkbox" name="telegram_devices[]" value="<?php echo e($device->id); ?>" data-checkbox-item <?php if(in_array((int) $device->id, $selectedTelegramDevices, true)): echo 'checked'; endif; ?>/>
+<span><?php echo e($device->name); ?> <?php if($device->serial_number): ?>(<?php echo e($device->serial_number); ?>)<?php endif; ?></span>
+</label>
 <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-</select>
+</div>
 <div class="flex flex-wrap gap-2">
-<button class="px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-select-action="all">Select all</button>
-<button class="px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-select-action="none">Clear</button>
+<button class="px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-checkbox-action="all">Select all</button>
+<button class="px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-checkbox-action="none">Clear</button>
 </div>
 <p class="text-xs text-gray-400">Defaults to assigned devices when empty.</p>
 </div>
@@ -679,19 +682,22 @@ Run <code>php artisan migrate --force</code> to enable per-device command restri
 </div>
 </div>
 
-<div class="flex flex-col gap-2" data-multi-select>
+<div class="flex flex-col gap-2" data-checkbox-group>
 <div class="flex items-center justify-between gap-2">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Telegram Event Types</label>
-<span class="text-[11px] font-semibold text-gray-500"><span data-selected-count>0</span> selected</span>
+<span class="text-[11px] font-semibold text-gray-500"><span data-checkbox-count>0</span> selected</span>
 </div>
-<select class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-32" multiple name="telegram_event_types[]" data-multi-select-input>
+<div class="max-h-44 overflow-y-auto rounded-lg border border-[#cfd7e7] bg-white p-3 dark:border-gray-700 dark:bg-gray-800 space-y-2">
 <?php $__currentLoopData = $eventTypeOptions; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $eventTypeOption): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
-<option value="<?php echo e($eventTypeOption); ?>" <?php if(in_array(strtolower((string) $eventTypeOption), $selectedTelegramEventTypes, true)): echo 'selected'; endif; ?>><?php echo e($eventTypeOption); ?></option>
+<label class="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
+<input class="rounded border-gray-300 text-primary focus:ring-primary" type="checkbox" name="telegram_event_types[]" value="<?php echo e($eventTypeOption); ?>" data-checkbox-item <?php if(in_array(strtolower((string) $eventTypeOption), $selectedTelegramEventTypes, true)): echo 'checked'; endif; ?>/>
+<span><?php echo e($eventTypeOption); ?></span>
+</label>
 <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
-</select>
+</div>
 <div class="flex flex-wrap gap-2">
-<button class="px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-select-action="all">Select all</button>
-<button class="px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-select-action="none">Clear</button>
+<button class="px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-checkbox-action="all">Select all</button>
+<button class="px-2.5 py-1 text-xs font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-checkbox-action="none">Clear</button>
 </div>
 <p class="text-xs text-gray-400">Select defaults; add custom tags below.</p>
 </div>

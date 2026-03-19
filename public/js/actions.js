@@ -1535,8 +1535,16 @@
 
     containers.forEach((container) => {
       const form = container.closest('form');
-      const select = form ? form.querySelector('select[name="device_permission_ids[]"]') : null;
-      if (!select) {
+      if (!form) {
+        return;
+      }
+      const select = form.querySelector('select[name="device_permission_ids[]"]');
+      const checkboxes = Array.from(
+        form.querySelectorAll(
+          'input[type="checkbox"][name="device_permission_ids[]"][data-device-permission-checkbox]'
+        )
+      );
+      if (!select && !checkboxes.length) {
         return;
       }
 
@@ -1548,7 +1556,11 @@
 
       const updateVisibility = () => {
         const selectedIds = new Set(
-          Array.from(select.selectedOptions || []).map((option) => String(option.value || ''))
+          select
+            ? Array.from(select.selectedOptions || []).map((option) => String(option.value || ''))
+            : checkboxes
+                .filter((item) => item.checked)
+                .map((item) => String(item.value || ''))
         );
 
         let visibleCount = 0;
@@ -1566,7 +1578,12 @@
         }
       };
 
-      select.addEventListener('change', updateVisibility);
+      if (select) {
+        select.addEventListener('change', updateVisibility);
+      }
+      checkboxes.forEach((item) => {
+        item.addEventListener('change', updateVisibility);
+      });
       updateVisibility();
     });
   };
@@ -1579,8 +1596,16 @@
 
     containers.forEach((container) => {
       const form = container.closest('form');
-      const select = form ? form.querySelector('select[name="device_permission_ids[]"]') : null;
-      if (!select) {
+      if (!form) {
+        return;
+      }
+      const select = form.querySelector('select[name="device_permission_ids[]"]');
+      const checkboxes = Array.from(
+        form.querySelectorAll(
+          'input[type="checkbox"][name="device_permission_ids[]"][data-device-permission-checkbox]'
+        )
+      );
+      if (!select && !checkboxes.length) {
         return;
       }
 
@@ -1593,7 +1618,11 @@
 
       const updateVisibility = () => {
         const selectedIds = new Set(
-          Array.from(select.selectedOptions || []).map((option) => String(option.value || ''))
+          select
+            ? Array.from(select.selectedOptions || []).map((option) => String(option.value || ''))
+            : checkboxes
+                .filter((item) => item.checked)
+                .map((item) => String(item.value || ''))
         );
 
         let visibleCount = 0;
@@ -1611,7 +1640,12 @@
         }
       };
 
-      select.addEventListener('change', updateVisibility);
+      if (select) {
+        select.addEventListener('change', updateVisibility);
+      }
+      checkboxes.forEach((item) => {
+        item.addEventListener('change', updateVisibility);
+      });
       updateVisibility();
     });
   };
@@ -1721,6 +1755,9 @@
             });
           }
 
+          items.forEach((item) => {
+            item.dispatchEvent(new Event('change', { bubbles: true }));
+          });
           updateCount();
         });
       });

@@ -181,37 +181,43 @@ Upload Picture
 <p class="mt-1 text-xs text-slate-400">Assign owned devices first, then grant command-only device access.</p>
 </div>
 <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
-<div class="flex flex-col gap-2" data-multi-select>
+<div class="flex flex-col gap-2" data-checkbox-group>
 <div class="flex items-center justify-between gap-2">
 <label class="text-sm font-semibold text-slate-700 dark:text-slate-200">Assigned Devices</label>
-<span class="text-[11px] font-semibold text-slate-500"><span data-selected-count>0</span> selected</span>
+<span class="text-[11px] font-semibold text-slate-500"><span data-checkbox-count>0</span> selected</span>
 </div>
-<select class="h-32 rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:border-primary focus:ring-primary" multiple name="device_ids[]" data-multi-select-input>
+<div class="max-h-44 overflow-y-auto rounded-lg border border-slate-300 bg-white p-3 dark:border-slate-700 dark:bg-slate-800 space-y-2">
 @foreach ($devices as $device)
-<option value="{{ $device->id }}" @selected(in_array((int) $device->id, $assignedDeviceIds, true))>{{ $device->name }}@if ($device->serial_number) ({{ $device->serial_number }})@endif</option>
+<label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+<input class="rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" name="device_ids[]" value="{{ $device->id }}" data-checkbox-item @checked(in_array((int) $device->id, $assignedDeviceIds, true))/>
+<span>{{ $device->name }}@if ($device->serial_number) ({{ $device->serial_number }})@endif</span>
+</label>
 @endforeach
-</select>
+</div>
 <div class="flex flex-wrap gap-2">
-<button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-select-action="all">Select all</button>
-<button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-select-action="none">Clear</button>
-<button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-select-action="invert">Invert</button>
+<button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-checkbox-action="all">Select all</button>
+<button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-checkbox-action="none">Clear</button>
+<button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-checkbox-action="invert">Invert</button>
 </div>
 </div>
 
-<div class="flex flex-col gap-2" data-multi-select>
+<div class="flex flex-col gap-2" data-checkbox-group>
 <div class="flex items-center justify-between gap-2">
 <label class="text-sm font-semibold text-slate-700 dark:text-slate-200">Command Device Access</label>
-<span class="text-[11px] font-semibold text-slate-500"><span data-selected-count>0</span> selected</span>
+<span class="text-[11px] font-semibold text-slate-500"><span data-checkbox-count>0</span> selected</span>
 </div>
-<select class="h-32 rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:border-primary focus:ring-primary" multiple name="device_permission_ids[]" data-device-permission-select data-multi-select-input>
+<div class="max-h-44 overflow-y-auto rounded-lg border border-slate-300 bg-white p-3 dark:border-slate-700 dark:bg-slate-800 space-y-2">
 @foreach ($devices as $device)
-<option value="{{ $device->id }}" @selected(in_array((int) $device->id, $selectedPermissionDeviceIds, true))>{{ $device->name }}@if ($device->serial_number) ({{ $device->serial_number }})@endif</option>
+<label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+<input class="rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" name="device_permission_ids[]" value="{{ $device->id }}" data-checkbox-item data-device-permission-checkbox @checked(in_array((int) $device->id, $selectedPermissionDeviceIds, true))/>
+<span>{{ $device->name }}@if ($device->serial_number) ({{ $device->serial_number }})@endif</span>
+</label>
 @endforeach
-</select>
+</div>
 <div class="flex flex-wrap gap-2">
-<button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-select-action="all">Select all</button>
-<button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-select-action="none">Clear</button>
-<button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-select-action="invert">Invert</button>
+<button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-checkbox-action="all">Select all</button>
+<button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-checkbox-action="none">Clear</button>
+<button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-checkbox-action="invert">Invert</button>
 </div>
 </div>
 
@@ -354,19 +360,22 @@ Run <code>php artisan migrate --force</code> to enable per-device command restri
 <label class="text-sm font-semibold text-slate-700 dark:text-slate-200">Telegram Bot Token (optional)</label>
 <input class="h-11 rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:border-primary focus:ring-primary" name="telegram_bot_token" type="text" value="{{ old('telegram_bot_token') }}" placeholder="123456:ABC..."/>
 </div>
-<div class="flex flex-col gap-2" data-multi-select>
+<div class="flex flex-col gap-2" data-checkbox-group>
 <div class="flex items-center justify-between gap-2">
 <label class="text-sm font-semibold text-slate-700 dark:text-slate-200">Telegram Devices</label>
-<span class="text-[11px] font-semibold text-slate-500"><span data-selected-count>0</span> selected</span>
+<span class="text-[11px] font-semibold text-slate-500"><span data-checkbox-count>0</span> selected</span>
 </div>
-<select class="h-32 rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:border-primary focus:ring-primary" multiple name="telegram_devices[]" data-multi-select-input>
+<div class="max-h-44 overflow-y-auto rounded-lg border border-slate-300 bg-white p-3 dark:border-slate-700 dark:bg-slate-800 space-y-2">
 @foreach ($devices as $device)
-<option value="{{ $device->id }}" @selected(in_array((int) $device->id, $selectedTelegramDevices, true))>{{ $device->name }}@if ($device->serial_number) ({{ $device->serial_number }})@endif</option>
+<label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+<input class="rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" name="telegram_devices[]" value="{{ $device->id }}" data-checkbox-item @checked(in_array((int) $device->id, $selectedTelegramDevices, true))/>
+<span>{{ $device->name }}@if ($device->serial_number) ({{ $device->serial_number }})@endif</span>
+</label>
 @endforeach
-</select>
+</div>
 <div class="flex flex-wrap gap-2">
-<button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-select-action="all">Select all</button>
-<button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-select-action="none">Clear</button>
+<button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-checkbox-action="all">Select all</button>
+<button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-checkbox-action="none">Clear</button>
 </div>
 </div>
 <div class="flex flex-col gap-2" data-checkbox-group>
@@ -387,19 +396,22 @@ Run <code>php artisan migrate --force</code> to enable per-device command restri
 <button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-checkbox-action="none">Clear</button>
 </div>
 </div>
-<div class="flex flex-col gap-2" data-multi-select>
+<div class="flex flex-col gap-2" data-checkbox-group>
 <div class="flex items-center justify-between gap-2">
 <label class="text-sm font-semibold text-slate-700 dark:text-slate-200">Telegram Event Types</label>
-<span class="text-[11px] font-semibold text-slate-500"><span data-selected-count>0</span> selected</span>
+<span class="text-[11px] font-semibold text-slate-500"><span data-checkbox-count>0</span> selected</span>
 </div>
-<select class="h-32 rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:border-primary focus:ring-primary" multiple name="telegram_event_types[]" data-multi-select-input>
+<div class="max-h-44 overflow-y-auto rounded-lg border border-slate-300 bg-white p-3 dark:border-slate-700 dark:bg-slate-800 space-y-2">
 @foreach ($eventTypeOptions as $eventTypeOption)
-<option value="{{ $eventTypeOption }}" @selected(in_array(strtolower((string) $eventTypeOption), $selectedTelegramEventTypes, true))>{{ $eventTypeOption }}</option>
+<label class="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+<input class="rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" name="telegram_event_types[]" value="{{ $eventTypeOption }}" data-checkbox-item @checked(in_array(strtolower((string) $eventTypeOption), $selectedTelegramEventTypes, true))/>
+<span>{{ $eventTypeOption }}</span>
+</label>
 @endforeach
-</select>
+</div>
 <div class="flex flex-wrap gap-2">
-<button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-select-action="all">Select all</button>
-<button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-select-action="none">Clear</button>
+<button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-checkbox-action="all">Select all</button>
+<button class="px-2.5 py-1 text-xs font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-checkbox-action="none">Clear</button>
 </div>
 </div>
 <div class="flex flex-col gap-2">
