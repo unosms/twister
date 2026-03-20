@@ -247,6 +247,68 @@ class DeviceController extends Controller
         ]);
     }
 
+    public function eventsIndex(Request $request)
+    {
+        $authUser = User::find($request->session()->get('auth.user_id'));
+        $devices = Device::query()
+            ->orderByRaw('LOWER(COALESCE(type, \'\')) ASC')
+            ->orderByRaw('LOWER(COALESCE(name, \'\')) ASC')
+            ->orderBy('id')
+            ->get();
+
+        $deviceGroups = [
+            'router_board' => collect(),
+            'switches' => collect(),
+            'fiber_optic' => collect(),
+            'wireless' => collect(),
+            'servers_standalone' => collect(),
+            'servers_virtual' => collect(),
+            'other' => collect(),
+        ];
+
+        foreach ($devices as $device) {
+            $type = strtoupper((string) ($device->type ?? ''));
+
+            if ($type === 'MIKROTIK') {
+                $deviceGroups['router_board']->push($device);
+                continue;
+            }
+
+            if ($type === 'CISCO') {
+                $deviceGroups['switches']->push($device);
+                continue;
+            }
+
+            if ($type === 'OLT') {
+                $deviceGroups['fiber_optic']->push($device);
+                continue;
+            }
+
+            if ($type === 'MIMOSA') {
+                $deviceGroups['wireless']->push($device);
+                continue;
+            }
+
+            if ($type === 'SERVER') {
+                $serverType = strtolower((string) data_get($device->metadata, 'server.server_type', 'virtual_server'));
+                if ($serverType === 'stand_alone_server') {
+                    $deviceGroups['servers_standalone']->push($device);
+                } else {
+                    $deviceGroups['servers_virtual']->push($device);
+                }
+                continue;
+            }
+
+            $deviceGroups['other']->push($device);
+        }
+
+        return view('device_events_index', [
+            'deviceGroups' => $deviceGroups,
+            'totalDevices' => $devices->count(),
+            'authUser' => $authUser,
+        ]);
+    }
+
     public function statusSnapshot(Request $request)
     {
         $idsRaw = trim((string) $request->query('ids', ''));

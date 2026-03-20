@@ -47,6 +47,7 @@ Route::middleware(['admin.auth', 'audit.log'])->group(function () {
     Route::get('/devices', [DeviceController::class, 'index'])->name('devices.index');
     Route::get('/devices/create', [DeviceController::class, 'create'])->name('devices.create');
     Route::get('/devices/details', [DeviceController::class, 'details'])->name('devices.details');
+    Route::get('/devices/events', [DeviceController::class, 'eventsIndex'])->name('devices.events.index');
     Route::get('/devices/cabinet-room', [CabinetRoomController::class, 'index'])->name('devices.cabinet-room.index');
     Route::get('/devices/status-snapshot', [DeviceController::class, 'statusSnapshot'])->name('devices.statusSnapshot');
     Route::post('/devices/status-snapshot', [DeviceController::class, 'statusSnapshot'])->name('devices.statusSnapshot.post');

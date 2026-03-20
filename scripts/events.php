@@ -850,7 +850,8 @@ if ($deviceFilter !== '') {
                         <div class="sidebar-subnav">
                             <a class="sidebar-sub-link" href="/devices">Device Management</a>
                             <a class="sidebar-sub-link" href="/devices/cabinet-room">Cabinet Room</a>
-                            <a class="sidebar-sub-link active" href="/devices/details">Devices List</a>
+                            <a class="sidebar-sub-link" href="/devices/details">Devices List</a>
+                            <a class="sidebar-sub-link active" href="/devices/events">Events</a>
                         </div>
                     </details>
 
