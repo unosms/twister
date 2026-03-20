@@ -151,6 +151,8 @@ $deviceFilter = safe_str('device');
 $ifaceFilterRaw = safe_str('iface');
 $ifaceFilter = preg_match('/^\d+$/', $ifaceFilterRaw) === 1 ? (int) $ifaceFilterRaw : 0;
 $deviceLocked = safe_str('lock_device') === '1';
+$context = strtolower(safe_str('context'));
+$isPortalContext = $context === 'portal';
 $typeFilter = safe_str('type'); // '', 'iface'
 if (!in_array($typeFilter, ['', 'iface'], true)) {
     $typeFilter = '';
@@ -283,6 +285,7 @@ if ($deviceFilter !== '') {
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Events (last <?= esc($hoursLabel) ?><?= $titleSuffix ?>)</title>
     <meta http-equiv="refresh" content="60">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     <style>
         :root {
             --bg: #f1f5f9;
@@ -312,6 +315,182 @@ if ($deviceFilter !== '') {
             background: var(--bg);
             color: var(--text);
             line-height: 1.45;
+        }
+
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            font-size: 20px;
+            line-height: 1;
+        }
+
+        .layout {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 270px;
+            border-right: 1px solid #e2e8f0;
+            background: #ffffff;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 14px;
+            gap: 16px;
+            overflow-y: auto;
+            flex-shrink: 0;
+        }
+
+        .sidebar-main {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 4px;
+        }
+
+        .brand-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 10px;
+            background: var(--primary);
+            color: #ffffff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .brand-title {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 800;
+            color: #0f172a;
+        }
+
+        .brand-sub {
+            margin: 3px 0 0;
+            font-size: 10px;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #64748b;
+            font-weight: 700;
+        }
+
+        .sidebar-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .sidebar-link,
+        .sidebar-summary,
+        .sidebar-sub-link {
+            text-decoration: none;
+            color: #475569;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            border-radius: 10px;
+            transition: background-color 0.15s ease, color 0.15s ease;
+        }
+
+        .sidebar-link,
+        .sidebar-summary {
+            padding: 10px 12px;
+            font-size: 14px;
+        }
+
+        .sidebar-link:hover,
+        .sidebar-summary:hover {
+            background: #f1f5f9;
+            color: #0f172a;
+        }
+
+        .sidebar-link.active {
+            background: var(--primary);
+            color: #ffffff;
+            box-shadow: 0 10px 22px rgba(19, 91, 236, 0.24);
+        }
+
+        .sidebar-group[open] > .sidebar-summary {
+            background: #e8efff;
+            color: var(--primary);
+        }
+
+        .sidebar-summary {
+            list-style: none;
+            cursor: pointer;
+        }
+
+        .sidebar-summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .sidebar-summary .arrow {
+            margin-left: auto;
+            transition: transform 0.16s ease;
+        }
+
+        .sidebar-group[open] .sidebar-summary .arrow {
+            transform: rotate(180deg);
+        }
+
+        .sidebar-subnav {
+            margin-left: 34px;
+            margin-top: 4px;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .sidebar-sub-link {
+            padding: 7px 10px;
+            font-size: 12px;
+            font-weight: 700;
+            color: #64748b;
+        }
+
+        .sidebar-sub-link:hover {
+            background: #f1f5f9;
+            color: var(--primary);
+        }
+
+        .sidebar-sub-link.active {
+            background: #e8efff;
+            color: var(--primary);
+        }
+
+        .sidebar-footer {
+            border-top: 1px solid #e2e8f0;
+            padding-top: 12px;
+        }
+
+        .sidebar-footer-link {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            text-decoration: none;
+            color: #ef4444;
+            font-size: 14px;
+            font-weight: 700;
+            padding: 9px 10px;
+            border-radius: 10px;
+        }
+
+        .sidebar-footer-link:hover {
+            background: #fef2f2;
+        }
+
+        .main-pane {
+            flex: 1;
+            min-width: 0;
+            overflow-y: auto;
         }
 
         .wrap {
@@ -611,6 +790,18 @@ if ($deviceFilter !== '') {
         }
 
         @media (max-width: 960px) {
+            .layout {
+                display: block;
+            }
+
+            .sidebar {
+                display: none;
+            }
+
+            .main-pane {
+                overflow: visible;
+            }
+
             .wrap {
                 padding: 14px;
             }
@@ -630,6 +821,83 @@ if ($deviceFilter !== '') {
     </style>
 </head>
 <body>
+<div class="layout">
+    <?php if (!$isPortalContext): ?>
+        <aside class="sidebar">
+            <div class="sidebar-main">
+                <div class="brand">
+                    <span class="brand-icon">
+                        <span class="material-symbols-outlined">settings_remote</span>
+                    </span>
+                    <div>
+                        <p class="brand-title">Device Control</p>
+                        <p class="brand-sub">Admin Portal</p>
+                    </div>
+                </div>
+
+                <nav class="sidebar-nav" aria-label="Admin navigation">
+                    <a class="sidebar-link" href="/dashboard">
+                        <span class="material-symbols-outlined">dashboard</span>
+                        <span>Dashboard</span>
+                    </a>
+
+                    <details class="sidebar-group" open>
+                        <summary class="sidebar-summary">
+                            <span class="material-symbols-outlined">devices</span>
+                            <span>Devices</span>
+                            <span class="material-symbols-outlined arrow">expand_more</span>
+                        </summary>
+                        <div class="sidebar-subnav">
+                            <a class="sidebar-sub-link" href="/devices">Device Management</a>
+                            <a class="sidebar-sub-link" href="/devices/cabinet-room">Cabinet Room</a>
+                            <a class="sidebar-sub-link active" href="/devices/details">Devices List</a>
+                        </div>
+                    </details>
+
+                    <a class="sidebar-link" href="/devices/assign">
+                        <span class="material-symbols-outlined">assignment</span>
+                        <span>Assignments</span>
+                    </a>
+
+                    <a class="sidebar-link" href="/notifications">
+                        <span class="material-symbols-outlined">notifications</span>
+                        <span>Notifications</span>
+                    </a>
+
+                    <details class="sidebar-group">
+                        <summary class="sidebar-summary">
+                            <span class="material-symbols-outlined">construction</span>
+                            <span>Diagnostics</span>
+                            <span class="material-symbols-outlined arrow">expand_more</span>
+                        </summary>
+                        <div class="sidebar-subnav">
+                            <a class="sidebar-sub-link" href="/support">Support Console</a>
+                            <a class="sidebar-sub-link" href="/telemetry">Logs</a>
+                        </div>
+                    </details>
+
+                    <a class="sidebar-link" href="/users">
+                        <span class="material-symbols-outlined">group</span>
+                        <span>Users</span>
+                    </a>
+
+                    <a class="sidebar-link" href="/settings">
+                        <span class="material-symbols-outlined">tune</span>
+                        <span>Settings</span>
+                    </a>
+                </nav>
+            </div>
+
+            <div class="sidebar-footer">
+                <a class="sidebar-footer-link" href="/auth/logout">
+                    <span class="material-symbols-outlined">logout</span>
+                    <span>Logout</span>
+                </a>
+            </div>
+        </aside>
+    <?php endif; ?>
+
+    <main class="<?= $isPortalContext ? '' : 'main-pane' ?>">
 <div class="wrap">
     <div class="page-header">
         <div class="page-header-top">
@@ -816,6 +1084,8 @@ if ($deviceFilter !== '') {
         </section>
     <?php endif; ?>
 
+</div>
+    </main>
 </div>
 <script>
     document.addEventListener('DOMContentLoaded', function () {

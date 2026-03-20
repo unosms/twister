@@ -1846,6 +1846,7 @@ class ScriptController extends Controller
         $query = [
             'hours' => $hours,
             'device' => $deviceName,
+            'context' => $isPortalContext ? 'portal' : 'admin',
         ];
         if ($isPortalContext) {
             $query['lock_device'] = '1';
