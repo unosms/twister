@@ -1564,7 +1564,7 @@ class ScriptController extends Controller
         $afterFiles = [];
         $createdFile = null;
         $createdMtime = null;
-        $maxAttempts = 8;
+        $maxAttempts = 20;
 
         for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
             $afterFiles = $this->backupFileMap($absolutePath);
@@ -1588,16 +1588,29 @@ class ScriptController extends Controller
         ];
     }
 
-    private function detectBackupFileFromProcessOutput(string $output, string $absolutePath): ?array
+    private function detectBackupFileFromProcessOutput(string $output, string $absolutePath, ?string $relativePath = null): ?array
     {
-        if (!is_dir($absolutePath)) {
-            return null;
-        }
-
         $output = trim($output);
         if ($output === '' || !preg_match('/(bytes copied|copied in|copy complete|copied successfully)/i', $output)) {
             return null;
         }
+
+        $searchDirectories = [];
+        if (is_dir($absolutePath)) {
+            $searchDirectories[] = $absolutePath;
+        }
+
+        $normalizedRelativePath = trim(str_replace('\\', '/', (string) $relativePath), '/');
+        if ($normalizedRelativePath !== '' && !str_contains($normalizedRelativePath, '..')) {
+            foreach ($this->backupRoots() as $root) {
+                $candidateDir = rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $normalizedRelativePath);
+                if (is_dir($candidateDir)) {
+                    $searchDirectories[] = $candidateDir;
+                }
+            }
+        }
+
+        $destinationPath = $this->extractDestinationFilenamePathFromOutput($output);
 
         $candidateNames = [];
         if (preg_match_all('/([0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}\.[A-Za-z0-9]+)/', $output, $matches)) {
@@ -1606,12 +1619,42 @@ class ScriptController extends Controller
             }
         }
 
-        $candidateNames = array_values(array_unique(array_filter($candidateNames, static fn ($name): bool => $name !== '')));
-        foreach ($candidateNames as $candidateName) {
-            $candidatePath = rtrim($absolutePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $candidateName;
-            if (is_file($candidatePath)) {
-                $mtime = filemtime($candidatePath);
+        if ($destinationPath !== null) {
+            $candidateNames[] = basename($destinationPath);
 
+            $normalizedPath = str_replace('\\', '/', $destinationPath);
+            $isAbsolute = str_starts_with($normalizedPath, '/')
+                || (strlen($normalizedPath) >= 3 && ctype_alpha($normalizedPath[0]) && $normalizedPath[1] === ':' && ($normalizedPath[2] === '/' || $normalizedPath[2] === '\\'));
+
+            $destinationDir = trim(str_replace('\\', '/', dirname($normalizedPath)), '/');
+            if ($destinationDir !== '' && $destinationDir !== '.') {
+                if ($isAbsolute) {
+                    $absoluteDir = dirname($normalizedPath);
+                    if (is_dir($absoluteDir)) {
+                        $searchDirectories[] = $absoluteDir;
+                    }
+                } else {
+                    foreach ($this->backupRoots() as $root) {
+                        $candidateDir = rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $destinationDir);
+                        if (is_dir($candidateDir)) {
+                            $searchDirectories[] = $candidateDir;
+                        }
+                    }
+                }
+            }
+        }
+
+        $searchDirectories = array_values(array_unique(array_filter($searchDirectories, static fn ($dir): bool => is_string($dir) && $dir !== '')));
+        $candidateNames = array_values(array_unique(array_filter($candidateNames, static fn ($name): bool => $name !== '')));
+
+        foreach ($candidateNames as $candidateName) {
+            foreach ($searchDirectories as $searchDirectory) {
+                $candidatePath = rtrim($searchDirectory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $candidateName;
+                if (!is_file($candidatePath)) {
+                    continue;
+                }
+
+                $mtime = filemtime($candidatePath);
                 return [
                     'file' => $candidateName,
                     'mtime' => is_int($mtime) ? $mtime : time(),
@@ -1619,17 +1662,19 @@ class ScriptController extends Controller
             }
         }
 
-        $afterFiles = $this->backupFileMap($absolutePath);
         $latestFile = null;
         $latestMtime = null;
-        foreach ($afterFiles as $name => $mtime) {
-            if ($latestMtime === null || $mtime > $latestMtime) {
-                $latestFile = $name;
-                $latestMtime = $mtime;
+        foreach ($searchDirectories as $searchDirectory) {
+            $afterFiles = $this->backupFileMap($searchDirectory);
+            foreach ($afterFiles as $name => $mtime) {
+                if ($latestMtime === null || $mtime > $latestMtime) {
+                    $latestFile = $name;
+                    $latestMtime = $mtime;
+                }
             }
         }
 
-        if ($latestFile !== null && $latestMtime !== null && $latestMtime >= (time() - 30)) {
+        if ($latestFile !== null && $latestMtime !== null && $latestMtime >= (time() - 300)) {
             return [
                 'file' => $latestFile,
                 'mtime' => $latestMtime,
@@ -1637,6 +1682,23 @@ class ScriptController extends Controller
         }
 
         return null;
+    }
+
+    private function extractDestinationFilenamePathFromOutput(string $output): ?string
+    {
+        if (!preg_match('/Destination filename[^\r\n]*\?\s*([^\r\n]+)/i', $output, $matches)) {
+            return null;
+        }
+
+        $path = trim((string) ($matches[1] ?? ''));
+        if ($path === '') {
+            return null;
+        }
+
+        $path = preg_replace('/[\x00-\x1F\x7F]/', '', $path) ?? $path;
+        $path = str_replace('\\', '/', trim($path, " \t\n\r\0\x0B\"'"));
+
+        return $path !== '' ? $path : null;
     }
 
     private function verifyBackupArtifact(Device $device, array $processResult, array $snapshot, array $traceContext): array
@@ -1675,7 +1737,8 @@ class ScriptController extends Controller
 
         $outputDetected = $this->detectBackupFileFromProcessOutput(
             (string) ($processResult['output'] ?? ''),
-            $resolved['absolute']
+            $resolved['absolute'],
+            (string) ($resolved['relative'] ?? '')
         );
         if ($outputDetected !== null) {
             ProvisioningTrace::log('backup trace: verification recovered from process output', $traceContext + [
