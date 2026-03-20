@@ -213,9 +213,9 @@ Save Time Zone
 <p class="text-sm font-bold text-slate-900 dark:text-white">Backup Scheduler</p>
 <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Choose how often the fleet backup command should run. The cron job still runs every minute; this changes when `devices:run-backups` becomes due.</p>
 </div>
-<form class="grid gap-3 sm:grid-cols-[minmax(0,220px)_auto]" method="POST" action="{{ route('settings.backup-schedule.update') }}">
+<form class="mt-1 flex w-full flex-col gap-3 sm:w-auto sm:min-w-[340px] sm:flex-row sm:items-center sm:justify-end lg:mt-0 lg:flex-shrink-0" method="POST" action="{{ route('settings.backup-schedule.update') }}">
 @csrf
-<div>
+<div class="w-full sm:w-[220px]">
 <label class="sr-only" for="backup_schedule_interval_hours">Backup Interval</label>
 <select class="h-11 w-full rounded-2xl border border-slate-300 bg-white px-4 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" id="backup_schedule_interval_hours" name="backup_schedule_interval_hours">
 @foreach ($backupScheduleOptions as $hours)
@@ -223,7 +223,7 @@ Save Time Zone
 @endforeach
 </select>
 </div>
-<button class="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" type="submit">
+<button class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50 sm:w-auto sm:whitespace-nowrap dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" type="submit">
 <span class="material-symbols-outlined text-[18px]">schedule</span>
 Save Backup Schedule
 </button>
