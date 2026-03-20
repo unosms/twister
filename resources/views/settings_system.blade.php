@@ -208,14 +208,15 @@ Save Time Zone
 </div>
 
 <div class="mt-6 rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
-<div class="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-<div class="max-w-2xl">
+<div class="flex flex-col gap-4">
+<div>
 <p class="text-sm font-bold text-slate-900 dark:text-white">Backup Scheduler</p>
 <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Choose how often the fleet backup command should run. The cron job still runs every minute; this changes when `devices:run-backups` becomes due.</p>
 </div>
-<form class="mt-1 flex w-full flex-col gap-3 sm:w-auto sm:min-w-[340px] sm:flex-row sm:items-center sm:justify-end lg:mt-0 lg:flex-shrink-0" method="POST" action="{{ route('settings.backup-schedule.update') }}">
+<form class="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-950/40 sm:p-4" method="POST" action="{{ route('settings.backup-schedule.update') }}">
 @csrf
-<div class="w-full sm:w-[220px]">
+<div class="grid gap-3 sm:grid-cols-[minmax(0,220px)_auto] sm:items-center sm:justify-end">
+<div class="w-full">
 <label class="sr-only" for="backup_schedule_interval_hours">Backup Interval</label>
 <select class="h-11 w-full rounded-2xl border border-slate-300 bg-white px-4 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" id="backup_schedule_interval_hours" name="backup_schedule_interval_hours">
 @foreach ($backupScheduleOptions as $hours)
@@ -227,6 +228,7 @@ Save Time Zone
 <span class="material-symbols-outlined text-[18px]">schedule</span>
 Save Backup Schedule
 </button>
+</div>
 </form>
 </div>
 </div>
