@@ -46,6 +46,12 @@
 </head>
 <body class="bg-background-light dark:bg-background-dark text-[#0d121b] dark:text-gray-100 h-screen overflow-hidden">
 @php
+    $requestedGroup = strtolower(trim((string) request()->query('group', '')));
+    $allowedGroups = ['router_board', 'switches', 'fiber_optic', 'wireless', 'servers_standalone', 'servers_virtual', 'other'];
+    if (!in_array($requestedGroup, $allowedGroups, true)) {
+        $requestedGroup = '';
+    }
+
     $groupMeta = [
         'router_board' => ['label' => 'Router Board', 'icon' => 'router', 'empty' => 'No Router Board devices.'],
         'switches' => ['label' => 'Switches', 'icon' => 'hub', 'empty' => 'No switch devices.'],
@@ -81,8 +87,11 @@
                     @php
                         $devicesInGroup = $deviceGroups[$groupKey] ?? collect();
                         $meta = $groupMeta[$groupKey];
+                        $openGroup = $requestedGroup !== ''
+                            ? $requestedGroup === $groupKey
+                            : $loop->first;
                     @endphp
-                    <details class="group border border-[#d9e2f2] dark:border-gray-800 rounded-lg overflow-hidden" {{ $loop->first ? 'open' : '' }}>
+                    <details class="group border border-[#d9e2f2] dark:border-gray-800 rounded-lg overflow-hidden" id="events-group-{{ $groupKey }}" {{ $openGroup ? 'open' : '' }}>
                         <summary class="flex items-center justify-between px-4 py-3 cursor-pointer bg-slate-50/80 dark:bg-gray-800/60">
                             <div class="flex items-center gap-2">
                                 <span class="material-symbols-outlined text-[18px] text-primary">{{ $meta['icon'] }}</span>
@@ -97,7 +106,10 @@
                     </details>
                 @endforeach
 
-                <details class="group border border-[#d9e2f2] dark:border-gray-800 rounded-lg overflow-hidden">
+                @php
+                    $serversGroupRequested = in_array($requestedGroup, ['servers_standalone', 'servers_virtual'], true);
+                @endphp
+                <details class="group border border-[#d9e2f2] dark:border-gray-800 rounded-lg overflow-hidden" id="events-group-servers" {{ $serversGroupRequested ? 'open' : '' }}>
                     <summary class="flex items-center justify-between px-4 py-3 cursor-pointer bg-slate-50/80 dark:bg-gray-800/60">
                         <div class="flex items-center gap-2">
                             <span class="material-symbols-outlined text-[18px] text-primary">dns</span>
@@ -111,8 +123,9 @@
                             @php
                                 $devicesInGroup = $deviceGroups[$serverGroupKey] ?? collect();
                                 $meta = $groupMeta[$serverGroupKey];
+                                $openServerGroup = $requestedGroup === $serverGroupKey;
                             @endphp
-                            <details class="group border border-[#e3e9f6] dark:border-gray-800 rounded-lg overflow-hidden">
+                            <details class="group border border-[#e3e9f6] dark:border-gray-800 rounded-lg overflow-hidden" id="events-group-{{ $serverGroupKey }}" {{ $openServerGroup ? 'open' : '' }}>
                                 <summary class="flex items-center justify-between px-3 py-2.5 cursor-pointer bg-white dark:bg-gray-900">
                                     <div class="flex items-center gap-2">
                                         <span class="text-xs font-semibold text-slate-700 dark:text-gray-200">{{ $meta['label'] }}</span>
@@ -132,8 +145,9 @@
                     @php
                         $devicesInGroup = $deviceGroups['other'];
                         $meta = $groupMeta['other'];
+                        $openOtherGroup = $requestedGroup === 'other';
                     @endphp
-                    <details class="group border border-[#d9e2f2] dark:border-gray-800 rounded-lg overflow-hidden">
+                    <details class="group border border-[#d9e2f2] dark:border-gray-800 rounded-lg overflow-hidden" id="events-group-other" {{ $openOtherGroup ? 'open' : '' }}>
                         <summary class="flex items-center justify-between px-4 py-3 cursor-pointer bg-slate-50/80 dark:bg-gray-800/60">
                             <div class="flex items-center gap-2">
                                 <span class="material-symbols-outlined text-[18px] text-primary">{{ $meta['icon'] }}</span>

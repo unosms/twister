@@ -15,6 +15,16 @@
         || request()->routeIs('devices.backups.*')
         || request()->routeIs('devices.graphs');
     $deviceEventsActive = request()->routeIs('devices.events.*');
+    $deviceEventsGroup = strtolower(trim((string) request()->query('group', '')));
+    $deviceEventTypeLinks = [
+        'router_board' => 'Router Board',
+        'switches' => 'Switches',
+        'fiber_optic' => 'Fiber Optic',
+        'wireless' => 'Wireless',
+        'servers_standalone' => 'Stand Alone',
+        'servers_virtual' => 'Virtual Server',
+        'other' => 'Other',
+    ];
     $assignmentsActive = request()->routeIs('devices.wizard');
     $notificationsActive = request()->routeIs('notifications.*');
     $diagnosticsActive = request()->routeIs('support.*')
@@ -52,6 +62,14 @@
             <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $deviceCabinetActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.cabinet-room.index') }}">Cabinet Room</a>
             <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $deviceDetailsActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.details') }}">Devices List</a>
             <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $deviceEventsActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.events.index') }}">Events</a>
+            <div class="ml-3 mt-1 flex flex-col gap-1 border-l border-slate-200 pl-3 dark:border-slate-700">
+                @foreach ($deviceEventTypeLinks as $groupKey => $groupLabel)
+                    @php
+                        $eventTypeActive = request()->routeIs('devices.events.index') && $deviceEventsGroup === $groupKey;
+                    @endphp
+                    <a class="rounded-lg px-2 py-1 text-[11px] font-semibold transition-colors {{ $eventTypeActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.events.index', ['group' => $groupKey]) }}#events-group-{{ $groupKey }}">{{ $groupLabel }}</a>
+                @endforeach
+            </div>
         </div>
     </details>
 

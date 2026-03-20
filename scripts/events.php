@@ -466,6 +466,23 @@ if ($deviceFilter !== '') {
             color: var(--primary);
         }
 
+        .sidebar-sub-type-link {
+            display: block;
+            margin-left: 12px;
+            padding: 5px 10px;
+            border-radius: 8px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #64748b;
+            text-decoration: none;
+            transition: background-color 0.15s ease, color 0.15s ease;
+        }
+
+        .sidebar-sub-type-link:hover {
+            background: #f1f5f9;
+            color: var(--primary);
+        }
+
         .sidebar-footer {
             border-top: 1px solid #e2e8f0;
             padding-top: 12px;
@@ -852,6 +869,13 @@ if ($deviceFilter !== '') {
                             <a class="sidebar-sub-link" href="/devices/cabinet-room">Cabinet Room</a>
                             <a class="sidebar-sub-link" href="/devices/details">Devices List</a>
                             <a class="sidebar-sub-link active" href="/devices/events">Events</a>
+                            <a class="sidebar-sub-type-link" href="/devices/events?group=router_board#events-group-router_board">Router Board</a>
+                            <a class="sidebar-sub-type-link" href="/devices/events?group=switches#events-group-switches">Switches</a>
+                            <a class="sidebar-sub-type-link" href="/devices/events?group=fiber_optic#events-group-fiber_optic">Fiber Optic</a>
+                            <a class="sidebar-sub-type-link" href="/devices/events?group=wireless#events-group-wireless">Wireless</a>
+                            <a class="sidebar-sub-type-link" href="/devices/events?group=servers_standalone#events-group-servers_standalone">Stand Alone</a>
+                            <a class="sidebar-sub-type-link" href="/devices/events?group=servers_virtual#events-group-servers_virtual">Virtual Server</a>
+                            <a class="sidebar-sub-type-link" href="/devices/events?group=other#events-group-other">Other</a>
                         </div>
                     </details>
 
