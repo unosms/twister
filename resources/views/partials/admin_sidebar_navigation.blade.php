@@ -16,6 +16,7 @@
         || request()->routeIs('devices.graphs');
     $deviceEventsActive = request()->routeIs('devices.events.*');
     $deviceEventsGroup = strtolower(trim((string) request()->query('group', '')));
+    $deviceEventsBaseActive = request()->routeIs('devices.events.index') && $deviceEventsGroup === '';
     $deviceEventTypeLinks = [
         'router_board' => 'Router Board',
         'switches' => 'Switches',
@@ -61,15 +62,21 @@
             <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $deviceControlActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.index') }}">Device Management</a>
             <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $deviceCabinetActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.cabinet-room.index') }}">Cabinet Room</a>
             <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $deviceDetailsActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.details') }}">Devices List</a>
-            <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $deviceEventsActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.events.index') }}">Events</a>
-            <div class="ml-3 mt-1 flex flex-col gap-1 border-l border-slate-200 pl-3 dark:border-slate-700">
-                @foreach ($deviceEventTypeLinks as $groupKey => $groupLabel)
-                    @php
-                        $eventTypeActive = request()->routeIs('devices.events.index') && $deviceEventsGroup === $groupKey;
-                    @endphp
-                    <a class="rounded-lg px-2 py-1 text-[11px] font-semibold transition-colors {{ $eventTypeActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.events.index', ['group' => $groupKey]) }}#events-group-{{ $groupKey }}">{{ $groupLabel }}</a>
-                @endforeach
-            </div>
+            <details class="sidebar-collapsible-group" {{ $deviceEventsActive ? 'open' : '' }}>
+                <summary class="flex cursor-pointer list-none items-center gap-2 rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $deviceEventsActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}">
+                    <span>Events</span>
+                    <span class="material-symbols-outlined ml-auto text-[16px] sidebar-collapsible-icon">expand_more</span>
+                </summary>
+                <div class="ml-3 mt-1 flex flex-col gap-1 border-l border-slate-200 pl-3 dark:border-slate-700">
+                    <a class="rounded-lg px-2 py-1 text-[11px] font-semibold transition-colors {{ $deviceEventsBaseActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.events.index') }}">All Devices</a>
+                    @foreach ($deviceEventTypeLinks as $groupKey => $groupLabel)
+                        @php
+                            $eventTypeActive = request()->routeIs('devices.events.index') && $deviceEventsGroup === $groupKey;
+                        @endphp
+                        <a class="rounded-lg px-2 py-1 text-[11px] font-semibold transition-colors {{ $eventTypeActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.events.index', ['group' => $groupKey]) }}#events-group-{{ $groupKey }}">{{ $groupLabel }}</a>
+                    @endforeach
+                </div>
+            </details>
         </div>
     </details>
 

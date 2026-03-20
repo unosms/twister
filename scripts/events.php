@@ -483,6 +483,47 @@ if ($deviceFilter !== '') {
             color: var(--primary);
         }
 
+        .sidebar-subgroup {
+            margin-top: 2px;
+        }
+
+        .sidebar-subgroup > summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .sidebar-sub-summary {
+            list-style: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 7px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 700;
+            color: var(--primary);
+            background: #e8efff;
+            cursor: pointer;
+        }
+
+        .sidebar-sub-summary .arrow {
+            margin-left: auto;
+            transition: transform 0.16s ease;
+        }
+
+        .sidebar-subgroup[open] .sidebar-sub-summary .arrow {
+            transform: rotate(180deg);
+        }
+
+        .sidebar-subtype-list {
+            margin-left: 12px;
+            margin-top: 6px;
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+            border-left: 1px solid #e2e8f0;
+            padding-left: 8px;
+        }
+
         .sidebar-footer {
             border-top: 1px solid #e2e8f0;
             padding-top: 12px;
@@ -868,14 +909,22 @@ if ($deviceFilter !== '') {
                             <a class="sidebar-sub-link" href="/devices">Device Management</a>
                             <a class="sidebar-sub-link" href="/devices/cabinet-room">Cabinet Room</a>
                             <a class="sidebar-sub-link" href="/devices/details">Devices List</a>
-                            <a class="sidebar-sub-link active" href="/devices/events">Events</a>
-                            <a class="sidebar-sub-type-link" href="/devices/events?group=router_board#events-group-router_board">Router Board</a>
-                            <a class="sidebar-sub-type-link" href="/devices/events?group=switches#events-group-switches">Switches</a>
-                            <a class="sidebar-sub-type-link" href="/devices/events?group=fiber_optic#events-group-fiber_optic">Fiber Optic</a>
-                            <a class="sidebar-sub-type-link" href="/devices/events?group=wireless#events-group-wireless">Wireless</a>
-                            <a class="sidebar-sub-type-link" href="/devices/events?group=servers_standalone#events-group-servers_standalone">Stand Alone</a>
-                            <a class="sidebar-sub-type-link" href="/devices/events?group=servers_virtual#events-group-servers_virtual">Virtual Server</a>
-                            <a class="sidebar-sub-type-link" href="/devices/events?group=other#events-group-other">Other</a>
+                            <details class="sidebar-subgroup" open>
+                                <summary class="sidebar-sub-summary">
+                                    <span>Events</span>
+                                    <span class="material-symbols-outlined arrow">expand_more</span>
+                                </summary>
+                                <div class="sidebar-subtype-list">
+                                    <a class="sidebar-sub-type-link" href="/devices/events">All Devices</a>
+                                    <a class="sidebar-sub-type-link" href="/devices/events?group=router_board#events-group-router_board">Router Board</a>
+                                    <a class="sidebar-sub-type-link" href="/devices/events?group=switches#events-group-switches">Switches</a>
+                                    <a class="sidebar-sub-type-link" href="/devices/events?group=fiber_optic#events-group-fiber_optic">Fiber Optic</a>
+                                    <a class="sidebar-sub-type-link" href="/devices/events?group=wireless#events-group-wireless">Wireless</a>
+                                    <a class="sidebar-sub-type-link" href="/devices/events?group=servers_standalone#events-group-servers_standalone">Stand Alone</a>
+                                    <a class="sidebar-sub-type-link" href="/devices/events?group=servers_virtual#events-group-servers_virtual">Virtual Server</a>
+                                    <a class="sidebar-sub-type-link" href="/devices/events?group=other#events-group-other">Other</a>
+                                </div>
+                            </details>
                         </div>
                     </details>
 
