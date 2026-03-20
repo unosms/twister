@@ -160,12 +160,43 @@ class ScriptController extends Controller
 
         $target = $absolute . DIRECTORY_SEPARATOR . $file;
         if (!is_file($target)) {
+            foreach ($this->backupDirectoryCandidatesFromRelative((string) ($resolved['relative'] ?? '')) as $candidateDirectory) {
+                $candidatePath = rtrim($candidateDirectory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $file;
+                if (is_file($candidatePath)) {
+                    $target = $candidatePath;
+                    break;
+                }
+            }
+        }
+
+        if (!is_file($target)) {
             return $this->plainError('Backup file not found.', 404);
         }
 
-        $baseReal = realpath($absolute);
+        $allowedBases = $this->backupDirectoryCandidatesFromRelative((string) ($resolved['relative'] ?? ''));
+        if (empty($allowedBases)) {
+            $allowedBases = [$absolute];
+        }
+
         $targetReal = realpath($target);
-        if (!$baseReal || !$targetReal || !str_starts_with($targetReal, $baseReal . DIRECTORY_SEPARATOR)) {
+        if (!$targetReal) {
+            return $this->plainError('Invalid backup file path.', 400);
+        }
+
+        $isAllowedPath = false;
+        foreach ($allowedBases as $allowedBase) {
+            $baseReal = realpath($allowedBase);
+            if (!$baseReal) {
+                continue;
+            }
+
+            if ($targetReal === $baseReal || str_starts_with($targetReal, $baseReal . DIRECTORY_SEPARATOR)) {
+                $isAllowedPath = true;
+                break;
+            }
+        }
+
+        if (!$isAllowedPath) {
             return $this->plainError('Invalid backup file path.', 400);
         }
 
@@ -1973,24 +2004,56 @@ class ScriptController extends Controller
         $relative = $resolved['relative'];
         $absolute = $resolved['absolute'];
 
-        if (!File::isDirectory($absolute)) {
+        $directories = $this->backupDirectoryCandidatesFromRelative((string) $relative);
+        if (empty($directories) && File::isDirectory($absolute)) {
+            $directories = [$absolute];
+        }
+
+        if (empty($directories)) {
             return [
                 'files' => [],
                 'folder' => $relative,
             ];
         }
 
-        $files = collect(File::files($absolute))
-            ->filter(static fn ($file) => $file->isFile())
-            ->sortByDesc(static fn ($file) => $file->getMTime())
+        $filesByName = [];
+        foreach ($directories as $directory) {
+            try {
+                $directoryFiles = File::files($directory);
+            } catch (\Throwable) {
+                continue;
+            }
+
+            foreach ($directoryFiles as $file) {
+                if (!$file->isFile()) {
+                    continue;
+                }
+
+                $name = $file->getFilename();
+                $mtime = (int) $file->getMTime();
+                $existing = $filesByName[$name] ?? null;
+                if ($existing !== null && ((int) ($existing['mtime'] ?? 0)) >= $mtime) {
+                    continue;
+                }
+
+                $filesByName[$name] = [
+                    'name' => $name,
+                    'size' => (int) $file->getSize(),
+                    'mtime' => $mtime,
+                ];
+            }
+        }
+
+        $files = collect($filesByName)
+            ->sortByDesc(static fn ($file) => (int) ($file['mtime'] ?? 0))
             ->values()
             ->take(100)
             ->map(function ($file) use ($device) {
-                $name = $file->getFilename();
-                $size = $file->getSize();
-                $modifiedTs = $file->getMTime();
+                $name = (string) ($file['name'] ?? '');
+                $size = (int) ($file['size'] ?? 0);
+                $modifiedTs = (int) ($file['mtime'] ?? 0);
 
-        return [
+                return [
                     'name' => $name,
                     'size_bytes' => $size,
                     'size_human' => $this->formatBytes($size),
@@ -2045,25 +2108,93 @@ class ScriptController extends Controller
             return null;
         }
 
-        $roots = $this->backupRoots();
-        $firstCandidate = null;
-        foreach ($roots as $root) {
-            $candidate = rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relative);
-            if ($firstCandidate === null) {
-                $firstCandidate = $candidate;
-            }
-            if (is_dir($candidate)) {
-        return [
-                    'relative' => $relative,
-                    'absolute' => $candidate,
-                ];
-            }
+        $candidates = $this->backupDirectoryCandidatesFromRelative($relative);
+        if (!empty($candidates)) {
+            return [
+                'relative' => $relative,
+                'absolute' => $this->pickBackupDirectoryByNewestFile($candidates),
+            ];
         }
 
+        $firstCandidate = $this->firstBackupDirectoryCandidateFromRelative($relative);
         return [
             'relative' => $relative,
             'absolute' => $firstCandidate ?: base_path($relative),
         ];
+    }
+
+    private function backupDirectoryCandidatesFromRelative(string $relative): array
+    {
+        $relative = trim(str_replace('\\', '/', (string) $relative), '/');
+        if ($relative === '' || str_contains($relative, '..')) {
+            return [];
+        }
+
+        $candidates = [];
+        foreach ($this->backupRoots() as $root) {
+            $candidate = rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relative);
+            if (is_dir($candidate) && !in_array($candidate, $candidates, true)) {
+                $candidates[] = $candidate;
+            }
+        }
+
+        return $candidates;
+    }
+
+    private function firstBackupDirectoryCandidateFromRelative(string $relative): ?string
+    {
+        $relative = trim(str_replace('\\', '/', (string) $relative), '/');
+        if ($relative === '' || str_contains($relative, '..')) {
+            return null;
+        }
+
+        $roots = $this->backupRoots();
+        if (empty($roots)) {
+            return null;
+        }
+
+        return rtrim($roots[0], DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relative);
+    }
+
+    private function pickBackupDirectoryByNewestFile(array $directories): string
+    {
+        $selectedDirectory = (string) ($directories[0] ?? '');
+        $selectedMtime = -1;
+
+        foreach ($directories as $directory) {
+            $latestMtime = $this->latestBackupFileMtime($directory);
+            if ($latestMtime > $selectedMtime) {
+                $selectedMtime = $latestMtime;
+                $selectedDirectory = $directory;
+            }
+        }
+
+        return $selectedDirectory;
+    }
+
+    private function latestBackupFileMtime(string $absolutePath): int
+    {
+        $latestMtime = -1;
+        if (!is_dir($absolutePath)) {
+            return $latestMtime;
+        }
+
+        try {
+            foreach (File::files($absolutePath) as $file) {
+                if (!$file->isFile()) {
+                    continue;
+                }
+
+                $mtime = (int) $file->getMTime();
+                if ($mtime > $latestMtime) {
+                    $latestMtime = $mtime;
+                }
+            }
+        } catch (\Throwable) {
+            return -1;
+        }
+
+        return $latestMtime;
     }
 
     private function backupRoots(): array
