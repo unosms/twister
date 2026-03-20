@@ -915,14 +915,12 @@ if ($deviceFilter !== '') {
                                     <span class="material-symbols-outlined arrow">expand_more</span>
                                 </summary>
                                 <div class="sidebar-subtype-list">
-                                    <a class="sidebar-sub-type-link" href="/devices/events">All Devices</a>
                                     <a class="sidebar-sub-type-link" href="/devices/events?group=router_board#events-group-router_board">Router Board</a>
                                     <a class="sidebar-sub-type-link" href="/devices/events?group=switches#events-group-switches">Switches</a>
                                     <a class="sidebar-sub-type-link" href="/devices/events?group=fiber_optic#events-group-fiber_optic">Fiber Optic</a>
                                     <a class="sidebar-sub-type-link" href="/devices/events?group=wireless#events-group-wireless">Wireless</a>
                                     <a class="sidebar-sub-type-link" href="/devices/events?group=servers_standalone#events-group-servers_standalone">Stand Alone</a>
                                     <a class="sidebar-sub-type-link" href="/devices/events?group=servers_virtual#events-group-servers_virtual">Virtual Server</a>
-                                    <a class="sidebar-sub-type-link" href="/devices/events?group=other#events-group-other">Other</a>
                                 </div>
                             </details>
                         </div>
