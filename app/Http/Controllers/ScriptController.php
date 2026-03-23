@@ -1817,6 +1817,7 @@ class ScriptController extends Controller
             }
         }
 
+        $availablePaths = [];
         foreach ($candidatePaths as $candidatePath) {
             try {
                 if (!is_dir($candidatePath)) {
@@ -1827,14 +1828,18 @@ class ScriptController extends Controller
             }
 
             if (is_dir($candidatePath)) {
-                return [
-                    'relative' => $relative,
-                    'absolute' => $candidatePath,
-                ];
+                $availablePaths[] = $candidatePath;
             }
         }
 
-        return null;
+        if (empty($availablePaths)) {
+            return null;
+        }
+
+        return [
+            'relative' => $relative,
+            'absolute' => $this->pickBackupDirectoryByNewestFile($availablePaths),
+        ];
     }
 
     private function deviceTraceContext(Device $device, array $context = []): array
