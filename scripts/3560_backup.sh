@@ -40,6 +40,7 @@ proc fail_step {message code} {
 spawn telnet $IP
 
 set authed 0
+set login_password_attempt 0
 while {!$authed} {
     expect {
         -re {Press RETURN to get started} { send -- "\r" }
@@ -60,12 +61,19 @@ while {!$authed} {
             exp_continue
         }
         -re {(P|p)assword:} {
-            send -- "$PASS\r"
+            if {$login_password_attempt == 0} {
+                send -- "$PASS\r"
+            } elseif {$ENA ne "" && $ENA ne $PASS} {
+                send -- "$ENA\r"
+            } else {
+                send -- "$PASS\r"
+            }
+            incr login_password_attempt
             exp_continue
         }
         -re $prompt { set authed 1 }
-        timeout { fail_step "Login timeout" 5 }
-        eof { fail_step "Connection closed during login" 10 }
+        timeout { fail_step "Login timeout (check username/password)" 5 }
+        eof { fail_step "Connection closed during login (bad username/password)" 10 }
     }
 }
 
