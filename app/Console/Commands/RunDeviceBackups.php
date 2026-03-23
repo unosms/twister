@@ -472,14 +472,21 @@ class RunDeviceBackups extends Command
 
     private function detectBackupFileFromProcessOutput(string $output, string $absolutePath): ?array
     {
-        if (!is_dir($absolutePath)) {
-            return null;
-        }
-
         $output = trim($output);
         if ($output === '' || !preg_match('/(bytes copied|copied in|copy complete|copied successfully)/i', $output)) {
             return null;
         }
+
+        $searchDirectories = [];
+        if (is_dir($absolutePath)) {
+            $searchDirectories[] = $absolutePath;
+        }
+        foreach ($this->backupRoots() as $root) {
+            if (is_dir($root)) {
+                $searchDirectories[] = $root;
+            }
+        }
+        $searchDirectories = array_values(array_unique($searchDirectories));
 
         $candidateNames = [];
         if (preg_match_all('/([0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}\.[A-Za-z0-9]+)/', $output, $matches)) {
@@ -490,31 +497,39 @@ class RunDeviceBackups extends Command
 
         $candidateNames = array_values(array_unique(array_filter($candidateNames, static fn ($name): bool => $name !== '')));
         foreach ($candidateNames as $candidateName) {
-            $candidatePath = rtrim($absolutePath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $candidateName;
-            if (is_file($candidatePath)) {
-                $mtime = filemtime($candidatePath);
+            foreach ($searchDirectories as $directory) {
+                $candidatePath = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $candidateName;
+                if (is_file($candidatePath)) {
+                    $mtime = filemtime($candidatePath);
 
-                return [
-                    'file' => $candidateName,
-                    'mtime' => is_int($mtime) ? $mtime : time(),
-                ];
+                    return [
+                        'file' => $candidateName,
+                        'mtime' => is_int($mtime) ? $mtime : time(),
+                        'path' => $candidatePath,
+                    ];
+                }
             }
         }
 
-        $afterFiles = $this->backupFileMap($absolutePath);
         $latestFile = null;
         $latestMtime = null;
-        foreach ($afterFiles as $name => $mtime) {
-            if ($latestMtime === null || $mtime > $latestMtime) {
-                $latestFile = $name;
-                $latestMtime = $mtime;
+        $latestPath = null;
+        foreach ($searchDirectories as $directory) {
+            $afterFiles = $this->backupFileMap($directory);
+            foreach ($afterFiles as $name => $mtime) {
+                if ($latestMtime === null || $mtime > $latestMtime) {
+                    $latestFile = $name;
+                    $latestMtime = $mtime;
+                    $latestPath = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $name;
+                }
             }
         }
 
-        if ($latestFile !== null && $latestMtime !== null && $latestMtime >= (time() - 30)) {
+        if ($latestFile !== null && $latestMtime !== null && $latestMtime >= (time() - 300)) {
             return [
                 'file' => $latestFile,
                 'mtime' => $latestMtime,
+                'path' => $latestPath,
             ];
         }
 
@@ -548,10 +563,12 @@ class RunDeviceBackups extends Command
             $snapshot['absolute']
         );
         if ($outputDetected !== null) {
+            $outputDetected = $this->moveDetectedBackupIntoDirectory($outputDetected, $snapshot['absolute']);
             $this->writeProvisioningLog('backup trace: verification recovered from process output', $this->withoutProvisioningSecrets($traceContext) + [
                 'backup_file' => $outputDetected['file'],
                 'backup_modified_at' => date('Y-m-d H:i:s', (int) $outputDetected['mtime']),
                 'backup_folder' => $snapshot['relative'],
+                'backup_path' => $outputDetected['path'] ?? null,
             ]);
 
             return $processResult;
@@ -568,6 +585,65 @@ class RunDeviceBackups extends Command
             'ok' => false,
             'output' => trim(($processResult['output'] ?? '') . "\nBackup verification failed: no new backup file was created in {$snapshot['relative']}."),
         ];
+    }
+
+    private function moveDetectedBackupIntoDirectory(array $detected, string $targetDirectory): array
+    {
+        $fileName = basename((string) ($detected['file'] ?? ''));
+        if ($fileName === '' || !is_dir($targetDirectory)) {
+            return $detected;
+        }
+
+        $sourcePath = (string) ($detected['path'] ?? '');
+        if ($sourcePath === '' || !is_file($sourcePath)) {
+            foreach ($this->backupRoots() as $root) {
+                $candidatePath = rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $fileName;
+                if (is_file($candidatePath)) {
+                    $sourcePath = $candidatePath;
+                    break;
+                }
+            }
+        }
+
+        if ($sourcePath === '' || !is_file($sourcePath)) {
+            return $detected;
+        }
+
+        $targetPath = rtrim($targetDirectory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $fileName;
+        $sourceReal = realpath($sourcePath) ?: $sourcePath;
+        $targetDirReal = realpath($targetDirectory) ?: $targetDirectory;
+        if ($sourceReal === $targetPath || str_starts_with($sourceReal, rtrim($targetDirReal, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR)) {
+            $mtime = filemtime($sourcePath);
+            $detected['path'] = $sourcePath;
+            $detected['mtime'] = is_int($mtime) ? $mtime : (int) ($detected['mtime'] ?? time());
+            $detected['file'] = $fileName;
+            return $detected;
+        }
+
+        try {
+            if (is_file($targetPath)) {
+                @unlink($targetPath);
+            }
+
+            $moved = @rename($sourcePath, $targetPath);
+            if (!$moved) {
+                $moved = @copy($sourcePath, $targetPath);
+                if ($moved) {
+                    @unlink($sourcePath);
+                }
+            }
+
+            if ($moved && is_file($targetPath)) {
+                $mtime = filemtime($targetPath);
+                $detected['path'] = $targetPath;
+                $detected['mtime'] = is_int($mtime) ? $mtime : (int) ($detected['mtime'] ?? time());
+                $detected['file'] = $fileName;
+            }
+        } catch (\Throwable) {
+            return $detected;
+        }
+
+        return $detected;
     }
 
     private function backupUnsupportedMessage(Device $device, bool $isOlt, array $olt = []): ?string
