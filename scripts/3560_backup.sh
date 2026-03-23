@@ -165,7 +165,9 @@ expect {
         exp_continue
     }
     -re {(D|d)estination filename.*} {
-        send -- "$LOCATION/$RENAMED_FILE\r"
+        # Older IOS builds on Catalyst 3560 may reject path segments here.
+        # Send a plain filename; Laravel moves it into the target device folder after upload.
+        send -- "$RENAMED_FILE\r"
         exp_continue
     }
     -re {(O|o)verwrite.*} {
