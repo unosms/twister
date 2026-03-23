@@ -37,6 +37,42 @@ proc fail_step {message code} {
     exit $code
 }
 
+proc try_enable_once {candidate prompt} {
+    send -- "enable\r"
+    set sentPassword 0
+
+    expect {
+        -re {(P|p)assword:} {
+            if {$sentPassword} {
+                return 0
+            }
+
+            send -- "$candidate\r"
+            set sentPassword 1
+            exp_continue
+        }
+        -re {(?i)% ?(bad secrets|access denied|authorization failed|invalid password)} {
+            return 0
+        }
+        -re {#} {
+            return 1
+        }
+        -re $prompt {
+            if {[string match *#* $expect_out(buffer)]} {
+                return 1
+            }
+
+            return 0
+        }
+        timeout {
+            fail_step "Enable timeout" 7
+        }
+        eof {
+            fail_step "Connection closed during enable" 10
+        }
+    }
+}
+
 spawn telnet $IP
 
 set authed 0
@@ -83,43 +119,25 @@ if {[string match *# $expect_out(buffer)]} {
 }
 
 if {!$priv} {
-    send -- "enable\r"
-    expect {
-        -re {(P|p)assword:} { send -- "$ENA\r"; exp_continue }
-        -re {(?i)% ?(bad secrets|access denied|authorization failed|invalid password)} { set priv 0 }
-        -re {#} { set priv 1 }
-        -re $prompt {
-            if {[string match *#* $expect_out(buffer)]} {
-                set priv 1
-            } else {
-                set priv 0
-            }
-        }
-        timeout { fail_step "Enable timeout" 7 }
-        eof { fail_step "Connection closed during enable" 10 }
+    if {[try_enable_once $ENA $prompt]} {
+        set priv 1
     }
+}
 
-    if {!$priv && $PASS ne "" && $PASS ne $ENA} {
-        send -- "enable\r"
-        expect {
-            -re {(P|p)assword:} { send -- "$PASS\r"; exp_continue }
-            -re {(?i)% ?(bad secrets|access denied|authorization failed|invalid password)} { set priv 0 }
-            -re {#} { set priv 1 }
-            -re $prompt {
-                if {[string match *#* $expect_out(buffer)]} {
-                    set priv 1
-                } else {
-                    set priv 0
-                }
-            }
-            timeout { fail_step "Enable timeout (fallback password)" 17 }
-            eof { fail_step "Connection closed during fallback enable attempt" 10 }
-        }
+if {!$priv && $PASS ne "" && $PASS ne $ENA} {
+    if {[try_enable_once $PASS $prompt]} {
+        set priv 1
     }
+}
 
-    if {!$priv} {
-        fail_step "Enable failed: invalid enable password or insufficient privilege." 14
+if {!$priv} {
+    if {[try_enable_once "" $prompt]} {
+        set priv 1
     }
+}
+
+if {!$priv} {
+    fail_step "Enable failed: invalid enable password or insufficient privilege." 14
 }
 
 send -- "terminal length 0\r"
