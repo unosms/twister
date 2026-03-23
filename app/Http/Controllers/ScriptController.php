@@ -2112,12 +2112,32 @@ class ScriptController extends Controller
         );
         if ($outputDetected !== null) {
             $outputDetected = $this->moveDetectedBackupIntoResolvedDirectory($outputDetected, (string) ($resolved['absolute'] ?? ''));
+            $resolvedAbsolute = (string) ($resolved['absolute'] ?? '');
+            $resolvedReal = $resolvedAbsolute !== '' ? (realpath($resolvedAbsolute) ?: $resolvedAbsolute) : '';
+            $detectedPath = (string) ($outputDetected['path'] ?? '');
+            $detectedReal = $detectedPath !== '' ? (realpath($detectedPath) ?: $detectedPath) : '';
+            $relocatedIntoResolved = $resolvedReal !== '' && $detectedReal !== ''
+                && (
+                    $detectedReal === $resolvedReal
+                    || str_starts_with($detectedReal, rtrim($resolvedReal, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR)
+                );
+
             ProvisioningTrace::log('backup trace: verification recovered from process output', $traceContext + [
                 'backup_file' => $outputDetected['file'],
                 'backup_modified_at' => date('Y-m-d H:i:s', (int) $outputDetected['mtime']),
                 'backup_folder' => $resolved['relative'],
                 'backup_path' => $outputDetected['path'] ?? null,
+                'relocated_into_resolved' => $relocatedIntoResolved,
             ]);
+
+            if (!$relocatedIntoResolved) {
+                return [
+                    'ok' => false,
+                    'status' => 500,
+                    'message' => 'Backup uploaded but could not be moved into the device backup folder.',
+                    'output' => trim((string) ($processResult['output'] ?? '') . "\nBackup file was detected at " . ($detectedPath !== '' ? $detectedPath : 'an external location') . " but could not be moved to {$resolved['relative']}. Check folder permissions for the web user."),
+                ];
+            }
 
             return $processResult;
         }

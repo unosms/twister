@@ -564,12 +564,30 @@ class RunDeviceBackups extends Command
         );
         if ($outputDetected !== null) {
             $outputDetected = $this->moveDetectedBackupIntoDirectory($outputDetected, $snapshot['absolute']);
+            $snapshotAbsolute = (string) ($snapshot['absolute'] ?? '');
+            $snapshotReal = $snapshotAbsolute !== '' ? (realpath($snapshotAbsolute) ?: $snapshotAbsolute) : '';
+            $detectedPath = (string) ($outputDetected['path'] ?? '');
+            $detectedReal = $detectedPath !== '' ? (realpath($detectedPath) ?: $detectedPath) : '';
+            $relocatedIntoSnapshot = $snapshotReal !== '' && $detectedReal !== ''
+                && (
+                    $detectedReal === $snapshotReal
+                    || str_starts_with($detectedReal, rtrim($snapshotReal, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR)
+                );
+
             $this->writeProvisioningLog('backup trace: verification recovered from process output', $this->withoutProvisioningSecrets($traceContext) + [
                 'backup_file' => $outputDetected['file'],
                 'backup_modified_at' => date('Y-m-d H:i:s', (int) $outputDetected['mtime']),
                 'backup_folder' => $snapshot['relative'],
                 'backup_path' => $outputDetected['path'] ?? null,
+                'relocated_into_snapshot' => $relocatedIntoSnapshot,
             ]);
+
+            if (!$relocatedIntoSnapshot) {
+                return [
+                    'ok' => false,
+                    'output' => trim((string) ($processResult['output'] ?? '') . "\nBackup file was detected at " . ($detectedPath !== '' ? $detectedPath : 'an external location') . " but could not be moved to {$snapshot['relative']}. Check filesystem permissions."),
+                ];
+            }
 
             return $processResult;
         }
