@@ -3,6 +3,8 @@
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Http\Request;
+use Illuminate\Session\TokenMismatchException;
 use App\Http\Middleware\ApplySystemTimezone;
 use App\Http\Middleware\EnsureAdminAuthenticated;
 use App\Http\Middleware\EnsureAuthenticated;
@@ -24,5 +26,21 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (TokenMismatchException $exception, Request $request) {
+            if ($request->expectsJson()) {
+                return response()->json([
+                    'message' => 'Session expired. Please refresh and try again.',
+                ], 419);
+            }
+
+            $referer = (string) $request->headers->get('referer', '');
+            $fallback = $request->is('portal/*')
+                ? route('portal.index')
+                : route('auth.login');
+            $target = $referer !== '' ? $referer : $fallback;
+
+            return redirect()->to($target)->withErrors([
+                'session' => 'Session expired. Please refresh the page and try again.',
+            ]);
+        });
     })->create();

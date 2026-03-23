@@ -34,6 +34,7 @@ Route::get('/auth/request-access', [AuthController::class, 'requestAccess'])->na
 Route::middleware(['auth.session', 'audit.log'])->group(function () {
     Route::post('/actions/dispatch', [ActionController::class, 'dispatch'])->name('actions.dispatch');
     Route::get('/portal', [PortalController::class, 'index'])->name('portal.index');
+    Route::get('/portal/telegram-settings', fn () => redirect()->route('portal.index'))->name('portal.telegram-settings');
     Route::post('/portal/telegram-settings', [PortalController::class, 'updateTelegramSettings'])->name('portal.telegram-settings.update');
     Route::get('/exec.php', [ScriptController::class, 'execLegacy'])->name('scripts.exec');
     Route::get('/portal/devices/graphs', [ScriptController::class, 'showPortalGraphsPage'])->name('portal.devices.graphs');
