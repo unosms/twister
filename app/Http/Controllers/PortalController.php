@@ -282,17 +282,112 @@ class PortalController extends Controller
             'telegram_bot_token' => ['nullable', 'string', 'max:255'],
         ]);
 
+        $previousTelegramChatId = $this->normalizeTelegramCredentialValue($user->telegram_chat_id ?? null);
+        $previousTelegramBotToken = $this->normalizeTelegramCredentialValue($user->telegram_bot_token ?? null);
         $telegramChatId = trim((string) ($data['telegram_chat_id'] ?? ''));
         $telegramBotToken = trim((string) ($data['telegram_bot_token'] ?? ''));
+        $currentTelegramChatId = $telegramChatId !== '' ? $telegramChatId : null;
+        $currentTelegramBotToken = $telegramBotToken !== '' ? $telegramBotToken : null;
 
         $user->fill([
-            'telegram_chat_id' => $telegramChatId !== '' ? $telegramChatId : null,
-            'telegram_bot_token' => $telegramBotToken !== '' ? $telegramBotToken : null,
+            'telegram_chat_id' => $currentTelegramChatId,
+            'telegram_bot_token' => $currentTelegramBotToken,
         ]);
         $user->save();
 
+        $statusMessage = 'Telegram settings updated.';
+        $telegramStatus = $this->attemptTelegramSetupConfirmation(
+            $user,
+            $previousTelegramChatId,
+            $previousTelegramBotToken,
+            $currentTelegramChatId,
+            $currentTelegramBotToken
+        );
+        if ($telegramStatus !== null) {
+            $statusMessage .= ' ' . $telegramStatus;
+        }
+
         return redirect()
             ->route('portal.index')
-            ->with('status', 'Telegram settings updated.');
+            ->with('status', $statusMessage);
+    }
+
+    private function attemptTelegramSetupConfirmation(
+        User $user,
+        ?string $previousChatId,
+        ?string $previousBotToken,
+        ?string $currentChatId,
+        ?string $currentBotToken
+    ): ?string {
+        if (!$this->shouldSendTelegramSetupConfirmation($previousChatId, $previousBotToken, $currentChatId, $currentBotToken)) {
+            return null;
+        }
+
+        $notifier = $this->resolveTelegramNotifier();
+        if ($notifier === null || !method_exists($notifier, 'sendDirectMessage')) {
+            return 'Test message could not be sent (service unavailable).';
+        }
+
+        $targetUser = clone $user;
+        $targetUser->telegram_enabled = true;
+        $targetUser->telegram_chat_id = $currentChatId;
+        $targetUser->telegram_bot_token = $currentBotToken;
+
+        $sent = (bool) $notifier->sendDirectMessage($targetUser, 'Telegram settings were added successfully.', [
+            'scope' => 'portal.telegram_settings.save_confirmation',
+            'target_user_id' => $user->id,
+        ]);
+
+        if ($sent) {
+            return 'Telegram test message sent successfully.';
+        }
+
+        $detail = '';
+        if (method_exists($notifier, 'getLastError')) {
+            $lastError = trim((string) ($notifier->getLastError() ?? ''));
+            if ($lastError !== '') {
+                $detail = " Reason: {$lastError}";
+            }
+        }
+
+        return "Telegram settings saved, but test message failed.{$detail}";
+    }
+
+    private function shouldSendTelegramSetupConfirmation(
+        ?string $previousChatId,
+        ?string $previousBotToken,
+        ?string $currentChatId,
+        ?string $currentBotToken
+    ): bool {
+        if ($currentChatId === null) {
+            return false;
+        }
+
+        return $previousChatId !== $currentChatId || $previousBotToken !== $currentBotToken;
+    }
+
+    private function normalizeTelegramCredentialValue(mixed $value): ?string
+    {
+        $normalized = trim((string) $value);
+        return $normalized !== '' ? $normalized : null;
+    }
+
+    private function resolveTelegramNotifier(): ?object
+    {
+        $serviceClass = 'App\\Services\\TelegramEventNotifier';
+        if (!class_exists($serviceClass)) {
+            return null;
+        }
+
+        try {
+            $service = app($serviceClass);
+            if (is_object($service) && method_exists($service, 'sendDirectMessage')) {
+                return $service;
+            }
+        } catch (\Throwable) {
+            // ignore and fall back to null
+        }
+
+        return null;
     }
 }

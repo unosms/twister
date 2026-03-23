@@ -118,6 +118,8 @@ class UserController extends Controller
         }
 
         $data = $this->validateUserPayload($request, null, true);
+        $submittedTelegramChatId = $this->normalizeTelegramCredentialValue($data['telegram_chat_id'] ?? null);
+        $submittedTelegramBotToken = $this->normalizeTelegramCredentialValue($data['telegram_bot_token'] ?? null);
 
         $user = DB::transaction(function () use ($request, $data) {
             $user = new User();
@@ -126,9 +128,21 @@ class UserController extends Controller
             return $user;
         });
 
+        $statusMessage = "User {$user->name} created.";
+        $telegramStatus = $this->attemptTelegramSetupConfirmation(
+            $user,
+            null,
+            null,
+            $submittedTelegramChatId,
+            $submittedTelegramBotToken
+        );
+        if ($telegramStatus !== null) {
+            $statusMessage .= ' ' . $telegramStatus;
+        }
+
         return redirect()
             ->route('users.index')
-            ->with('status', "User {$user->name} created.");
+            ->with('status', $statusMessage);
     }
 
     public function export(Request $request)
@@ -258,11 +272,28 @@ class UserController extends Controller
             $data['password'] = null;
         }
 
+        $previousTelegramChatId = $this->normalizeTelegramCredentialValue($user->telegram_chat_id ?? null);
+        $previousTelegramBotToken = $this->normalizeTelegramCredentialValue($user->telegram_bot_token ?? null);
+        $submittedTelegramChatId = $this->normalizeTelegramCredentialValue($data['telegram_chat_id'] ?? null);
+        $submittedTelegramBotToken = $this->normalizeTelegramCredentialValue($data['telegram_bot_token'] ?? null);
+
         DB::transaction(function () use ($request, $user, $data) {
             $this->persistUser($request, $user, $data);
         });
 
-        return back()->with('status', "User {$user->name} updated.");
+        $statusMessage = "User {$user->name} updated.";
+        $telegramStatus = $this->attemptTelegramSetupConfirmation(
+            $user,
+            $previousTelegramChatId,
+            $previousTelegramBotToken,
+            $submittedTelegramChatId,
+            $submittedTelegramBotToken
+        );
+        if ($telegramStatus !== null) {
+            $statusMessage .= ' ' . $telegramStatus;
+        }
+
+        return back()->with('status', $statusMessage);
     }
 
     private function buildUserFormViewData(): array
@@ -1138,6 +1169,67 @@ class UserController extends Controller
         }
 
         return null;
+    }
+
+    private function attemptTelegramSetupConfirmation(
+        User $user,
+        ?string $previousChatId,
+        ?string $previousBotToken,
+        ?string $currentChatId,
+        ?string $currentBotToken
+    ): ?string {
+        if (!$this->shouldSendTelegramSetupConfirmation($previousChatId, $previousBotToken, $currentChatId, $currentBotToken)) {
+            return null;
+        }
+
+        $notifier = $this->resolveTelegramNotifier();
+        if ($notifier === null || !method_exists($notifier, 'sendDirectMessage')) {
+            return 'Telegram settings saved, but test message could not be sent (service unavailable).';
+        }
+
+        $targetUser = clone $user;
+        $targetUser->telegram_enabled = true;
+        $targetUser->telegram_chat_id = $currentChatId;
+        $targetUser->telegram_bot_token = $currentBotToken;
+
+        $message = "Telegram settings were added successfully for {$user->name}.";
+        $sent = (bool) $notifier->sendDirectMessage($targetUser, $message, [
+            'scope' => 'users.save.telegram_confirmation',
+            'target_user_id' => $user->id,
+        ]);
+
+        if ($sent) {
+            return 'Telegram test message sent successfully.';
+        }
+
+        $detail = '';
+        if (method_exists($notifier, 'getLastError')) {
+            $lastError = trim((string) ($notifier->getLastError() ?? ''));
+            if ($lastError !== '') {
+                $detail = " Reason: {$lastError}";
+            }
+        }
+
+        return "Telegram settings saved, but test message failed.{$detail}";
+    }
+
+    private function shouldSendTelegramSetupConfirmation(
+        ?string $previousChatId,
+        ?string $previousBotToken,
+        ?string $currentChatId,
+        ?string $currentBotToken
+    ): bool {
+        if ($currentChatId === null) {
+            return false;
+        }
+
+        return $previousChatId !== $currentChatId || $previousBotToken !== $currentBotToken;
+    }
+
+    private function normalizeTelegramCredentialValue(mixed $value): ?string
+    {
+        $normalized = trim((string) $value);
+        return $normalized !== '' ? $normalized : null;
     }
 
     private function normalizeInterfaceExpression(?string $value): ?string
