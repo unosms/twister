@@ -2654,10 +2654,15 @@ class ScriptController extends Controller
         }
 
         try {
-            return decrypt($value);
+            $value = decrypt($value);
         } catch (\Throwable $e) {
-            return $value;
+            // Keep plain-text values as-is when decryption is not needed.
         }
+
+        $normalized = trim((string) $value);
+        $normalized = preg_replace('/[\x00-\x1F\x7F]/u', '', $normalized) ?? $normalized;
+
+        return $normalized !== '' ? $normalized : null;
     }
 
     private function isNexusModel(string $model): bool
