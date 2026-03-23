@@ -83,6 +83,25 @@ if {![string match *# $expect_out(buffer)]} {
     }
 
     if {!$priv} {
+        if {$PASS ne "" && $PASS ne $ENA} {
+            send -- "enable\r"
+            expect {
+                -re {(P|p)assword:} { send -- "$PASS\r" }
+                -re {(?i)% ?(bad secrets|access denied|authorization failed|invalid password)} { set priv 0 }
+                -re $prompt {
+                    if {[string match *#* $expect_out(buffer)]} {
+                        set priv 1
+                    } else {
+                        set priv 0
+                    }
+                }
+                timeout { fail_step "Enable timeout waiting for fallback password prompt" 18 }
+                eof { fail_step "Connection closed during fallback enable attempt" 10 }
+            }
+        }
+    }
+
+    if {!$priv} {
         fail_step "Enable failed: invalid enable password or insufficient privilege." 14
     }
 }
