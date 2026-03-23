@@ -155,12 +155,24 @@ class RunDeviceBackups extends Command
             $isOlt ? ($olt['ip_address'] ?? null) : ($cisco['ip_address'] ?? null),
             $device->ip_address
         );
-        $password = $this->decryptValue($isOlt ? ($olt['password'] ?? null) : ($cisco['password'] ?? null));
+        $passwordCandidates = $isOlt
+            ? $this->normalizeCredentialCandidates([
+                $olt['password'] ?? null,
+            ])
+            : $this->resolveCiscoPasswordCandidates($meta, is_array($cisco) ? $cisco : []);
+        $password = $passwordCandidates[0] ?? null;
         $username = $this->firstNonEmpty(
             $isOlt ? ($olt['username'] ?? null) : ($cisco['username'] ?? null),
             $isOlt ? ($olt['user'] ?? null) : ($cisco['user'] ?? null)
         );
-        $enablePassword = $isOlt ? null : $this->decryptValue($cisco['enable_password'] ?? null);
+        $enablePasswordCandidates = $isOlt
+            ? []
+            : $this->resolveCiscoEnablePasswordCandidates(
+                $meta,
+                is_array($cisco) ? $cisco : [],
+                $passwordCandidates
+            );
+        $enablePassword = $enablePasswordCandidates[0] ?? null;
         $location = $this->resolveFolderLocation($device, $cisco, $olt, $isOlt);
         $resolvedBackupDirectory = $this->prepareBackupDirectory($location);
         if (!$resolvedBackupDirectory) {
@@ -189,6 +201,8 @@ class RunDeviceBackups extends Command
             'location' => $location,
             'password_present' => $password !== null && $password !== '',
             'enable_password_present' => $enablePassword !== null && $enablePassword !== '',
+            'password_candidate_count' => count($passwordCandidates),
+            'enable_password_candidate_count' => count($enablePasswordCandidates),
             'username_present' => $username !== null && $username !== '',
         ]);
 
@@ -624,6 +638,127 @@ class RunDeviceBackups extends Command
         } catch (\Throwable $e) {
             return $value;
         }
+    }
+
+    private function normalizeCredentialCandidates(array $values): array
+    {
+        $normalized = [];
+
+        foreach ($values as $value) {
+            $candidate = $this->decryptValue(is_scalar($value) ? (string) $value : null);
+            if ($candidate === null || $candidate === '') {
+                continue;
+            }
+
+            if (!in_array($candidate, $normalized, true)) {
+                $normalized[] = $candidate;
+            }
+        }
+
+        return $normalized;
+    }
+
+    private function resolveCiscoPasswordCandidates(array $meta, array $cisco): array
+    {
+        $ciscoPaths = [
+            'password',
+            'credentials.password',
+            'login_password',
+            'telnet_password',
+            'cisco_password',
+            'passwd',
+            'pass',
+            'device_password',
+        ];
+        $metaPaths = [
+            'password',
+            'credentials.password',
+            'login_password',
+            'telnet_password',
+            'cisco_password',
+            'passwd',
+            'pass',
+            'device_password',
+            'cisco.password',
+            'cisco.credentials.password',
+            'cisco.login_password',
+            'cisco.telnet_password',
+            'cisco.cisco_password',
+            'cisco.passwd',
+            'cisco.pass',
+            'cisco.device_password',
+        ];
+
+        return $this->normalizeCredentialCandidates(array_merge(
+            $this->extractCredentialValues($cisco, $ciscoPaths),
+            $this->extractCredentialValues($meta, $metaPaths)
+        ));
+    }
+
+    private function resolveCiscoEnablePasswordCandidates(array $meta, array $cisco, array $passwordCandidates = []): array
+    {
+        $ciscoPaths = [
+            'enable_password',
+            'credentials.enable_password',
+            'enable_secret',
+            'enable',
+            'ena',
+            'secret',
+            'enable_pass',
+            'enablepass',
+            'enable_pwd',
+            'privileged_password',
+            'privilege_password',
+            'super_password',
+            'enablePassword',
+            'enableSecret',
+        ];
+        $metaPaths = [
+            'enable_password',
+            'credentials.enable_password',
+            'enable_secret',
+            'enable',
+            'ena',
+            'secret',
+            'enable_pass',
+            'enablepass',
+            'enable_pwd',
+            'privileged_password',
+            'privilege_password',
+            'super_password',
+            'enablePassword',
+            'enableSecret',
+            'cisco.enable_password',
+            'cisco.credentials.enable_password',
+            'cisco.enable_secret',
+            'cisco.enable',
+            'cisco.ena',
+            'cisco.secret',
+            'cisco.enable_pass',
+            'cisco.enablepass',
+            'cisco.enable_pwd',
+            'cisco.privileged_password',
+            'cisco.privilege_password',
+            'cisco.super_password',
+            'cisco.enablePassword',
+            'cisco.enableSecret',
+        ];
+
+        return $this->normalizeCredentialCandidates(array_merge(
+            $this->extractCredentialValues($cisco, $ciscoPaths),
+            $this->extractCredentialValues($meta, $metaPaths),
+            $passwordCandidates
+        ));
+    }
+
+    private function extractCredentialValues(array $source, array $paths): array
+    {
+        $values = [];
+        foreach ($paths as $path) {
+            $values[] = data_get($source, $path);
+        }
+
+        return $values;
     }
 
     private function provisioningLogEnabled(): bool

@@ -1496,8 +1496,8 @@ class ScriptController extends Controller
         array $backupSnapshot,
         string $switchModel
     ): array {
-        $passwordCandidates = array_values(array_slice($this->normalizeCredentialCandidates($passwordCandidates), 0, 3));
-        $enablePasswordCandidates = array_values(array_slice($this->normalizeCredentialCandidates($enablePasswordCandidates), 0, 4));
+        $passwordCandidates = array_values(array_slice($this->normalizeCredentialCandidates($passwordCandidates), 0, 4));
+        $enablePasswordCandidates = array_values(array_slice($this->normalizeCredentialCandidates($enablePasswordCandidates), 0, 6));
 
         if (empty($passwordCandidates)) {
             return [
@@ -1517,10 +1517,22 @@ class ScriptController extends Controller
             ];
         }
 
-        $loginIndex = 0;
-        $enableIndex = 0;
+        $attemptPlan = $this->buildBackupCredentialAttemptPlan(
+            count($passwordCandidates),
+            count($enablePasswordCandidates),
+            8
+        );
+        if ($attemptPlan === []) {
+            return [
+                'ok' => false,
+                'status' => 500,
+                'message' => 'Unable to build credential fallback attempts.',
+                'output' => 'Unable to build credential fallback attempts.',
+            ];
+        }
+
         $attemptCount = 0;
-        $maxAttempts = min(3, max(1, count($passwordCandidates) + count($enablePasswordCandidates)));
+        $failedLoginCandidates = [];
         $lastResult = [
             'ok' => false,
             'status' => 500,
@@ -1528,11 +1540,17 @@ class ScriptController extends Controller
             'output' => 'Script execution failed.',
         ];
 
-        while ($attemptCount < $maxAttempts && isset($passwordCandidates[$loginIndex]) && isset($enablePasswordCandidates[$enableIndex])) {
+        foreach ($attemptPlan as $attemptSpec) {
+            $loginIndex = (int) ($attemptSpec['login_index'] ?? 0);
+            $enableIndex = (int) ($attemptSpec['enable_index'] ?? 0);
+            if (isset($failedLoginCandidates[$loginIndex])) {
+                continue;
+            }
+
             $password = (string) ($passwordCandidates[$loginIndex] ?? '');
             $enablePassword = (string) ($enablePasswordCandidates[$enableIndex] ?? '');
             if ($password === '' || $enablePassword === '') {
-                break;
+                continue;
             }
 
             $attemptCount++;
@@ -1578,31 +1596,100 @@ class ScriptController extends Controller
             $lastResult = $result;
             $output = strtolower((string) ($result['output'] ?? ''));
             $looksLikeLoginFailure = $this->looksLikeBackupLoginFailure($output);
-            $looksLikeEnableFailure = $this->looksLikeBackupEnableFailure($output);
-
-            if ($looksLikeLoginFailure && ($loginIndex + 1) < count($passwordCandidates)) {
-                $loginIndex++;
-                continue;
+            if ($looksLikeLoginFailure) {
+                $failedLoginCandidates[$loginIndex] = true;
             }
-
-            if ($looksLikeEnableFailure && ($enableIndex + 1) < count($enablePasswordCandidates)) {
-                $enableIndex++;
-                continue;
-            }
-
-            if (($enableIndex + 1) < count($enablePasswordCandidates)) {
-                $enableIndex++;
-                continue;
-            }
-
-            break;
         }
 
         if ($attemptCount > 1) {
             $lastResult['output'] = trim((string) ($lastResult['output'] ?? '') . "\nCredential fallback attempts used: {$attemptCount}.");
         }
 
+        if ($attemptCount === 0) {
+            $lastResult = [
+                'ok' => false,
+                'status' => 500,
+                'message' => 'No credential fallback attempts were executed.',
+                'output' => 'No credential fallback attempts were executed.',
+            ];
+        } elseif ($this->looksLikeBackupEnableFailure(strtolower((string) ($lastResult['output'] ?? '')))) {
+            $lastResult['message'] = 'Enable authentication failed. Update the device enable credential.';
+        }
+
         return $lastResult;
+    }
+
+    private function buildBackupCredentialAttemptPlan(
+        int $passwordCandidateCount,
+        int $enableCandidateCount,
+        int $maxAttempts = 8
+    ): array {
+        if ($passwordCandidateCount <= 0 || $enableCandidateCount <= 0 || $maxAttempts <= 0) {
+            return [];
+        }
+
+        $attempts = [];
+        $seen = [];
+        $appendAttempt = static function (int $loginIndex, int $enableIndex) use (
+            &$attempts,
+            &$seen,
+            $passwordCandidateCount,
+            $enableCandidateCount,
+            $maxAttempts
+        ): void {
+            if (count($attempts) >= $maxAttempts) {
+                return;
+            }
+
+            if ($loginIndex < 0 || $enableIndex < 0) {
+                return;
+            }
+
+            if ($loginIndex >= $passwordCandidateCount || $enableIndex >= $enableCandidateCount) {
+                return;
+            }
+
+            $key = $loginIndex . ':' . $enableIndex;
+            if (isset($seen[$key])) {
+                return;
+            }
+
+            $seen[$key] = true;
+            $attempts[] = [
+                'login_index' => $loginIndex,
+                'enable_index' => $enableIndex,
+            ];
+        };
+
+        // Start with the currently preferred pair.
+        $appendAttempt(0, 0);
+
+        // Then vary login first, keeping primary enable.
+        for ($loginIndex = 1; $loginIndex < $passwordCandidateCount; $loginIndex++) {
+            $appendAttempt($loginIndex, 0);
+        }
+
+        // Then vary enable first, keeping primary login.
+        for ($enableIndex = 1; $enableIndex < $enableCandidateCount; $enableIndex++) {
+            $appendAttempt(0, $enableIndex);
+        }
+
+        // Finally explore additional cross-combinations.
+        for ($loginIndex = 1; $loginIndex < $passwordCandidateCount; $loginIndex++) {
+            for ($enableIndex = 1; $enableIndex < $enableCandidateCount; $enableIndex++) {
+                $appendAttempt($loginIndex, $enableIndex);
+            }
+        }
+
+        if (count($attempts) < $maxAttempts) {
+            for ($loginIndex = 0; $loginIndex < $passwordCandidateCount; $loginIndex++) {
+                for ($enableIndex = 0; $enableIndex < $enableCandidateCount; $enableIndex++) {
+                    $appendAttempt($loginIndex, $enableIndex);
+                }
+            }
+        }
+
+        return $attempts;
     }
 
     private function looksLikeBackupLoginFailure(string $output): bool
@@ -1612,6 +1699,9 @@ class ScriptController extends Controller
         }
 
         return str_contains($output, 'bad passwords')
+            || str_contains($output, 'bad password')
+            || str_contains($output, 'authentication failed')
+            || str_contains($output, 'invalid username')
             || str_contains($output, 'connection closed during login')
             || str_contains($output, 'login timeout');
     }
@@ -1630,15 +1720,40 @@ class ScriptController extends Controller
 
     private function resolveCiscoPasswordCandidates(array $meta, array $cisco, mixed $overridePassword = null): array
     {
-        return $this->normalizeCredentialCandidates([
-            $overridePassword,
-            data_get($cisco, 'password'),
-            data_get($meta, 'password'),
-            data_get($cisco, 'cisco_password'),
-            data_get($meta, 'cisco_password'),
-            data_get($cisco, 'passwd'),
-            data_get($meta, 'passwd'),
-        ]);
+        $ciscoPaths = [
+            'password',
+            'credentials.password',
+            'login_password',
+            'telnet_password',
+            'cisco_password',
+            'passwd',
+            'pass',
+            'device_password',
+        ];
+        $metaPaths = [
+            'password',
+            'credentials.password',
+            'login_password',
+            'telnet_password',
+            'cisco_password',
+            'passwd',
+            'pass',
+            'device_password',
+            'cisco.password',
+            'cisco.credentials.password',
+            'cisco.login_password',
+            'cisco.telnet_password',
+            'cisco.cisco_password',
+            'cisco.passwd',
+            'cisco.pass',
+            'cisco.device_password',
+        ];
+
+        return $this->normalizeCredentialCandidates(array_merge(
+            [$overridePassword],
+            $this->extractCredentialValues($cisco, $ciscoPaths),
+            $this->extractCredentialValues($meta, $metaPaths)
+        ));
     }
 
     private function resolveCiscoEnablePasswordCandidates(
@@ -1647,20 +1762,69 @@ class ScriptController extends Controller
         mixed $overrideEnablePassword = null,
         array $passwordCandidates = []
     ): array {
-        $firstPasswordCandidate = $passwordCandidates[0] ?? null;
+        $ciscoPaths = [
+            'enable_password',
+            'credentials.enable_password',
+            'enable_secret',
+            'enable',
+            'ena',
+            'secret',
+            'enable_pass',
+            'enablepass',
+            'enable_pwd',
+            'privileged_password',
+            'privilege_password',
+            'super_password',
+            'enablePassword',
+            'enableSecret',
+        ];
+        $metaPaths = [
+            'enable_password',
+            'credentials.enable_password',
+            'enable_secret',
+            'enable',
+            'ena',
+            'secret',
+            'enable_pass',
+            'enablepass',
+            'enable_pwd',
+            'privileged_password',
+            'privilege_password',
+            'super_password',
+            'enablePassword',
+            'enableSecret',
+            'cisco.enable_password',
+            'cisco.credentials.enable_password',
+            'cisco.enable_secret',
+            'cisco.enable',
+            'cisco.ena',
+            'cisco.secret',
+            'cisco.enable_pass',
+            'cisco.enablepass',
+            'cisco.enable_pwd',
+            'cisco.privileged_password',
+            'cisco.privilege_password',
+            'cisco.super_password',
+            'cisco.enablePassword',
+            'cisco.enableSecret',
+        ];
 
-        return $this->normalizeCredentialCandidates([
-            $overrideEnablePassword,
-            data_get($cisco, 'enable_password'),
-            data_get($meta, 'enable_password'),
-            data_get($cisco, 'enable_secret'),
-            data_get($meta, 'enable_secret'),
-            data_get($cisco, 'enable'),
-            data_get($meta, 'enable'),
-            data_get($cisco, 'ena'),
-            data_get($meta, 'ena'),
-            $firstPasswordCandidate,
-        ]);
+        return $this->normalizeCredentialCandidates(array_merge(
+            [$overrideEnablePassword],
+            $this->extractCredentialValues($cisco, $ciscoPaths),
+            $this->extractCredentialValues($meta, $metaPaths),
+            $passwordCandidates
+        ));
+    }
+
+    private function extractCredentialValues(array $source, array $paths): array
+    {
+        $values = [];
+        foreach ($paths as $path) {
+            $values[] = data_get($source, $path);
+        }
+
+        return $values;
     }
 
     private function normalizeCredentialCandidates(array $values): array
