@@ -1279,8 +1279,22 @@ class ScriptController extends Controller
         $ip = $isOlt
             ? $this->firstNonEmpty(data_get($olt, 'ip_address'), $device->ip_address)
             : $this->firstNonEmpty(data_get($cisco, 'ip_address'), $device->ip_address);
-        $password = $this->decryptValue($isOlt ? data_get($olt, 'password') : data_get($cisco, 'password'));
-        $enablePassword = $isOlt ? null : $this->decryptValue(data_get($cisco, 'enable_password'));
+        $passwordCandidates = $isOlt
+            ? $this->normalizeCredentialCandidates([
+                $request->query('password'),
+                $this->decryptValue(data_get($olt, 'password')),
+            ])
+            : $this->resolveCiscoPasswordCandidates($meta, is_array($cisco) ? $cisco : [], $request->query('password'));
+        $password = $passwordCandidates[0] ?? null;
+        $enablePasswordCandidates = $isOlt
+            ? []
+            : $this->resolveCiscoEnablePasswordCandidates(
+                $meta,
+                is_array($cisco) ? $cisco : [],
+                $request->query('enable_password'),
+                $passwordCandidates
+            );
+        $enablePassword = $enablePasswordCandidates[0] ?? null;
         $username = $this->firstNonEmpty(
             $request->query('username'),
             $isOlt ? data_get($olt, 'username') : data_get($cisco, 'username'),
@@ -1339,6 +1353,8 @@ class ScriptController extends Controller
             'location_source' => $usedFallbackLocation ? 'fallback' : 'configured',
             'password_present' => $password !== null && $password !== '',
             'enable_password_present' => $enablePassword !== null && $enablePassword !== '',
+            'password_candidate_count' => count($passwordCandidates),
+            'enable_password_candidate_count' => count($enablePasswordCandidates),
             'username_present' => $username !== null && $username !== '',
         ]);
 
@@ -1450,9 +1466,78 @@ class ScriptController extends Controller
             ];
         }
 
-        if ($is3560) {
+        return $this->runCiscoBackupWithCredentialFallback(
+            $device,
+            $scriptName,
+            $scriptPath,
+            $ip,
+            $location,
+            $username,
+            $is3560,
+            $passwordCandidates,
+            $enablePasswordCandidates,
+            $traceContext,
+            $backupSnapshot,
+            $switchModel
+        );
+    }
+
+    private function runCiscoBackupWithCredentialFallback(
+        Device $device,
+        string $scriptName,
+        string $scriptPath,
+        string $ip,
+        string $location,
+        ?string $username,
+        bool $is3560,
+        array $passwordCandidates,
+        array $enablePasswordCandidates,
+        array $traceContext,
+        array $backupSnapshot,
+        string $switchModel
+    ): array {
+        $passwordCandidates = array_values(array_slice($this->normalizeCredentialCandidates($passwordCandidates), 0, 3));
+        $enablePasswordCandidates = array_values(array_slice($this->normalizeCredentialCandidates($enablePasswordCandidates), 0, 4));
+
+        if (empty($passwordCandidates)) {
+            return [
+                'ok' => false,
+                'status' => 400,
+                'message' => 'Missing device IP or password.',
+                'output' => '',
+            ];
+        }
+
+        if (empty($enablePasswordCandidates)) {
+            return [
+                'ok' => false,
+                'status' => 400,
+                'message' => 'Missing enable password for backup.',
+                'output' => '',
+            ];
+        }
+
+        $loginIndex = 0;
+        $enableIndex = 0;
+        $attemptCount = 0;
+        $maxAttempts = min(3, max(1, count($passwordCandidates) + count($enablePasswordCandidates)));
+        $lastResult = [
+            'ok' => false,
+            'status' => 500,
+            'message' => 'Script execution failed.',
+            'output' => 'Script execution failed.',
+        ];
+
+        while ($attemptCount < $maxAttempts && isset($passwordCandidates[$loginIndex]) && isset($enablePasswordCandidates[$enableIndex])) {
+            $password = (string) ($passwordCandidates[$loginIndex] ?? '');
+            $enablePassword = (string) ($enablePasswordCandidates[$enableIndex] ?? '');
+            if ($password === '' || $enablePassword === '') {
+                break;
+            }
+
+            $attemptCount++;
             $command = ['bash', $scriptPath, $ip, $password, $enablePassword, $location];
-            if ($username) {
+            if ($is3560 && $username) {
                 $command[] = $username;
             }
 
@@ -1465,55 +1550,135 @@ class ScriptController extends Controller
                 'script_path' => $scriptPath,
                 'switch_model' => $switchModel !== '' ? $switchModel : null,
                 'is_nexus' => false,
-                'is_3560' => true,
+                'is_3560' => $is3560,
                 'device_ip' => $ip,
                 'switch_ip' => $ip,
                 'location' => $location,
+                'attempt' => $attemptCount,
+                'login_candidate_index' => $loginIndex + 1,
+                'enable_candidate_index' => $enableIndex + 1,
                 'command' => $this->redactBackupCommand($command, false),
                 'secret_values' => array_values(array_filter([$password, $enablePassword])),
             ]);
 
-            return $this->verifyBackupArtifact($device, $result, $backupSnapshot, $traceContext + [
-                'script_name' => $scriptName,
-                'script_path' => $scriptPath,
-                'switch_model' => $switchModel !== '' ? $switchModel : null,
-                'is_nexus' => false,
-                'is_3560' => true,
-                'is_olt' => false,
-                'switch_ip' => $ip,
-                'location' => $location,
-            ]);
+            if ($result['ok']) {
+                return $this->verifyBackupArtifact($device, $result, $backupSnapshot, $traceContext + [
+                    'script_name' => $scriptName,
+                    'script_path' => $scriptPath,
+                    'switch_model' => $switchModel !== '' ? $switchModel : null,
+                    'is_nexus' => false,
+                    'is_3560' => $is3560,
+                    'is_olt' => false,
+                    'switch_ip' => $ip,
+                    'location' => $location,
+                    'credential_attempt' => $attemptCount,
+                ]);
+            }
+
+            $lastResult = $result;
+            $output = strtolower((string) ($result['output'] ?? ''));
+            $looksLikeLoginFailure = $this->looksLikeBackupLoginFailure($output);
+            $looksLikeEnableFailure = $this->looksLikeBackupEnableFailure($output);
+
+            if ($looksLikeLoginFailure && ($loginIndex + 1) < count($passwordCandidates)) {
+                $loginIndex++;
+                continue;
+            }
+
+            if ($looksLikeEnableFailure && ($enableIndex + 1) < count($enablePasswordCandidates)) {
+                $enableIndex++;
+                continue;
+            }
+
+            if (($enableIndex + 1) < count($enablePasswordCandidates)) {
+                $enableIndex++;
+                continue;
+            }
+
+            break;
         }
 
-        $command = ['bash', $scriptPath, $ip, $password, $enablePassword, $location];
+        if ($attemptCount > 1) {
+            $lastResult['output'] = trim((string) ($lastResult['output'] ?? '') . "\nCredential fallback attempts used: {$attemptCount}.");
+        }
 
-        $result = $this->runProcess($command, [], $traceContext + [
-            'label' => 'backup trace',
-            'line_prefix' => 'backup trace',
-            'layer' => 'process_execution',
-            'protocol' => 'TELNET',
-            'script_name' => $scriptName,
-            'script_path' => $scriptPath,
-            'switch_model' => $switchModel !== '' ? $switchModel : null,
-            'is_nexus' => false,
-            'is_3560' => false,
-            'device_ip' => $ip,
-            'switch_ip' => $ip,
-            'location' => $location,
-            'command' => $this->redactBackupCommand($command, false),
-            'secret_values' => array_values(array_filter([$password, $enablePassword])),
-        ]);
+        return $lastResult;
+    }
 
-        return $this->verifyBackupArtifact($device, $result, $backupSnapshot, $traceContext + [
-            'script_name' => $scriptName,
-            'script_path' => $scriptPath,
-            'switch_model' => $switchModel !== '' ? $switchModel : null,
-            'is_nexus' => false,
-            'is_3560' => false,
-            'is_olt' => false,
-            'switch_ip' => $ip,
-            'location' => $location,
+    private function looksLikeBackupLoginFailure(string $output): bool
+    {
+        if ($output === '') {
+            return false;
+        }
+
+        return str_contains($output, 'bad passwords')
+            || str_contains($output, 'connection closed during login')
+            || str_contains($output, 'login timeout');
+    }
+
+    private function looksLikeBackupEnableFailure(string $output): bool
+    {
+        if ($output === '') {
+            return false;
+        }
+
+        return str_contains($output, 'bad secrets')
+            || str_contains($output, 'enable failed')
+            || str_contains($output, 'invalid enable password')
+            || str_contains($output, 'insufficient privilege');
+    }
+
+    private function resolveCiscoPasswordCandidates(array $meta, array $cisco, mixed $overridePassword = null): array
+    {
+        return $this->normalizeCredentialCandidates([
+            $overridePassword,
+            data_get($cisco, 'password'),
+            data_get($meta, 'password'),
+            data_get($cisco, 'cisco_password'),
+            data_get($meta, 'cisco_password'),
+            data_get($cisco, 'passwd'),
+            data_get($meta, 'passwd'),
         ]);
+    }
+
+    private function resolveCiscoEnablePasswordCandidates(
+        array $meta,
+        array $cisco,
+        mixed $overrideEnablePassword = null,
+        array $passwordCandidates = []
+    ): array {
+        $firstPasswordCandidate = $passwordCandidates[0] ?? null;
+
+        return $this->normalizeCredentialCandidates([
+            $overrideEnablePassword,
+            data_get($cisco, 'enable_password'),
+            data_get($meta, 'enable_password'),
+            data_get($cisco, 'enable_secret'),
+            data_get($meta, 'enable_secret'),
+            data_get($cisco, 'enable'),
+            data_get($meta, 'enable'),
+            data_get($cisco, 'ena'),
+            data_get($meta, 'ena'),
+            $firstPasswordCandidate,
+        ]);
+    }
+
+    private function normalizeCredentialCandidates(array $values): array
+    {
+        $normalized = [];
+
+        foreach ($values as $value) {
+            $candidate = $this->decryptValue(is_scalar($value) ? (string) $value : null);
+            if ($candidate === null || $candidate === '') {
+                continue;
+            }
+
+            if (!in_array($candidate, $normalized, true)) {
+                $normalized[] = $candidate;
+            }
+        }
+
+        return $normalized;
     }
 
     private function runProcess(array $command, array $env = [], ?array $provisioningTrace = null): array
@@ -2762,7 +2927,11 @@ class ScriptController extends Controller
             data_get($cisco, 'username'),
             data_get($cisco, 'user')
         );
-        $enablePassword = $this->decryptValue(data_get($cisco, 'enable_password'));
+        $enablePasswordCandidates = $this->resolveCiscoEnablePasswordCandidates(
+            is_array($device->metadata ?? null) ? $device->metadata : [],
+            is_array($cisco) ? $cisco : []
+        );
+        $enablePassword = $enablePasswordCandidates[0] ?? null;
 
         if ($username && !$enablePassword) {
             return true;
