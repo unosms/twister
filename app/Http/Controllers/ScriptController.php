@@ -1631,6 +1631,12 @@ class ScriptController extends Controller
             $searchDirectories[] = $absolutePath;
         }
 
+        foreach ($this->backupRoots() as $root) {
+            if (is_dir($root)) {
+                $searchDirectories[] = $root;
+            }
+        }
+
         $normalizedRelativePath = trim(str_replace('\\', '/', (string) $relativePath), '/');
         if ($normalizedRelativePath !== '' && !str_contains($normalizedRelativePath, '..')) {
             foreach ($this->backupRoots() as $root) {
@@ -1689,18 +1695,21 @@ class ScriptController extends Controller
                 return [
                     'file' => $candidateName,
                     'mtime' => is_int($mtime) ? $mtime : time(),
+                    'path' => $candidatePath,
                 ];
             }
         }
 
         $latestFile = null;
         $latestMtime = null;
+        $latestFilePath = null;
         foreach ($searchDirectories as $searchDirectory) {
             $afterFiles = $this->backupFileMap($searchDirectory);
             foreach ($afterFiles as $name => $mtime) {
                 if ($latestMtime === null || $mtime > $latestMtime) {
                     $latestFile = $name;
                     $latestMtime = $mtime;
+                    $latestFilePath = rtrim($searchDirectory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $name;
                 }
             }
         }
@@ -1709,6 +1718,7 @@ class ScriptController extends Controller
             return [
                 'file' => $latestFile,
                 'mtime' => $latestMtime,
+                'path' => $latestFilePath,
             ];
         }
 
@@ -1772,10 +1782,12 @@ class ScriptController extends Controller
             (string) ($resolved['relative'] ?? '')
         );
         if ($outputDetected !== null) {
+            $outputDetected = $this->moveDetectedBackupIntoResolvedDirectory($outputDetected, (string) ($resolved['absolute'] ?? ''));
             ProvisioningTrace::log('backup trace: verification recovered from process output', $traceContext + [
                 'backup_file' => $outputDetected['file'],
                 'backup_modified_at' => date('Y-m-d H:i:s', (int) $outputDetected['mtime']),
                 'backup_folder' => $resolved['relative'],
+                'backup_path' => $outputDetected['path'] ?? null,
             ]);
 
             return $processResult;
@@ -2668,6 +2680,66 @@ class ScriptController extends Controller
         $normalized = preg_replace('/[\x00-\x1F\x7F]/u', '', $normalized) ?? $normalized;
 
         return $normalized !== '' ? $normalized : null;
+    }
+
+    private function moveDetectedBackupIntoResolvedDirectory(array $detected, string $resolvedAbsolute): array
+    {
+        $fileName = basename((string) ($detected['file'] ?? ''));
+        if ($fileName === '' || !is_dir($resolvedAbsolute)) {
+            return $detected;
+        }
+
+        $targetPath = rtrim($resolvedAbsolute, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $fileName;
+        $sourcePath = (string) ($detected['path'] ?? '');
+
+        if ($sourcePath === '' || !is_file($sourcePath)) {
+            foreach ($this->backupRoots() as $root) {
+                $candidatePath = rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $fileName;
+                if (is_file($candidatePath)) {
+                    $sourcePath = $candidatePath;
+                    break;
+                }
+            }
+        }
+
+        if ($sourcePath === '' || !is_file($sourcePath)) {
+            return $detected;
+        }
+
+        $sourceReal = realpath($sourcePath) ?: $sourcePath;
+        $resolvedReal = realpath($resolvedAbsolute) ?: $resolvedAbsolute;
+        if ($sourceReal === $targetPath || str_starts_with($sourceReal, rtrim($resolvedReal, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR)) {
+            $mtime = filemtime($sourcePath);
+            $detected['path'] = $sourcePath;
+            $detected['mtime'] = is_int($mtime) ? $mtime : (int) ($detected['mtime'] ?? time());
+            $detected['file'] = $fileName;
+            return $detected;
+        }
+
+        try {
+            if (is_file($targetPath)) {
+                @unlink($targetPath);
+            }
+
+            $moved = @rename($sourcePath, $targetPath);
+            if (!$moved) {
+                $moved = @copy($sourcePath, $targetPath);
+                if ($moved) {
+                    @unlink($sourcePath);
+                }
+            }
+
+            if ($moved && is_file($targetPath)) {
+                $mtime = filemtime($targetPath);
+                $detected['path'] = $targetPath;
+                $detected['mtime'] = is_int($mtime) ? $mtime : (int) ($detected['mtime'] ?? time());
+                $detected['file'] = $fileName;
+            }
+        } catch (\Throwable) {
+            return $detected;
+        }
+
+        return $detected;
     }
 
     private function isNexusModel(string $model): bool
