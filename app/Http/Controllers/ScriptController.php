@@ -1803,15 +1803,38 @@ class ScriptController extends Controller
             return null;
         }
 
-        try {
-            if (!is_dir($resolved['absolute'])) {
-                File::ensureDirectoryExists($resolved['absolute']);
-            }
-        } catch (\Throwable $e) {
-            return null;
+        $relative = (string) ($resolved['relative'] ?? '');
+        $preferred = (string) ($resolved['absolute'] ?? '');
+        $candidatePaths = [];
+
+        if ($preferred !== '') {
+            $candidatePaths[] = $preferred;
         }
 
-        return $resolved;
+        foreach ($this->backupDirectoryAllCandidatesFromRelative($relative) as $candidatePath) {
+            if (!in_array($candidatePath, $candidatePaths, true)) {
+                $candidatePaths[] = $candidatePath;
+            }
+        }
+
+        foreach ($candidatePaths as $candidatePath) {
+            try {
+                if (!is_dir($candidatePath)) {
+                    File::ensureDirectoryExists($candidatePath);
+                }
+            } catch (\Throwable) {
+                continue;
+            }
+
+            if (is_dir($candidatePath)) {
+                return [
+                    'relative' => $relative,
+                    'absolute' => $candidatePath,
+                ];
+            }
+        }
+
+        return null;
     }
 
     private function deviceTraceContext(Device $device, array $context = []): array
@@ -2125,6 +2148,18 @@ class ScriptController extends Controller
 
     private function backupDirectoryCandidatesFromRelative(string $relative): array
     {
+        $candidates = [];
+        foreach ($this->backupDirectoryAllCandidatesFromRelative($relative) as $candidate) {
+            if (is_dir($candidate) && !in_array($candidate, $candidates, true)) {
+                $candidates[] = $candidate;
+            }
+        }
+
+        return $candidates;
+    }
+
+    private function backupDirectoryAllCandidatesFromRelative(string $relative): array
+    {
         $relative = trim(str_replace('\\', '/', (string) $relative), '/');
         if ($relative === '' || str_contains($relative, '..')) {
             return [];
@@ -2133,7 +2168,7 @@ class ScriptController extends Controller
         $candidates = [];
         foreach ($this->backupRoots() as $root) {
             $candidate = rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relative);
-            if (is_dir($candidate) && !in_array($candidate, $candidates, true)) {
+            if (!in_array($candidate, $candidates, true)) {
                 $candidates[] = $candidate;
             }
         }
@@ -2143,17 +2178,8 @@ class ScriptController extends Controller
 
     private function firstBackupDirectoryCandidateFromRelative(string $relative): ?string
     {
-        $relative = trim(str_replace('\\', '/', (string) $relative), '/');
-        if ($relative === '' || str_contains($relative, '..')) {
-            return null;
-        }
-
-        $roots = $this->backupRoots();
-        if (empty($roots)) {
-            return null;
-        }
-
-        return rtrim($roots[0], DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relative);
+        $candidates = $this->backupDirectoryAllCandidatesFromRelative($relative);
+        return (string) ($candidates[0] ?? '') !== '' ? $candidates[0] : null;
     }
 
     private function pickBackupDirectoryByNewestFile(array $directories): string
