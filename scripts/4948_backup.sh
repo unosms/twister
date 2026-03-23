@@ -51,21 +51,47 @@ expect {
 
 if {![string match *# $expect_out(buffer)]} {
     send -- "enable\r"
+    set priv 0
     expect {
         -re {(P|p)assword:} { send -- "$ENA\r" }
+        -re {(?i)% ?(bad secrets|access denied|authorization failed|invalid password)} { set priv 0 }
+        -re $prompt {
+            if {[string match *#* $expect_out(buffer)]} {
+                set priv 1
+            } else {
+                set priv 0
+            }
+        }
         timeout { fail_step "Enable timeout waiting for password prompt" 7 }
         eof { fail_step "Connection closed during enable" 10 }
     }
 
-    expect {
-        -re {#} {}
-        timeout { fail_step "Enable timeout waiting for privileged prompt" 8 }
-        eof { fail_step "Connection closed after enable" 10 }
+    if {!$priv} {
+        expect {
+            -re {#} { set priv 1 }
+            -re {(?i)% ?(bad secrets|access denied|authorization failed|invalid password)} { set priv 0 }
+            -re $prompt {
+                if {[string match *#* $expect_out(buffer)]} {
+                    set priv 1
+                } else {
+                    set priv 0
+                }
+            }
+            timeout { fail_step "Enable timeout waiting for privileged prompt" 8 }
+            eof { fail_step "Connection closed after enable" 10 }
+        }
+    }
+
+    if {!$priv} {
+        fail_step "Enable failed: invalid enable password or insufficient privilege." 14
     }
 }
 
 send -- "terminal length 0\r"
 expect {
+    -re {(?i)% ?(invalid input detected|insufficient privileges|authorization failed|bad secrets|access denied)} {
+        fail_step "Paging disable failed: insufficient privilege or command rejected." 15
+    }
     -re $prompt {}
     timeout { fail_step "Paging disable timeout" 9 }
     eof { fail_step "Connection closed while disabling paging" 10 }
@@ -73,6 +99,9 @@ expect {
 
 send -- "write memory\r"
 expect {
+    -re {(?i)% ?(invalid input detected|insufficient privileges|authorization failed|bad secrets|access denied)} {
+        fail_step "Write memory failed: insufficient privilege or command rejected." 16
+    }
     -re {(Building configuration|Compressed configuration|bytes copied|Copy complete|copied successfully)} { exp_continue }
     -re $prompt {}
     timeout { fail_step "Write memory timeout" 11 }
@@ -99,6 +128,9 @@ expect {
     }
     -re {(bytes copied|copied in|Copy complete|copied successfully)} {
         exp_continue
+    }
+    -re {(?i)% ?(invalid input detected|insufficient privileges|authorization failed|bad secrets|access denied)} {
+        fail_step "Backup copy failed: insufficient privilege or command rejected." 17
     }
     -re {%Error|TFTP put operation failed|Error opening tftp} {
         fail_step $expect_out(0,string) 12
