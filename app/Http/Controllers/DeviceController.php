@@ -10,6 +10,7 @@ use App\Support\ProvisioningTrace;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
@@ -797,6 +798,8 @@ class DeviceController extends Controller
                 ->withErrors(['device' => 'Failed to create device. Please review the input and server logs.']);
         }
 
+        $this->ensureDeviceBackupFolderExists($device);
+
         $this->kickoffPoll($device);
         $this->writeTelemetryLog(
             $device,
@@ -1092,6 +1095,9 @@ class DeviceController extends Controller
                 ->withInput()
                 ->withErrors(['device' => 'Failed to update device. Please review the input and server logs.']);
         }
+
+        $this->ensureDeviceBackupFolderExists($device);
+
         $this->writeTelemetryLog(
             $device,
             'info',
@@ -1688,6 +1694,166 @@ class DeviceController extends Controller
         }
 
         return null;
+    }
+
+    private function ensureDeviceBackupFolderExists(Device $device): void
+    {
+        $relative = $this->resolveBackupFolderRelativePath($device);
+        if ($relative === null) {
+            return;
+        }
+
+        $candidateRoots = $this->backupRoots();
+        foreach ($candidateRoots as $root) {
+            $absolute = rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relative);
+
+            try {
+                if (!is_dir($absolute)) {
+                    File::ensureDirectoryExists($absolute);
+                }
+            } catch (\Throwable) {
+                continue;
+            }
+
+            if (is_dir($absolute)) {
+                return;
+            }
+        }
+
+        Log::warning('Failed to prepare backup folder for device.', [
+            'device_id' => $device->id,
+            'device_name' => $device->name,
+            'relative_path' => $relative,
+            'roots' => $candidateRoots,
+        ]);
+    }
+
+    private function resolveBackupFolderRelativePath(Device $device): ?string
+    {
+        $type = strtoupper(trim((string) ($device->type ?? '')));
+        if (!in_array($type, ['CISCO', 'OLT'], true)) {
+            return null;
+        }
+
+        $meta = $this->normalizeMetadata($device->metadata);
+        $cisco = data_get($meta, 'cisco', []);
+        $olt = data_get($meta, 'olt', []);
+        $isOlt = $type === 'OLT';
+
+        $rawLocation = $isOlt
+            ? $this->firstNonEmptyString([
+                data_get($olt, 'folder_location'),
+                data_get($cisco, 'folder_location'),
+                data_get($meta, 'folder_location'),
+            ])
+            : $this->firstNonEmptyString([
+                data_get($cisco, 'folder_location'),
+                data_get($olt, 'folder_location'),
+                data_get($meta, 'folder_location'),
+            ]);
+
+        $fallbackName = $isOlt
+            ? $this->firstNonEmptyString([
+                data_get($olt, 'model'),
+                data_get($olt, 'name'),
+                $device->name,
+                'device',
+            ])
+            : $this->firstNonEmptyString([
+                data_get($cisco, 'name'),
+                data_get($cisco, 'switch_name'),
+                $device->name,
+                'device',
+            ]);
+
+        $fallbackSlug = preg_replace('/\s+/', '_', trim((string) $fallbackName));
+        if (!is_string($fallbackSlug) || trim($fallbackSlug) === '') {
+            $fallbackSlug = 'device';
+        }
+
+        return $this->normalizeBackupFolderLocation($rawLocation, $fallbackSlug);
+    }
+
+    private function normalizeBackupFolderLocation(?string $rawLocation, string $fallbackSlug): string
+    {
+        $raw = trim(str_replace('\\', '/', (string) ($rawLocation ?? '')));
+        if ($raw === '') {
+            return $fallbackSlug;
+        }
+
+        $normalized = preg_replace('#/+#', '/', $raw) ?? $raw;
+        if (str_contains($normalized, '..')) {
+            return $fallbackSlug;
+        }
+
+        $normalized = trim($normalized, '/');
+        if ($normalized === '') {
+            return $fallbackSlug;
+        }
+
+        foreach ([
+            'srv/tftp/',
+            'srv/tftpboot/',
+            'var/lib/tftpboot/',
+            'var/tftpboot/',
+            'tftpboot/',
+        ] as $prefix) {
+            if (str_starts_with(strtolower($normalized), $prefix)) {
+                $normalized = trim((string) substr($normalized, strlen($prefix)), '/');
+                break;
+            }
+        }
+
+        if (str_starts_with(strtolower($normalized), 'uno/')) {
+            $normalized = trim((string) substr($normalized, 4), '/');
+        }
+
+        if (preg_match('/\.(txt|cfg|conf|bak|backup)$/i', $normalized) === 1 && str_contains($normalized, '/')) {
+            $normalized = trim((string) dirname($normalized), '/');
+        }
+
+        return $normalized !== '' ? $normalized : $fallbackSlug;
+    }
+
+    private function backupRoots(): array
+    {
+        $roots = [];
+
+        $configuredRoots = trim((string) env('BACKUP_ROOTS', ''));
+        if ($configuredRoots !== '') {
+            foreach (explode(',', $configuredRoots) as $root) {
+                $root = trim($root);
+                if ($root !== '') {
+                    $roots[] = $root;
+                }
+            }
+        }
+
+        $singleRoot = trim((string) env('BACKUP_ROOT', ''));
+        if ($singleRoot !== '') {
+            $roots[] = $singleRoot;
+        }
+
+        $roots = array_merge($roots, [
+            '/srv/tftp',
+            '/srv/tftpboot',
+            '/var/lib/tftpboot',
+            '/var/tftpboot',
+            '/tftpboot',
+        ]);
+
+        $normalized = [];
+        foreach ($roots as $root) {
+            $root = rtrim(str_replace('\\', '/', (string) $root), '/');
+            if ($root === '') {
+                continue;
+            }
+            if (!in_array($root, $normalized, true)) {
+                $normalized[] = $root;
+            }
+        }
+
+        return $normalized;
     }
 
     private function validateCreateRequiredFields(string $type, array $data): array
