@@ -302,7 +302,7 @@ class RunDeviceBackups extends Command
 
     private function resolveFolderLocation(Device $device, array $cisco, array $olt, bool $isOlt): string
     {
-        $location = $isOlt
+        $rawLocation = $isOlt
             ? $this->firstNonEmpty(
                 $olt['folder_location'] ?? null,
                 $cisco['folder_location'] ?? null,
@@ -314,18 +314,71 @@ class RunDeviceBackups extends Command
                 data_get($device->metadata, 'folder_location')
             );
 
-        if ($location) {
-            return $location;
+        return $this->normalizeBackupLocation(
+            $rawLocation,
+            $this->backupLocationFallbackSlug($device, $cisco, $olt, $isOlt)
+        );
+    }
+
+    private function backupLocationFallbackSlug(Device $device, array $cisco, array $olt, bool $isOlt): string
+    {
+        $fallbackName = $isOlt
+            ? $this->firstNonEmpty(
+                data_get($olt, 'model'),
+                data_get($olt, 'name'),
+                $device->name,
+                'device'
+            )
+            : $this->firstNonEmpty(
+                data_get($cisco, 'name'),
+                data_get($cisco, 'switch_name'),
+                $device->name,
+                'device'
+            );
+
+        $slug = preg_replace('/\s+/', '_', trim((string) $fallbackName));
+        return $slug !== '' ? $slug : 'device';
+    }
+
+    private function normalizeBackupLocation(?string $rawLocation, string $fallbackSlug): string
+    {
+        $raw = trim(str_replace('\\', '/', (string) ($rawLocation ?? '')));
+        if ($raw === '') {
+            return $fallbackSlug;
         }
 
-        $baseName = $this->firstNonEmpty(
-            $isOlt ? ($olt['model'] ?? null) : ($cisco['name'] ?? null),
-            $device->name,
-            'device'
-        );
-        $slug = preg_replace('/\s+/', '_', trim((string) $baseName));
+        $normalized = preg_replace('#/+#', '/', $raw) ?? $raw;
+        if (str_contains($normalized, '..')) {
+            return $fallbackSlug;
+        }
 
-        return 'uno/' . ($slug !== '' ? $slug : 'device');
+        $normalized = trim($normalized, '/');
+        if ($normalized === '') {
+            return $fallbackSlug;
+        }
+
+        foreach ([
+            'srv/tftp/',
+            'srv/tftpboot/',
+            'var/lib/tftpboot/',
+            'var/tftpboot/',
+            'tftpboot/',
+        ] as $prefix) {
+            if (str_starts_with(strtolower($normalized), $prefix)) {
+                $normalized = trim((string) substr($normalized, strlen($prefix)), '/');
+                break;
+            }
+        }
+
+        if (str_starts_with(strtolower($normalized), 'uno/')) {
+            $normalized = trim((string) substr($normalized, 4), '/');
+        }
+
+        if (preg_match('/\.(txt|cfg|conf|bak|backup)$/i', $normalized) === 1 && str_contains($normalized, '/')) {
+            $normalized = trim((string) dirname($normalized), '/');
+        }
+
+        return $normalized !== '' ? $normalized : $fallbackSlug;
     }
 
     private function snapshotBackupFiles(array $resolvedBackupDirectory): array
@@ -470,7 +523,7 @@ class RunDeviceBackups extends Command
         ];
     }
 
-    private function detectBackupFileFromProcessOutput(string $output, string $absolutePath): ?array
+    private function detectBackupFileFromProcessOutput(string $output, string $absolutePath, ?string $relativePath = null): ?array
     {
         $output = trim($output);
         if ($output === '' || !preg_match('/(bytes copied|copied in|copy complete|copied successfully)/i', $output)) {
@@ -481,12 +534,24 @@ class RunDeviceBackups extends Command
         if (is_dir($absolutePath)) {
             $searchDirectories[] = $absolutePath;
         }
+
         foreach ($this->backupRoots() as $root) {
             if (is_dir($root)) {
                 $searchDirectories[] = $root;
             }
         }
-        $searchDirectories = array_values(array_unique($searchDirectories));
+
+        $normalizedRelativePath = trim(str_replace('\\', '/', (string) $relativePath), '/');
+        if ($normalizedRelativePath !== '' && !str_contains($normalizedRelativePath, '..')) {
+            foreach ($this->backupRoots() as $root) {
+                $candidateDir = rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $normalizedRelativePath);
+                if (is_dir($candidateDir)) {
+                    $searchDirectories[] = $candidateDir;
+                }
+            }
+        }
+
+        $destinationPath = $this->extractDestinationFilenamePathFromOutput($output);
 
         $candidateNames = [];
         if (preg_match_all('/([0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}\.[A-Za-z0-9]+)/', $output, $matches)) {
@@ -495,7 +560,34 @@ class RunDeviceBackups extends Command
             }
         }
 
+        if ($destinationPath !== null) {
+            $candidateNames[] = basename($destinationPath);
+
+            $normalizedPath = str_replace('\\', '/', $destinationPath);
+            $isAbsolute = str_starts_with($normalizedPath, '/')
+                || (strlen($normalizedPath) >= 3 && ctype_alpha($normalizedPath[0]) && $normalizedPath[1] === ':' && ($normalizedPath[2] === '/' || $normalizedPath[2] === '\\'));
+
+            $destinationDir = trim(str_replace('\\', '/', dirname($normalizedPath)), '/');
+            if ($destinationDir !== '' && $destinationDir !== '.') {
+                if ($isAbsolute) {
+                    $absoluteDir = dirname($normalizedPath);
+                    if (is_dir($absoluteDir)) {
+                        $searchDirectories[] = $absoluteDir;
+                    }
+                } else {
+                    foreach ($this->backupRoots() as $root) {
+                        $candidateDir = rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $destinationDir);
+                        if (is_dir($candidateDir)) {
+                            $searchDirectories[] = $candidateDir;
+                        }
+                    }
+                }
+            }
+        }
+
+        $searchDirectories = array_values(array_unique(array_filter($searchDirectories, static fn ($dir): bool => is_string($dir) && $dir !== '')));
         $candidateNames = array_values(array_unique(array_filter($candidateNames, static fn ($name): bool => $name !== '')));
+
         foreach ($candidateNames as $candidateName) {
             foreach ($searchDirectories as $directory) {
                 $candidatePath = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $candidateName;
@@ -536,6 +628,23 @@ class RunDeviceBackups extends Command
         return null;
     }
 
+    private function extractDestinationFilenamePathFromOutput(string $output): ?string
+    {
+        if (!preg_match('/Destination filename[^\r\n]*\?\s*([^\r\n]+)/i', $output, $matches)) {
+            return null;
+        }
+
+        $path = trim((string) ($matches[1] ?? ''));
+        if ($path === '') {
+            return null;
+        }
+
+        $path = preg_replace('/[\x00-\x1F\x7F]/', '', $path) ?? $path;
+        $path = str_replace('\\', '/', trim($path, " \t\n\r\0\x0B\"'"));
+
+        return $path !== '' ? $path : null;
+    }
+
     private function verifyBackupArtifact(Device $device, array $processResult, array $snapshot, array $traceContext): array
     {
         if (!($processResult['ok'] ?? false)) {
@@ -560,7 +669,8 @@ class RunDeviceBackups extends Command
 
         $outputDetected = $this->detectBackupFileFromProcessOutput(
             (string) ($processResult['output'] ?? ''),
-            $snapshot['absolute']
+            $snapshot['absolute'],
+            (string) ($snapshot['relative'] ?? '')
         );
         if ($outputDetected !== null) {
             $outputDetected = $this->moveDetectedBackupIntoDirectory($outputDetected, $snapshot['absolute']);

@@ -613,7 +613,7 @@ class DeviceController extends Controller
                 'temp_poll_minutes' => (int) ($data['temp_poll_minutes'] ?? self::TEMP_POLL_MINUTES_DEFAULT),
                 'shbackup' => $data['shbackup'] ?? ($switchSlug !== '' ? 'showbackup.php?name=' . $switchSlug : null),
                 'exec_cmd' => $data['exec_cmd'] ?? ($switchSlug !== '' ? 'exec.php?name=' . $switchSlug : null),
-                'folder_location' => $data['folder_location'] ?? ($switchSlug !== '' ? 'uno/' . $switchSlug : null),
+                'folder_location' => $data['folder_location'] ?? ($switchSlug !== '' ? $switchSlug : null),
                 'snmp_version' => $data['snmp_version'] ?? '2c',
                 'snmp_community' => $snmpCommunity,
             ];
@@ -711,7 +711,7 @@ class DeviceController extends Controller
                 $oltName = $this->normalizeOptionalString($data['name'] ?? null);
                 if ($oltName !== null) {
                     $oltSlug = preg_replace('/\s+/', '_', trim($oltName));
-                    $oltFolderLocation = $oltSlug !== '' ? 'uno/' . $oltSlug : null;
+                    $oltFolderLocation = $oltSlug !== '' ? $oltSlug : null;
                 }
             }
             $olt = [
@@ -1003,7 +1003,7 @@ class DeviceController extends Controller
                 $oltName = $this->normalizeOptionalString($data['name'] ?? $device->name);
                 if ($oltName !== null) {
                     $oltSlug = preg_replace('/\s+/', '_', trim($oltName));
-                    $oltFolderLocation = $oltSlug !== '' ? 'uno/' . $oltSlug : null;
+                    $oltFolderLocation = $oltSlug !== '' ? $oltSlug : null;
                 }
             }
 

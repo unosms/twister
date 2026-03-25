@@ -1300,7 +1300,7 @@ class ScriptController extends Controller
             $isOlt ? data_get($olt, 'username') : data_get($cisco, 'username'),
             $isOlt ? data_get($olt, 'user') : data_get($cisco, 'user')
         );
-        $location = $isOlt
+        $rawLocation = $isOlt
             ? $this->firstNonEmpty(
                 data_get($olt, 'folder_location'),
                 data_get($cisco, 'folder_location'),
@@ -1311,16 +1311,12 @@ class ScriptController extends Controller
                 data_get($olt, 'folder_location'),
                 data_get($meta, 'folder_location')
             );
-        $usedFallbackLocation = false;
-
-        if (!$location) {
-            $fallbackName = $isOlt
-                ? (data_get($olt, 'model') ?? $device->name ?? 'device')
-                : (data_get($cisco, 'name') ?? $device->name ?? 'device');
-            $fallbackSlug = preg_replace('/\s+/', '_', trim((string) $fallbackName));
-            $location = 'uno/' . ($fallbackSlug !== '' ? $fallbackSlug : 'device');
-            $usedFallbackLocation = true;
-        }
+        $locationNormalization = $this->normalizeBackupLocation(
+            $rawLocation,
+            $this->backupLocationFallbackSlug($device, is_array($cisco) ? $cisco : [], is_array($olt) ? $olt : [], $isOlt)
+        );
+        $location = $locationNormalization['location'];
+        $usedFallbackLocation = $locationNormalization['used_fallback'];
         $resolvedBackupDirectory = $this->prepareBackupDirectory($location);
         if (!$resolvedBackupDirectory) {
             ProvisioningTrace::log('backup trace: failed to prepare backup directory', $traceContext + [
@@ -2464,7 +2460,7 @@ class ScriptController extends Controller
         $cisco = data_get($meta, 'cisco', []);
         $olt = data_get($meta, 'olt', []);
         $isOlt = strtoupper((string) ($device->type ?? '')) === 'OLT';
-        $relative = $isOlt
+        $rawRelative = $isOlt
             ? $this->firstNonEmpty(
                 data_get($olt, 'folder_location'),
                 data_get($cisco, 'folder_location'),
@@ -2476,16 +2472,10 @@ class ScriptController extends Controller
                 data_get($meta, 'folder_location')
             );
 
-        if (!$relative) {
-            $fallbackName = $this->firstNonEmpty(
-                data_get($cisco, 'name'),
-                data_get($olt, 'model'),
-                $device->name,
-                'device'
-            );
-            $fallbackSlug = preg_replace('/\s+/', '_', (string) $fallbackName);
-            $relative = 'uno/' . ($fallbackSlug !== '' ? $fallbackSlug : 'device');
-        }
+        $relative = $this->normalizeBackupLocation(
+            $rawRelative,
+            $this->backupLocationFallbackSlug($device, is_array($cisco) ? $cisco : [], is_array($olt) ? $olt : [], $isOlt)
+        )['location'];
 
         return $this->resolveBackupDirectoryFromRelative($relative);
     }
@@ -3203,6 +3193,89 @@ class ScriptController extends Controller
         $normalized = trim(implode("\n", $clean));
         return $normalized !== '' ? $normalized : trim($output);
     }
+
+    private function backupLocationFallbackSlug(Device $device, array $cisco, array $olt, bool $isOlt): string
+    {
+        $fallbackName = $isOlt
+            ? $this->firstNonEmpty(
+                data_get($olt, 'model'),
+                data_get($olt, 'name'),
+                $device->name,
+                'device'
+            )
+            : $this->firstNonEmpty(
+                data_get($cisco, 'name'),
+                data_get($cisco, 'switch_name'),
+                $device->name,
+                'device'
+            );
+
+        $slug = preg_replace('/\s+/', '_', trim((string) $fallbackName));
+        return $slug !== '' ? $slug : 'device';
+    }
+
+    private function normalizeBackupLocation(?string $rawLocation, string $fallbackSlug): array
+    {
+        $raw = trim(str_replace('\\', '/', (string) ($rawLocation ?? '')));
+        if ($raw === '') {
+            return [
+                'location' => $fallbackSlug,
+                'used_fallback' => true,
+            ];
+        }
+
+        $normalized = preg_replace('#/+#', '/', $raw) ?? $raw;
+        if (str_contains($normalized, '..')) {
+            return [
+                'location' => $fallbackSlug,
+                'used_fallback' => true,
+            ];
+        }
+
+        $normalized = trim($normalized, '/');
+        if ($normalized === '') {
+            return [
+                'location' => $fallbackSlug,
+                'used_fallback' => true,
+            ];
+        }
+
+        foreach ([
+            'srv/tftp/',
+            'srv/tftpboot/',
+            'var/lib/tftpboot/',
+            'var/tftpboot/',
+            'tftpboot/',
+        ] as $prefix) {
+            if (str_starts_with(strtolower($normalized), $prefix)) {
+                $normalized = trim((string) substr($normalized, strlen($prefix)), '/');
+                break;
+            }
+        }
+
+        // Normalize legacy "uno/<device>" paths to "<device>" under the TFTP root.
+        if (str_starts_with(strtolower($normalized), 'uno/')) {
+            $normalized = trim((string) substr($normalized, 4), '/');
+        }
+
+        // Folder location should point at a device directory, not a file path.
+        if (preg_match('/\.(txt|cfg|conf|bak|backup)$/i', $normalized) === 1 && str_contains($normalized, '/')) {
+            $normalized = trim((string) dirname($normalized), '/');
+        }
+
+        if ($normalized === '') {
+            return [
+                'location' => $fallbackSlug,
+                'used_fallback' => true,
+            ];
+        }
+
+        return [
+            'location' => $normalized,
+            'used_fallback' => false,
+        ];
+    }
+
     private function firstNonEmpty(...$values): ?string
     {
         foreach ($values as $value) {
