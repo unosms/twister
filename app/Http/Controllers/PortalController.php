@@ -333,7 +333,7 @@ class PortalController extends Controller
         $targetUser->telegram_chat_id = $currentChatId;
         $targetUser->telegram_bot_token = $currentBotToken;
 
-        $sent = (bool) $notifier->sendDirectMessage($targetUser, 'Telegram settings were added successfully.', [
+        $sent = (bool) $notifier->sendDirectMessage($targetUser, 'Connection to Telegram bot is successful.', [
             'scope' => 'portal.telegram_settings.save_confirmation',
             'target_user_id' => $user->id,
         ]);
@@ -359,11 +359,7 @@ class PortalController extends Controller
         ?string $currentChatId,
         ?string $currentBotToken
     ): bool {
-        if ($currentChatId === null) {
-            return false;
-        }
-
-        return $previousChatId !== $currentChatId || $previousBotToken !== $currentBotToken;
+        return $currentChatId !== null;
     }
 
     private function normalizeTelegramCredentialValue(mixed $value): ?string
