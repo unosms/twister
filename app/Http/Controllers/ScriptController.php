@@ -286,7 +286,7 @@ class ScriptController extends Controller
 
         $pollerResult = null;
         if ($runPoller) {
-            $pollerResult = $this->runPollerScript();
+            $pollerResult = $this->runPollerScript($device);
         }
 
         $eventsResult = $this->runEventsScript($device, $request);
@@ -457,7 +457,7 @@ class ScriptController extends Controller
         $shouldPoll = in_array($poll, ['1', 'true', 'yes', 'on'], true);
         $pollMessage = null;
         if ($shouldPoll) {
-            $pollResult = $this->runPollerScript();
+            $pollResult = $this->runPollerScript($device);
             if (!$pollResult['ok']) {
                 $pollMessage = 'poller.php failed before graph render; showing stored data only.';
                 Log::warning('poller.php failed before graph render.', [
@@ -2229,7 +2229,7 @@ class ScriptController extends Controller
         return $redacted;
     }
 
-    private function runPollerScript(): array
+    private function runPollerScript(?Device $device = null): array
     {
         $scriptPath = $this->scriptPath('poller.php');
         if (!$scriptPath) {
@@ -2247,7 +2247,13 @@ class ScriptController extends Controller
         }
 
         $phpBinary = PHP_BINARY ?: 'php';
-        $command = [$phpBinary, $scriptPath];
+        $query = [];
+        if ($device && (int) $device->id > 0) {
+            $query['device_id'] = (string) ((int) $device->id);
+        }
+
+        $bootstrap = 'parse_str($argv[1] ?? "", $_GET); $_SERVER["REQUEST_METHOD"] = "GET"; include $argv[2];';
+        $command = [$phpBinary, '-d', 'display_errors=1', '-r', $bootstrap, http_build_query($query), $scriptPath];
         $process = new Process($command, base_path());
         $process->setTimeout(180);
         $process->setEnv(array_merge($_ENV, $_SERVER, ProvisioningTrace::childProcessEnv()));
@@ -2260,7 +2266,9 @@ class ScriptController extends Controller
                 'protocol' => 'SNMP',
                 'script_name' => 'poller.php',
                 'script_path' => $scriptPath,
-                'command' => $command,
+                'command' => [$phpBinary, '-d', 'display_errors=1', '-r', '[INLINE BOOTSTRAP]', http_build_query($query), $scriptPath],
+                'query' => $query,
+                'device_id' => $device ? (int) $device->id : null,
             ],
         ]);
 

@@ -451,10 +451,33 @@ function resolve_device_down_and_log_up(mysqli $conn, int $device_id, string $de
 /* ============================================================
    Polling
    ============================================================ */
-$devQ = $conn->query("SELECT id, name, ip_address, metadata FROM devices ORDER BY id ASC");
+$deviceIdFilter = isset($_GET['device_id']) ? (int)$_GET['device_id'] : 0;
+$devStmt = null;
+if ($deviceIdFilter > 0) {
+  $devStmt = $conn->prepare("SELECT id, name, ip_address, metadata FROM devices WHERE id=? ORDER BY id ASC");
+  if (!$devStmt) {
+    fwrite(STDERR, "poller SQL prepare error: {$conn->error}\n");
+    log_poll('poller SQL prepare error: ' . $conn->error);
+    exit(1);
+  }
+  $devStmt->bind_param("i", $deviceIdFilter);
+  if (!$devStmt->execute()) {
+    fwrite(STDERR, "poller SQL execute error: {$devStmt->error}\n");
+    log_poll('poller SQL execute error: ' . $devStmt->error);
+    $devStmt->close();
+    exit(1);
+  }
+  $devQ = $devStmt->get_result();
+} else {
+  $devQ = $conn->query("SELECT id, name, ip_address, metadata FROM devices ORDER BY id ASC");
+}
+
 if (!$devQ) {
   fwrite(STDERR, "poller SQL error: {$conn->error}\n");
   log_poll('poller SQL error: ' . $conn->error);
+  if ($devStmt instanceof mysqli_stmt) {
+    $devStmt->close();
+  }
   exit(1);
 }
 
@@ -708,6 +731,10 @@ while ($d = $devQ->fetch_assoc()) {
     }
   } // each interface
 } // each device
+
+if ($devStmt instanceof mysqli_stmt) {
+  $devStmt->close();
+}
 
 echo "OK @ " . date('Y-m-d H:i:s') . PHP_EOL;
 ?>
