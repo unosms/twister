@@ -358,6 +358,33 @@ $customTelegramEventTypes = old(
     'telegram_event_types_custom',
     implode(',', array_values(array_diff($selectedTelegramEventTypes, $eventTypeOptions)))
 );
+$storedTelegramTemplateRaw = trim((string) ($user->telegram_template ?? ''));
+$storedTelegramTemplate = '';
+$storedTelegramSeverityTemplates = [
+    'low' => '',
+    'medium' => '',
+    'high' => '',
+    'critical' => '',
+];
+if ($storedTelegramTemplateRaw !== '') {
+    $decodedTemplate = json_decode($storedTelegramTemplateRaw, true);
+    if (is_array($decodedTemplate)) {
+        $storedTelegramTemplate = trim((string) ($decodedTemplate['default'] ?? ''));
+        $decodedSeverityTemplates = $decodedTemplate['severity_templates'] ?? ($decodedTemplate['templates_by_severity'] ?? []);
+        if (is_array($decodedSeverityTemplates)) {
+            foreach ($storedTelegramSeverityTemplates as $severityKey => $templateValue) {
+                $storedTelegramSeverityTemplates[$severityKey] = trim((string) ($decodedSeverityTemplates[$severityKey] ?? ''));
+            }
+        }
+    } else {
+        $storedTelegramTemplate = $storedTelegramTemplateRaw;
+    }
+}
+$telegramTemplateDefault = old('telegram_template', $storedTelegramTemplate);
+$telegramTemplateLow = old('telegram_template_low', $storedTelegramSeverityTemplates['low']);
+$telegramTemplateMedium = old('telegram_template_medium', $storedTelegramSeverityTemplates['medium']);
+$telegramTemplateHigh = old('telegram_template_high', $storedTelegramSeverityTemplates['high']);
+$telegramTemplateCritical = old('telegram_template_critical', $storedTelegramSeverityTemplates['critical']);
 $selectedCommandTemplateIds = old('command_template_ids', $user->commandTemplates->pluck('id')->all());
 if (!is_array($selectedCommandTemplateIds)) {
     $selectedCommandTemplateIds = [];
@@ -1143,10 +1170,29 @@ Run <code>php artisan migrate --force</code> to enable Telegram per-device inter
 <p class="text-xs text-gray-400">Comma-separated custom tags, supports wildcard like device.*</p>
 </div>
 
-<div class="flex flex-col gap-2 md:col-span-2">
-<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Custom Message Template (optional)</label>
-<textarea class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary min-h-[96px]" name="telegram_template" placeholder="[{severity}] {type}\nDevice: {deviceName} ({deviceIp})\nPort: {port}\n{message}\nTime: {timestamp}"><?php echo e(old('telegram_template', $user->telegram_template)); ?></textarea>
-<p class="text-xs text-gray-400">Available placeholders: {deviceName}, {deviceIp}, {port}, {severity}, {type}, {timestamp}, {message}</p>
+<div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
+<div class="md:col-span-2 flex flex-col gap-2">
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Default Message Template (optional)</label>
+<textarea class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary min-h-[96px]" name="telegram_template" placeholder="[{severity}] {type}\nDevice: {deviceName} ({deviceIp})\nPort: {port}\n{message}\nTime: {timestamp}"><?php echo e($telegramTemplateDefault); ?></textarea>
+<p class="text-xs text-gray-400">Used when no severity-specific template is set.</p>
+</div>
+<div class="flex flex-col gap-2">
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Low Severity Template</label>
+<textarea class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary min-h-[80px]" name="telegram_template_low" placeholder="{severitySymbol} [{severity}] {type}\n{message}"><?php echo e($telegramTemplateLow); ?></textarea>
+</div>
+<div class="flex flex-col gap-2">
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Medium Severity Template</label>
+<textarea class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary min-h-[80px]" name="telegram_template_medium" placeholder="{severitySymbol} [{severity}] {type}\n{message}"><?php echo e($telegramTemplateMedium); ?></textarea>
+</div>
+<div class="flex flex-col gap-2">
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">High Severity Template</label>
+<textarea class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary min-h-[80px]" name="telegram_template_high" placeholder="{severitySymbol} [{severity}] {type}\n{message}"><?php echo e($telegramTemplateHigh); ?></textarea>
+</div>
+<div class="flex flex-col gap-2">
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Critical Severity Template</label>
+<textarea class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary min-h-[80px]" name="telegram_template_critical" placeholder="{severitySymbol} [{severity}] {type}\n{message}"><?php echo e($telegramTemplateCritical); ?></textarea>
+</div>
+<p class="md:col-span-2 text-xs text-gray-400">Available placeholders: {deviceName}, {deviceIp}, {port}, {severity}, {severitySymbol}, {type}, {timestamp}, {message}. Symbols and emojis are supported.</p>
 </div>
 </div>
 </details>

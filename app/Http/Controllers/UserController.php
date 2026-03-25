@@ -20,6 +20,12 @@ use Illuminate\Validation\Rule;
 class UserController extends Controller
 {
     private const TELEGRAM_SEVERITIES = ['low', 'medium', 'high', 'critical'];
+    private const TELEGRAM_TEMPLATE_INPUTS = [
+        'low' => 'telegram_template_low',
+        'medium' => 'telegram_template_medium',
+        'high' => 'telegram_template_high',
+        'critical' => 'telegram_template_critical',
+    ];
 
     private const TELEGRAM_EVENT_TYPES = [
         'device.online',
@@ -631,6 +637,10 @@ class UserController extends Controller
             'telegram_event_types.*' => ['string', 'max:64'],
             'telegram_event_types_custom' => ['nullable', 'string', 'max:500'],
             'telegram_template' => ['nullable', 'string', 'max:4000'],
+            'telegram_template_low' => ['nullable', 'string', 'max:4000'],
+            'telegram_template_medium' => ['nullable', 'string', 'max:4000'],
+            'telegram_template_high' => ['nullable', 'string', 'max:4000'],
+            'telegram_template_critical' => ['nullable', 'string', 'max:4000'],
         ]);
     }
 
@@ -706,8 +716,16 @@ class UserController extends Controller
             $telegramEventTypes = ['device.offline', 'port.down'];
         }
 
-        $telegramTemplate = trim((string) ($data['telegram_template'] ?? ''));
-        $telegramTemplate = $telegramTemplate !== '' ? $telegramTemplate : null;
+        $templateConfig = $this->decodeTelegramTemplateConfig((string) ($user->telegram_template ?? ''));
+        $telegramTemplateDefault = trim((string) ($data['telegram_template'] ?? $templateConfig['default']));
+        $telegramSeverityTemplates = [];
+        foreach (self::TELEGRAM_TEMPLATE_INPUTS as $severity => $fieldName) {
+            $value = trim((string) ($data[$fieldName] ?? ($templateConfig['severity_templates'][$severity] ?? '')));
+            if ($value !== '') {
+                $telegramSeverityTemplates[$severity] = $value;
+            }
+        }
+        $telegramTemplate = $this->encodeTelegramTemplateConfig($telegramTemplateDefault, $telegramSeverityTemplates);
         $avatarStorageReady = User::supportsAvatarStorage();
         $avatarPath = $avatarStorageReady ? ($user->avatar_path ?? null) : null;
 
@@ -1091,8 +1109,16 @@ class UserController extends Controller
         $botToken = trim((string) $request->input('telegram_bot_token', $user->telegram_bot_token));
         $targetUser->telegram_bot_token = $botToken !== '' ? $botToken : null;
 
-        $template = trim((string) $request->input('telegram_template', $user->telegram_template));
-        $targetUser->telegram_template = $template !== '' ? $template : null;
+        $templateConfig = $this->decodeTelegramTemplateConfig((string) ($user->telegram_template ?? ''));
+        $templateDefault = trim((string) $request->input('telegram_template', $templateConfig['default']));
+        $severityTemplates = [];
+        foreach (self::TELEGRAM_TEMPLATE_INPUTS as $severity => $fieldName) {
+            $value = trim((string) $request->input($fieldName, $templateConfig['severity_templates'][$severity] ?? ''));
+            if ($value !== '') {
+                $severityTemplates[$severity] = $value;
+            }
+        }
+        $targetUser->telegram_template = $this->encodeTelegramTemplateConfig($templateDefault, $severityTemplates);
 
         $notifier = $this->resolveTelegramNotifier();
         if ($notifier === null) {
@@ -1277,6 +1303,74 @@ class UserController extends Controller
         }
 
         return array_values(array_unique($items));
+    }
+
+    /**
+     * @return array{default:string,severity_templates:array<string,string>}
+     */
+    private function decodeTelegramTemplateConfig(string $stored): array
+    {
+        $stored = trim($stored);
+        if ($stored === '') {
+            return [
+                'default' => '',
+                'severity_templates' => [],
+            ];
+        }
+
+        $decoded = json_decode($stored, true);
+        if (!is_array($decoded)) {
+            return [
+                'default' => $stored,
+                'severity_templates' => [],
+            ];
+        }
+
+        $default = trim((string) ($decoded['default'] ?? ''));
+        $rawSeverityTemplates = $decoded['severity_templates'] ?? ($decoded['templates_by_severity'] ?? []);
+        $severityTemplates = [];
+        if (is_array($rawSeverityTemplates)) {
+            foreach (self::TELEGRAM_TEMPLATE_INPUTS as $severity => $fieldName) {
+                $value = trim((string) ($rawSeverityTemplates[$severity] ?? ''));
+                if ($value !== '') {
+                    $severityTemplates[$severity] = $value;
+                }
+            }
+        }
+
+        return [
+            'default' => $default,
+            'severity_templates' => $severityTemplates,
+        ];
+    }
+
+    /**
+     * @param array<string,string> $severityTemplates
+     */
+    private function encodeTelegramTemplateConfig(string $defaultTemplate, array $severityTemplates): ?string
+    {
+        $defaultTemplate = trim($defaultTemplate);
+
+        $normalizedSeverityTemplates = [];
+        foreach (self::TELEGRAM_TEMPLATE_INPUTS as $severity => $fieldName) {
+            $value = trim((string) ($severityTemplates[$severity] ?? ''));
+            if ($value !== '') {
+                $normalizedSeverityTemplates[$severity] = $value;
+            }
+        }
+
+        if ($defaultTemplate === '' && empty($normalizedSeverityTemplates)) {
+            return null;
+        }
+
+        if (empty($normalizedSeverityTemplates)) {
+            return $defaultTemplate !== '' ? $defaultTemplate : null;
+        }
+
+        return json_encode([
+            'default' => $defaultTemplate,
+            'severity_templates' => $normalizedSeverityTemplates,
+        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: ($defaultTemplate !== '' ? $defaultTemplate : null);
     }
     private function ensureExecCommandTemplates(): void
     {

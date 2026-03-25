@@ -276,7 +276,7 @@ class TelegramEventNotifier
 
     private function renderMessage(User $user, array $event): string
     {
-        $template = trim((string) ($user->telegram_template ?? ''));
+        $template = $this->resolveTemplateForEvent($user, $event);
         if ($template === '') {
             return sprintf(
                 "[%s] %s\nDevice: %s (%s)\nPort: %s\n%s\nTime: %s",
@@ -295,12 +295,56 @@ class TelegramEventNotifier
             '{deviceIp}' => $event['device_ip'] ?: '-',
             '{port}' => $event['port'] ?: '-',
             '{severity}' => $event['severity'] ?: '-',
+            '{severitySymbol}' => $this->resolveSeveritySymbol($event['severity'] ?? ''),
             '{type}' => $event['type'] ?: '-',
             '{timestamp}' => $event['timestamp'] ?: '-',
             '{message}' => $event['message'] ?: '-',
         ];
 
         return strtr($template, $placeholders);
+    }
+
+    private function resolveTemplateForEvent(User $user, array $event): string
+    {
+        $stored = trim((string) ($user->telegram_template ?? ''));
+        if ($stored === '') {
+            return '';
+        }
+
+        $decoded = json_decode($stored, true);
+        if (!is_array($decoded)) {
+            return $stored;
+        }
+
+        $defaultTemplate = trim((string) ($decoded['default'] ?? ''));
+        $severityTemplatesRaw = $decoded['severity_templates'] ?? ($decoded['templates_by_severity'] ?? []);
+        $severityTemplates = [];
+        if (is_array($severityTemplatesRaw)) {
+            foreach ($severityTemplatesRaw as $severity => $template) {
+                $severityKey = strtolower(trim((string) $severity));
+                $templateValue = trim((string) $template);
+                if ($severityKey !== '' && $templateValue !== '') {
+                    $severityTemplates[$severityKey] = $templateValue;
+                }
+            }
+        }
+
+        $severity = strtolower(trim((string) ($event['severity'] ?? '')));
+        if ($severity !== '' && isset($severityTemplates[$severity])) {
+            return $severityTemplates[$severity];
+        }
+
+        return $defaultTemplate;
+    }
+
+    private function resolveSeveritySymbol(string $severity): string
+    {
+        return match (strtolower(trim($severity))) {
+            'critical' => '🚨',
+            'high' => '🔶',
+            'medium' => '⚠️',
+            default => 'ℹ️',
+        };
     }
 
     private function sendTelegramMessage(string $chatId, string $text, ?string $botTokenOverride = null, array $context = []): bool
