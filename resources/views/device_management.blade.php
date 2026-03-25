@@ -724,7 +724,7 @@ $isSelected = isset($selectedDevice) && $selectedDevice && $selectedDevice->id =
 <a class="font-semibold text-sm hover:text-primary" href="{{ route('devices.index', ['device' => $device->id]) }}">{{ $device->name }}</a>
 </div>
 </td>
-<td class="px-6 py-4 font-mono text-xs text-gray-500">{{ $device->serial_number ?? 'N/A' }}</td>
+<td class="px-6 py-4 font-mono text-xs text-gray-500">{{ $device->id }}</td>
 <td class="px-6 py-4 text-sm">{{ $device->type ?? 'N/A' }}</td>
 <td class="px-6 py-4">
 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {{ $statusClass }}" data-status-badge data-status-base="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" data-status-online="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400" data-status-warning="bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400" data-status-error="bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400" data-status-offline="bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400">
