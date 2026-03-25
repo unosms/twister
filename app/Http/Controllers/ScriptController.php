@@ -2195,7 +2195,7 @@ class ScriptController extends Controller
 
         return [
             'relative' => $relative,
-            'absolute' => $this->pickBackupDirectoryByNewestFile($availablePaths),
+            'absolute' => $availablePaths[0],
         ];
     }
 
@@ -2491,7 +2491,7 @@ class ScriptController extends Controller
         if (!empty($candidates)) {
             return [
                 'relative' => $relative,
-                'absolute' => $this->pickBackupDirectoryByNewestFile($candidates),
+                'absolute' => $candidates[0],
             ];
         }
 
@@ -3063,12 +3063,17 @@ class ScriptController extends Controller
             $moved = @rename($sourcePath, $targetPath);
             if (!$moved) {
                 $moved = @copy($sourcePath, $targetPath);
-                if ($moved) {
-                    @unlink($sourcePath);
-                }
             }
 
             if ($moved && is_file($targetPath)) {
+                if (is_file($sourcePath)) {
+                    @unlink($sourcePath);
+                    if (is_file($sourcePath)) {
+                        usleep(150000);
+                        @unlink($sourcePath);
+                    }
+                }
+
                 $mtime = filemtime($targetPath);
                 $detected['path'] = $targetPath;
                 $detected['mtime'] = is_int($mtime) ? $mtime : (int) ($detected['mtime'] ?? time());
