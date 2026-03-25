@@ -178,7 +178,7 @@ foreach ($sectionPageKeys as $sectionKey => $pageKey) {
 <span class="material-symbols-outlined text-[16px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
 </summary>
 <div class="p-3 border-t border-[#e7ebf3] dark:border-gray-800">
-<?php echo $__env->make('partials.device_details_table', ['groupDevices' => collect($sectionPaginators['router_board']->items()), 'emptyMessage' => 'No Router Board devices.', 'credentialMode' => 'username_password'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<?php echo $__env->make('partials.device_details_table', ['groupDevices' => collect($sectionPaginators['router_board']->items()), 'emptyMessage' => 'No Router Board devices.', 'credentialMode' => 'username_password', 'rowStart' => max(1, (int) ($sectionPaginators['router_board']->firstItem() ?? 1))], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 <?php echo $__env->make('partials.device_section_pager', ['paginator' => $sectionPaginators['router_board'], 'pageKey' => 'router_page'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 </div>
 </details>
@@ -193,7 +193,7 @@ foreach ($sectionPageKeys as $sectionKey => $pageKey) {
 <span class="material-symbols-outlined text-[16px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
 </summary>
 <div class="p-3 border-t border-[#e7ebf3] dark:border-gray-800">
-<?php echo $__env->make('partials.device_details_table', ['groupDevices' => collect($sectionPaginators['switches']->items()), 'emptyMessage' => 'No switch devices.', 'credentialMode' => 'password_enable'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<?php echo $__env->make('partials.device_details_table', ['groupDevices' => collect($sectionPaginators['switches']->items()), 'emptyMessage' => 'No switch devices.', 'credentialMode' => 'password_enable', 'rowStart' => max(1, (int) ($sectionPaginators['switches']->firstItem() ?? 1))], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 <?php echo $__env->make('partials.device_section_pager', ['paginator' => $sectionPaginators['switches'], 'pageKey' => 'switches_page'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 </div>
 </details>
@@ -208,7 +208,7 @@ foreach ($sectionPageKeys as $sectionKey => $pageKey) {
 <span class="material-symbols-outlined text-[16px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
 </summary>
 <div class="p-3 border-t border-[#e7ebf3] dark:border-gray-800">
-<?php echo $__env->make('partials.device_details_table', ['groupDevices' => collect($sectionPaginators['fiber_optic']->items()), 'emptyMessage' => 'No fiber optic devices.', 'credentialMode' => 'username_password'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<?php echo $__env->make('partials.device_details_table', ['groupDevices' => collect($sectionPaginators['fiber_optic']->items()), 'emptyMessage' => 'No fiber optic devices.', 'credentialMode' => 'username_password', 'rowStart' => max(1, (int) ($sectionPaginators['fiber_optic']->firstItem() ?? 1))], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 <?php echo $__env->make('partials.device_section_pager', ['paginator' => $sectionPaginators['fiber_optic'], 'pageKey' => 'fiber_page'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 </div>
 </details>
@@ -223,7 +223,7 @@ foreach ($sectionPageKeys as $sectionKey => $pageKey) {
 <span class="material-symbols-outlined text-[16px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
 </summary>
 <div class="p-3 border-t border-[#e7ebf3] dark:border-gray-800">
-<?php echo $__env->make('partials.device_details_table', ['groupDevices' => collect($sectionPaginators['wireless']->items()), 'emptyMessage' => 'No wireless devices.', 'credentialMode' => 'username_password'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<?php echo $__env->make('partials.device_details_table', ['groupDevices' => collect($sectionPaginators['wireless']->items()), 'emptyMessage' => 'No wireless devices.', 'credentialMode' => 'username_password', 'rowStart' => max(1, (int) ($sectionPaginators['wireless']->firstItem() ?? 1))], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 <?php echo $__env->make('partials.device_section_pager', ['paginator' => $sectionPaginators['wireless'], 'pageKey' => 'wireless_page'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 </div>
 </details>
@@ -247,7 +247,7 @@ foreach ($sectionPageKeys as $sectionKey => $pageKey) {
 <span class="material-symbols-outlined text-[16px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
 </summary>
 <div class="p-3 border-t border-[#e7ebf3] dark:border-gray-800">
-<?php echo $__env->make('partials.device_details_table', ['groupDevices' => collect($sectionPaginators['servers_standalone']->items()), 'emptyMessage' => 'No stand alone servers.', 'credentialMode' => 'username_password'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<?php echo $__env->make('partials.device_details_table', ['groupDevices' => collect($sectionPaginators['servers_standalone']->items()), 'emptyMessage' => 'No stand alone servers.', 'credentialMode' => 'username_password', 'rowStart' => max(1, (int) ($sectionPaginators['servers_standalone']->firstItem() ?? 1))], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 <?php echo $__env->make('partials.device_section_pager', ['paginator' => $sectionPaginators['servers_standalone'], 'pageKey' => 'server_standalone_page'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 </div>
 </details>
@@ -261,7 +261,7 @@ foreach ($sectionPageKeys as $sectionKey => $pageKey) {
 <span class="material-symbols-outlined text-[16px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
 </summary>
 <div class="p-3 border-t border-[#e7ebf3] dark:border-gray-800">
-<?php echo $__env->make('partials.device_details_table', ['groupDevices' => collect($sectionPaginators['servers_virtual']->items()), 'emptyMessage' => 'No virtual servers.', 'credentialMode' => 'username_password'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<?php echo $__env->make('partials.device_details_table', ['groupDevices' => collect($sectionPaginators['servers_virtual']->items()), 'emptyMessage' => 'No virtual servers.', 'credentialMode' => 'username_password', 'rowStart' => max(1, (int) ($sectionPaginators['servers_virtual']->firstItem() ?? 1))], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 <?php echo $__env->make('partials.device_section_pager', ['paginator' => $sectionPaginators['servers_virtual'], 'pageKey' => 'server_virtual_page'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 </div>
 </details>
@@ -279,7 +279,7 @@ foreach ($sectionPageKeys as $sectionKey => $pageKey) {
 <span class="material-symbols-outlined text-[16px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
 </summary>
 <div class="p-3 border-t border-[#e7ebf3] dark:border-gray-800">
-<?php echo $__env->make('partials.device_details_table', ['groupDevices' => collect($sectionPaginators['other']->items()), 'emptyMessage' => 'No uncategorized devices.', 'credentialMode' => 'password_enable'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<?php echo $__env->make('partials.device_details_table', ['groupDevices' => collect($sectionPaginators['other']->items()), 'emptyMessage' => 'No uncategorized devices.', 'credentialMode' => 'password_enable', 'rowStart' => max(1, (int) ($sectionPaginators['other']->firstItem() ?? 1))], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 <?php echo $__env->make('partials.device_section_pager', ['paginator' => $sectionPaginators['other'], 'pageKey' => 'other_page'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 </div>
 </details>

@@ -109,9 +109,10 @@ if ($execPath && !str_starts_with($execPath, 'http') && str_starts_with($execPat
 }
 $execUrl = $execPath ? (str_starts_with($execPath, 'http') ? $execPath : url($execPath)) : null;
 $alive = strtolower($device->status ?? '') === 'online';
+$rowNumber = isset($rowNumber) && is_numeric($rowNumber) ? (int) $rowNumber : null;
 ?>
 <tr class="hover:bg-gray-50 dark:hover:bg-gray-800/40" data-device-row data-device-id="<?php echo e($device->id); ?>">
-<td class="px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-100"><?php echo e($device->id); ?></td>
+<td class="px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-100"><?php echo e($rowNumber ?? '-'); ?></td>
 <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-100"><?php echo e($switchName ?? '-'); ?></td>
 <td class="px-4 py-3 text-sm text-gray-600"><?php echo e($typeDisplay ?? "-"); ?></td>
 <td class="px-4 py-3 text-sm text-gray-600"><?php echo e($subtypeDisplay ?? "-"); ?></td>
