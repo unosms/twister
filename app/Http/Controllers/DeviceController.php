@@ -235,7 +235,7 @@ class DeviceController extends Controller
 
     public function details(Request $request)
     {
-        $devices = Device::orderByDesc('id')->paginate(10)->withQueryString();
+        $devices = Device::orderByDesc('id')->get();
         $totalDevices = Device::count();
         $activeDevices = Device::where('status', 'online')->count();
         $authUser = User::find($request->session()->get('auth.user_id'));

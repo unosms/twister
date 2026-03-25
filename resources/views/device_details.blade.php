@@ -79,9 +79,7 @@ All device metrics and access details for <?php echo e($totalDevices ?? 0); ?> d
 </div>
 <div class="bg-white dark:bg-gray-900 border border-[#cfd7e7] dark:border-gray-800 rounded-xl overflow-hidden shadow-sm p-4 space-y-4">
 <?php
-$devicesPage = $devices instanceof \Illuminate\Pagination\LengthAwarePaginator
-    ? collect($devices->items())
-    : collect($devices);
+$devicesPage = collect($devices);
 
 $deviceGroups = [
     'router_board' => collect(),
@@ -130,6 +128,44 @@ foreach ($devicesPage as $device) {
 }
 
 $serverTotal = $deviceGroups['servers_standalone']->count() + $deviceGroups['servers_virtual']->count();
+
+$sectionPerPage = 10;
+$sectionPageKeys = [
+    'router_board' => 'router_page',
+    'switches' => 'switches_page',
+    'fiber_optic' => 'fiber_page',
+    'wireless' => 'wireless_page',
+    'servers_standalone' => 'server_standalone_page',
+    'servers_virtual' => 'server_virtual_page',
+    'other' => 'other_page',
+];
+$sectionPaginators = [];
+foreach ($sectionPageKeys as $sectionKey => $pageKey) {
+    $sectionItems = $deviceGroups[$sectionKey] ?? collect();
+    if (!($sectionItems instanceof \Illuminate\Support\Collection)) {
+        $sectionItems = collect($sectionItems);
+    }
+
+    $requestedPage = (int) request()->query($pageKey, 1);
+    $currentPage = $requestedPage > 0 ? $requestedPage : 1;
+    $totalItems = $sectionItems->count();
+    $lastPage = max(1, (int) ceil($totalItems / $sectionPerPage));
+    if ($currentPage > $lastPage) {
+        $currentPage = $lastPage;
+    }
+
+    $sectionPaginators[$sectionKey] = new \Illuminate\Pagination\LengthAwarePaginator(
+        $sectionItems->forPage($currentPage, $sectionPerPage)->values(),
+        $totalItems,
+        $sectionPerPage,
+        $currentPage,
+        [
+            'path' => request()->url(),
+            'pageName' => $pageKey,
+            'query' => request()->query(),
+        ]
+    );
+}
 ?>
 
 <details class="group border border-[#d9e2f2] dark:border-gray-800 rounded-lg overflow-hidden">
@@ -142,7 +178,8 @@ $serverTotal = $deviceGroups['servers_standalone']->count() + $deviceGroups['ser
 <span class="material-symbols-outlined text-[16px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
 </summary>
 <div class="p-3 border-t border-[#e7ebf3] dark:border-gray-800">
-<?php echo $__env->make('partials.device_details_table', ['groupDevices' => $deviceGroups['router_board'], 'emptyMessage' => 'No Router Board devices.', 'credentialMode' => 'username_password'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<?php echo $__env->make('partials.device_details_table', ['groupDevices' => collect($sectionPaginators['router_board']->items()), 'emptyMessage' => 'No Router Board devices.', 'credentialMode' => 'username_password'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<?php echo $__env->make('partials.device_section_pager', ['paginator' => $sectionPaginators['router_board'], 'pageKey' => 'router_page'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 </div>
 </details>
 
@@ -156,7 +193,8 @@ $serverTotal = $deviceGroups['servers_standalone']->count() + $deviceGroups['ser
 <span class="material-symbols-outlined text-[16px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
 </summary>
 <div class="p-3 border-t border-[#e7ebf3] dark:border-gray-800">
-<?php echo $__env->make('partials.device_details_table', ['groupDevices' => $deviceGroups['switches'], 'emptyMessage' => 'No switch devices.', 'credentialMode' => 'password_enable'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<?php echo $__env->make('partials.device_details_table', ['groupDevices' => collect($sectionPaginators['switches']->items()), 'emptyMessage' => 'No switch devices.', 'credentialMode' => 'password_enable'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<?php echo $__env->make('partials.device_section_pager', ['paginator' => $sectionPaginators['switches'], 'pageKey' => 'switches_page'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 </div>
 </details>
 
@@ -170,7 +208,8 @@ $serverTotal = $deviceGroups['servers_standalone']->count() + $deviceGroups['ser
 <span class="material-symbols-outlined text-[16px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
 </summary>
 <div class="p-3 border-t border-[#e7ebf3] dark:border-gray-800">
-<?php echo $__env->make('partials.device_details_table', ['groupDevices' => $deviceGroups['fiber_optic'], 'emptyMessage' => 'No fiber optic devices.', 'credentialMode' => 'username_password'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<?php echo $__env->make('partials.device_details_table', ['groupDevices' => collect($sectionPaginators['fiber_optic']->items()), 'emptyMessage' => 'No fiber optic devices.', 'credentialMode' => 'username_password'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<?php echo $__env->make('partials.device_section_pager', ['paginator' => $sectionPaginators['fiber_optic'], 'pageKey' => 'fiber_page'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 </div>
 </details>
 
@@ -184,7 +223,8 @@ $serverTotal = $deviceGroups['servers_standalone']->count() + $deviceGroups['ser
 <span class="material-symbols-outlined text-[16px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
 </summary>
 <div class="p-3 border-t border-[#e7ebf3] dark:border-gray-800">
-<?php echo $__env->make('partials.device_details_table', ['groupDevices' => $deviceGroups['wireless'], 'emptyMessage' => 'No wireless devices.', 'credentialMode' => 'username_password'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<?php echo $__env->make('partials.device_details_table', ['groupDevices' => collect($sectionPaginators['wireless']->items()), 'emptyMessage' => 'No wireless devices.', 'credentialMode' => 'username_password'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<?php echo $__env->make('partials.device_section_pager', ['paginator' => $sectionPaginators['wireless'], 'pageKey' => 'wireless_page'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 </div>
 </details>
 
@@ -207,7 +247,8 @@ $serverTotal = $deviceGroups['servers_standalone']->count() + $deviceGroups['ser
 <span class="material-symbols-outlined text-[16px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
 </summary>
 <div class="p-3 border-t border-[#e7ebf3] dark:border-gray-800">
-<?php echo $__env->make('partials.device_details_table', ['groupDevices' => $deviceGroups['servers_standalone'], 'emptyMessage' => 'No stand alone servers.', 'credentialMode' => 'username_password'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<?php echo $__env->make('partials.device_details_table', ['groupDevices' => collect($sectionPaginators['servers_standalone']->items()), 'emptyMessage' => 'No stand alone servers.', 'credentialMode' => 'username_password'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<?php echo $__env->make('partials.device_section_pager', ['paginator' => $sectionPaginators['servers_standalone'], 'pageKey' => 'server_standalone_page'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 </div>
 </details>
 
@@ -220,7 +261,8 @@ $serverTotal = $deviceGroups['servers_standalone']->count() + $deviceGroups['ser
 <span class="material-symbols-outlined text-[16px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
 </summary>
 <div class="p-3 border-t border-[#e7ebf3] dark:border-gray-800">
-<?php echo $__env->make('partials.device_details_table', ['groupDevices' => $deviceGroups['servers_virtual'], 'emptyMessage' => 'No virtual servers.', 'credentialMode' => 'username_password'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<?php echo $__env->make('partials.device_details_table', ['groupDevices' => collect($sectionPaginators['servers_virtual']->items()), 'emptyMessage' => 'No virtual servers.', 'credentialMode' => 'username_password'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<?php echo $__env->make('partials.device_section_pager', ['paginator' => $sectionPaginators['servers_virtual'], 'pageKey' => 'server_virtual_page'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 </div>
 </details>
 </div>
@@ -237,22 +279,12 @@ $serverTotal = $deviceGroups['servers_standalone']->count() + $deviceGroups['ser
 <span class="material-symbols-outlined text-[16px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
 </summary>
 <div class="p-3 border-t border-[#e7ebf3] dark:border-gray-800">
-<?php echo $__env->make('partials.device_details_table', ['groupDevices' => $deviceGroups['other'], 'emptyMessage' => 'No uncategorized devices.', 'credentialMode' => 'password_enable'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<?php echo $__env->make('partials.device_details_table', ['groupDevices' => collect($sectionPaginators['other']->items()), 'emptyMessage' => 'No uncategorized devices.', 'credentialMode' => 'password_enable'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<?php echo $__env->make('partials.device_section_pager', ['paginator' => $sectionPaginators['other'], 'pageKey' => 'other_page'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 </div>
 </details>
 <?php endif; ?>
-</div><?php if($devices instanceof \Illuminate\Pagination\LengthAwarePaginator): ?>
-<div class="px-6 py-4 border-t border-[#cfd7e7] dark:border-gray-800 flex justify-between items-center bg-gray-50/50 dark:bg-gray-800/30">
-<span class="text-xs text-gray-500 font-medium tracking-tight">
-Showing <?php echo e($devices->firstItem() ?? 0); ?>-<?php echo e($devices->lastItem() ?? 0); ?> of <?php echo e($devices->total() ?? 0); ?> results
-</span>
-<div class="flex gap-2">
-<a class="px-3 py-1 bg-white dark:bg-gray-800 border border-[#cfd7e7] dark:border-gray-700 rounded text-xs font-semibold <?php echo e($devices->previousPageUrl() ? '' : 'opacity-50 pointer-events-none'); ?>" href="<?php echo e($devices->previousPageUrl() ?? '#'); ?>">Previous</a>
-<span class="px-3 py-1 bg-primary text-white rounded text-xs font-semibold"><?php echo e($devices->currentPage()); ?></span>
-<a class="px-3 py-1 bg-white dark:bg-gray-800 border border-[#cfd7e7] dark:border-gray-700 rounded text-xs font-semibold <?php echo e($devices->nextPageUrl() ? '' : 'opacity-50 pointer-events-none'); ?>" href="<?php echo e($devices->nextPageUrl() ?? '#'); ?>">Next</a>
 </div>
-</div>
-<?php endif; ?>
 </div>
 </section>
 </div>
