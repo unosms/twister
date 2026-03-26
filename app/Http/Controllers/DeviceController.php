@@ -1881,7 +1881,7 @@ class DeviceController extends Controller
             return;
         }
 
-        $candidateRoots = $this->backupRoots();
+        $candidateRoots = $this->backupFolderCreationRoots();
         foreach ($candidateRoots as $root) {
             $absolute = rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relative);
 
@@ -1904,6 +1904,25 @@ class DeviceController extends Controller
             'relative_path' => $relative,
             'roots' => $candidateRoots,
         ]);
+    }
+
+    private function backupFolderCreationRoots(): array
+    {
+        $preferredRoot = '/srv/tftp';
+        $roots = [$preferredRoot];
+
+        foreach ($this->backupRoots() as $root) {
+            $normalized = rtrim(str_replace('\\', '/', (string) $root), '/');
+            if ($normalized === '') {
+                continue;
+            }
+
+            if (!in_array($normalized, $roots, true)) {
+                $roots[] = $normalized;
+            }
+        }
+
+        return $roots;
     }
 
     private function resolveBackupFolderRelativePath(Device $device): ?string
