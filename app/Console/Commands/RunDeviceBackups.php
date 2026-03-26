@@ -695,20 +695,21 @@ class RunDeviceBackups extends Command
         if ($outputDetected !== null) {
             $outputDetected = $this->moveDetectedBackupIntoDirectory($outputDetected, $snapshot['absolute']);
             $snapshotAbsolute = (string) ($snapshot['absolute'] ?? '');
-            $snapshotReal = $snapshotAbsolute !== '' ? (realpath($snapshotAbsolute) ?: $snapshotAbsolute) : '';
             $detectedPath = (string) ($outputDetected['path'] ?? '');
-            $detectedReal = $detectedPath !== '' ? (realpath($detectedPath) ?: $detectedPath) : '';
-            $relocatedIntoSnapshot = $snapshotReal !== '' && $detectedReal !== ''
-                && (
-                    $detectedReal === $snapshotReal
-                    || str_starts_with($detectedReal, rtrim($snapshotReal, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR)
-                );
+            $detectedInSnapshot = $this->pathIsInsideDirectory($detectedPath, $snapshotAbsolute);
+            $detectedInManagedCandidate = $this->pathIsInsideBackupRelativeCandidates(
+                $detectedPath,
+                (string) ($snapshot['relative'] ?? '')
+            );
+            $relocatedIntoSnapshot = $detectedInSnapshot || $detectedInManagedCandidate;
 
             $this->writeProvisioningLog('backup trace: verification recovered from process output', $this->withoutProvisioningSecrets($traceContext) + [
                 'backup_file' => $outputDetected['file'],
                 'backup_modified_at' => date('Y-m-d H:i:s', (int) $outputDetected['mtime']),
                 'backup_folder' => $snapshot['relative'],
                 'backup_path' => $outputDetected['path'] ?? null,
+                'detected_in_snapshot' => $detectedInSnapshot,
+                'detected_in_managed_candidate' => $detectedInManagedCandidate,
                 'relocated_into_snapshot' => $relocatedIntoSnapshot,
             ]);
 
@@ -797,6 +798,38 @@ class RunDeviceBackups extends Command
         }
 
         return $detected;
+    }
+
+    private function pathIsInsideDirectory(string $path, string $directory): bool
+    {
+        $path = trim((string) $path);
+        $directory = trim((string) $directory);
+        if ($path === '' || $directory === '') {
+            return false;
+        }
+
+        $pathReal = realpath($path) ?: $path;
+        $directoryReal = realpath($directory) ?: $directory;
+
+        return $pathReal === $directoryReal
+            || str_starts_with($pathReal, rtrim($directoryReal, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR);
+    }
+
+    private function pathIsInsideBackupRelativeCandidates(string $path, string $relative): bool
+    {
+        $relative = trim(str_replace('\\', '/', $relative), '/');
+        if ($relative === '' || str_contains($relative, '..')) {
+            return false;
+        }
+
+        foreach ($this->backupRoots() as $root) {
+            $candidateDirectory = rtrim((string) $root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relative);
+            if ($this->pathIsInsideDirectory($path, $candidateDirectory)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function backupUnsupportedMessage(Device $device, bool $isOlt, array $olt = []): ?string

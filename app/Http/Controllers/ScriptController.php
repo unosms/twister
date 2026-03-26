@@ -2129,20 +2129,21 @@ class ScriptController extends Controller
         if ($outputDetected !== null) {
             $outputDetected = $this->moveDetectedBackupIntoResolvedDirectory($outputDetected, (string) ($resolved['absolute'] ?? ''));
             $resolvedAbsolute = (string) ($resolved['absolute'] ?? '');
-            $resolvedReal = $resolvedAbsolute !== '' ? (realpath($resolvedAbsolute) ?: $resolvedAbsolute) : '';
             $detectedPath = (string) ($outputDetected['path'] ?? '');
-            $detectedReal = $detectedPath !== '' ? (realpath($detectedPath) ?: $detectedPath) : '';
-            $relocatedIntoResolved = $resolvedReal !== '' && $detectedReal !== ''
-                && (
-                    $detectedReal === $resolvedReal
-                    || str_starts_with($detectedReal, rtrim($resolvedReal, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR)
-                );
+            $detectedInResolved = $this->pathIsInsideDirectory($detectedPath, $resolvedAbsolute);
+            $detectedInManagedCandidate = $this->pathIsInsideBackupRelativeCandidates(
+                $detectedPath,
+                (string) ($resolved['relative'] ?? '')
+            );
+            $relocatedIntoResolved = $detectedInResolved || $detectedInManagedCandidate;
 
             ProvisioningTrace::log('backup trace: verification recovered from process output', $traceContext + [
                 'backup_file' => $outputDetected['file'],
                 'backup_modified_at' => date('Y-m-d H:i:s', (int) $outputDetected['mtime']),
                 'backup_folder' => $resolved['relative'],
                 'backup_path' => $outputDetected['path'] ?? null,
+                'detected_in_resolved' => $detectedInResolved,
+                'detected_in_managed_candidate' => $detectedInManagedCandidate,
                 'relocated_into_resolved' => $relocatedIntoResolved,
             ]);
 
@@ -2217,6 +2218,37 @@ class ScriptController extends Controller
             'relative' => $relative,
             'absolute' => $availablePaths[0],
         ];
+    }
+
+    private function pathIsInsideDirectory(string $path, string $directory): bool
+    {
+        $path = trim((string) $path);
+        $directory = trim((string) $directory);
+        if ($path === '' || $directory === '') {
+            return false;
+        }
+
+        $pathReal = realpath($path) ?: $path;
+        $directoryReal = realpath($directory) ?: $directory;
+
+        return $pathReal === $directoryReal
+            || str_starts_with($pathReal, rtrim($directoryReal, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR);
+    }
+
+    private function pathIsInsideBackupRelativeCandidates(string $path, string $relative): bool
+    {
+        $relative = trim(str_replace('\\', '/', $relative), '/');
+        if ($relative === '') {
+            return false;
+        }
+
+        foreach ($this->backupDirectoryAllCandidatesFromRelative($relative) as $candidateDirectory) {
+            if ($this->pathIsInsideDirectory($path, (string) $candidateDirectory)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function deviceTraceContext(Device $device, array $context = []): array
