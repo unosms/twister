@@ -5,7 +5,7 @@ IP="${1:-}"
 PASS="${2:-}"
 ENA="${3:-}"
 LOCATION="${4:-}"
-TFTP_SERVER="172.16.208.2"
+TFTP_SERVER="${BACKUP_TFTP_SERVER:-192.168.88.57}"
 
 DATE_STR=$(date +"%F_%H-%M-%S")
 RENAMED_FILE="${DATE_STR}.txt"
@@ -79,33 +79,69 @@ expect {
     eof { fail_step "Connection closed during write memory" 10 }
 }
 
-send -- "copy running-config tftp:\r"
-expect {
-    -re {(A|a)ddress or name of remote host.*} {
-        send -- "$TFTP_SERVER\r"
-        exp_continue
+proc run_tftp_copy {prompt tftpServer destination} {
+    send -- "copy running-config tftp:\r"
+    set sawSuccess 0
+
+    while {1} {
+        expect {
+            -re {(A|a)ddress or name of remote host[^\r\n]*} {
+                send -- "$tftpServer\r"
+                exp_continue
+            }
+            -re {(S|s)ource filename[^\r\n]*} {
+                send -- "\r"
+                exp_continue
+            }
+            -re {(D|d)estination filename[^\r\n]*} {
+                send -- "$destination\r"
+                exp_continue
+            }
+            -re {(O|o)verwrite[^\r\n]*} {
+                send -- "y\r"
+                exp_continue
+            }
+            -re {(bytes copied|copied in|Copy complete|copied successfully)} {
+                set sawSuccess 1
+                exp_continue
+            }
+            -re {(%Error[^\r\n]*|TFTP put operation failed[^\r\n]*|Error opening tftp[^\r\n]*)} {
+                return [list 0 [string trim $expect_out(0,string)]]
+            }
+            -re $prompt {
+                if {$sawSuccess} {
+                    return [list 1 ""]
+                }
+
+                return [list 0 "Backup copy returned to prompt without success confirmation"]
+            }
+            timeout {
+                return [list 0 "Backup copy timeout"]
+            }
+            eof {
+                return [list 0 "Connection closed during backup copy"]
+            }
+        }
     }
-    -re {(S|s)ource filename.*} {
-        send -- "\r"
-        exp_continue
+}
+
+set primaryDestination "$LOCATION/$RENAMED_FILE"
+set primaryResult [run_tftp_copy $prompt $TFTP_SERVER $primaryDestination]
+if {[lindex $primaryResult 0] != 1} {
+    set primaryError [string trim [lindex $primaryResult 1]]
+    set primaryErrorLower [string tolower $primaryError]
+
+    if {[string match "*permission denied*" $primaryErrorLower] || [string match "*no such file*" $primaryErrorLower] || [string match "*access violation*" $primaryErrorLower]} {
+        send_user "Primary destination failed: $primaryError\n"
+        send_user "Retrying using TFTP root destination: $RENAMED_FILE\n"
+
+        set fallbackResult [run_tftp_copy $prompt $TFTP_SERVER $RENAMED_FILE]
+        if {[lindex $fallbackResult 0] != 1} {
+            fail_step [lindex $fallbackResult 1] 12
+        }
+    } else {
+        fail_step $primaryError 12
     }
-    -re {(D|d)estination filename.*} {
-        send -- "$LOCATION/$RENAMED_FILE\r"
-        exp_continue
-    }
-    -re {(O|o)verwrite.*} {
-        send -- "y\r"
-        exp_continue
-    }
-    -re {(bytes copied|copied in|Copy complete|copied successfully)} {
-        exp_continue
-    }
-    -re {%Error|TFTP put operation failed|Error opening tftp} {
-        fail_step $expect_out(0,string) 12
-    }
-    -re $prompt {}
-    timeout { fail_step "Backup copy timeout" 13 }
-    eof { fail_step "Connection closed during backup copy" 10 }
 }
 
 send -- "exit\r"

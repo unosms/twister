@@ -2292,7 +2292,7 @@ class ScriptController extends Controller
             return;
         }
 
-        @chmod($absolute, 0777);
+        @chmod($absolute, 02777);
     }
 
     private function pathIsInsideDirectory(string $path, string $directory): bool

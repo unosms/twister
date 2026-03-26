@@ -1733,8 +1733,9 @@ class DeviceController extends Controller
 
     private function applyBackupFolderPermissions(bool $grant): array
     {
-        $directoryMode = $grant ? 0775 : 0755;
-        $fileMode = $grant ? 0664 : 0644;
+        // Grant mode keeps both the TFTP daemon user and web app able to write.
+        $directoryMode = $grant ? 02777 : 0755;
+        $fileMode = $grant ? 0666 : 0644;
 
         $roots = $this->backupPermissionRoots();
         $deviceRows = Device::query()
@@ -1913,7 +1914,7 @@ class DeviceController extends Controller
             return;
         }
 
-        @chmod($absolute, 0777);
+        @chmod($absolute, 02777);
     }
 
     private function backupFolderCreationRoots(): array

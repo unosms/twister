@@ -431,7 +431,7 @@ class RunDeviceBackups extends Command
             return;
         }
 
-        @chmod($absolute, 0777);
+        @chmod($absolute, 02777);
     }
 
     private function backupRoots(): array
