@@ -41,6 +41,8 @@ set USER ""
 if {[info exists env(USER)]} { set USER $env(USER) }
 set TFTP_SERVER $env(TFTP_SERVER)
 set RENAMED_FILE $env(RENAMED_FILE)
+set LOCATION_TRIMMED [string trim [string map {"\\" "/"} $LOCATION] "/"]
+set DEST_PATH "$LOCATION_TRIMMED/$RENAMED_FILE"
 set prompt {.*[>#] ?$}
 
 proc fail_step {message code} {
@@ -166,6 +168,8 @@ expect {
 }
 
 send -- "copy running-config tftp:\r"
+set sentDestination 0
+set triedPlainFallback 0
 expect {
     -re {(A|a)ddress or name of remote host.*} {
         send -- "$TFTP_SERVER\r"
@@ -176,16 +180,45 @@ expect {
         exp_continue
     }
     -re {(D|d)estination filename.*} {
-        # Use plain file name for max IOS compatibility.
-        # Laravel verification moves it into the device folder.
-        send -- "$RENAMED_FILE\r"
+        if {$sentDestination == 0 && $LOCATION_TRIMMED ne ""} {
+            # Prefer direct write into the device folder.
+            send -- "$DEST_PATH\r"
+            set sentDestination 1
+        } elseif {$triedPlainFallback == 0} {
+            # Fallback for IOS variants that reject path segments.
+            send -- "$RENAMED_FILE\r"
+            set triedPlainFallback 1
+        } else {
+            send -- "\r"
+        }
+        exp_continue
+    }
+    -re {(?i)%\s*invalid input} {
+        if {$sentDestination == 1 && $triedPlainFallback == 0} {
+            send -- "copy running-config tftp:\r"
+            set sentDestination 0
+            set triedPlainFallback 1
+            exp_continue
+        }
+        fail_step "Backup copy failed (invalid input)" 12
+    }
+    -re {(?i)tftp:\s*error|%Error opening} {
+        fail_step "Backup copy failed (TFTP write error)" 12
+    }
+    -re {(?i)permission denied|no such file} {
+        fail_step "Backup copy failed (destination path not writable)" 12
+    }
+    -re {(?i)copy aborted|copy failed} {
+        fail_step "Backup copy failed" 12
+    }
+    -re {(?i)\berror\b} {
+        fail_step "Backup copy failed" 12
+    }
+    -re {(?i)(bytes copied|copied in|Copy complete|copied successfully)} {
         exp_continue
     }
     -re {(O|o)verwrite.*} {
         send -- "y\r"
-        exp_continue
-    }
-    -re {(bytes copied|copied in|Copy complete|copied successfully)} {
         exp_continue
     }
     -re $prompt {}
