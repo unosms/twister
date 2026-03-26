@@ -76,13 +76,30 @@ if {[string match *# $expect_out(buffer)]} {
 
 if {!$priv} {
     send -- "enable\r"
+    set sawEnablePasswordPrompt 0
     expect {
-        -re {(P|p)assword:} { send -- "$ENA\r"; exp_continue }
+        -re {(P|p)assword:} {
+            set sawEnablePasswordPrompt 1
+            send -- "$ENA\r"
+            exp_continue
+        }
         -re {#} { set priv 1 }
-        -re $prompt {}
+        -re {>} {
+            if {$sawEnablePasswordPrompt} {
+                fail_step "Enable failed: invalid enable password or insufficient privilege." 7
+            }
+            fail_step "Enable failed: privileged prompt not reached." 7
+        }
+        -re {(%\s*Bad secrets|invalid enable password|insufficient privilege)} {
+            fail_step "Enable failed: invalid enable password or insufficient privilege." 7
+        }
         timeout { fail_step "Enable timeout" 7 }
         eof { fail_step "Connection closed during enable" 10 }
     }
+}
+
+if {!$priv} {
+    fail_step "Enable failed: privileged prompt not reached." 7
 }
 
 send -- "terminal length 0\r"
