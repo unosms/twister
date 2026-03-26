@@ -5,44 +5,28 @@ IP="${1:-}"
 PASS="${2:-}"
 ENA="${3:-}"
 LOCATION="${4:-}"
-USER="${5:-${SWITCH_USER:-${USERNAME:-}}}"
-TFTP_SERVER="${BACKUP_TFTP_SERVER:-${TFTP_SERVER:-192.168.88.57}}"
-TELNET_TIMEOUT="${BACKUP_TELNET_TIMEOUT:-45}"
+TFTP_SERVER="172.16.208.2"
 
 DATE_STR=$(date +"%F_%H-%M-%S")
 RENAMED_FILE="${DATE_STR}.txt"
 
 if [[ -z "$IP" || -z "$PASS" || -z "$ENA" || -z "$LOCATION" ]]; then
-    echo "Usage: $0 <SWITCH_IP> <PASSWORD> <ENABLE_PASSWORD> <LOCATION> [USERNAME]"
+    echo "Usage: $0 <SWITCH_IP> <PASSWORD> <ENABLE_PASSWORD> <LOCATION>"
     exit 1
 fi
 
-if ! command -v expect >/dev/null 2>&1; then
-    echo "expect is required but not installed"
-    exit 3
-fi
-
-if ! command -v telnet >/dev/null 2>&1; then
-    echo "telnet is required but not installed"
-    exit 4
-fi
-
-export IP PASS ENA LOCATION USER TFTP_SERVER RENAMED_FILE TELNET_TIMEOUT
+export IP PASS ENA LOCATION TFTP_SERVER RENAMED_FILE
 
 /usr/bin/expect <<'EOF'
 log_user 1
-set timeout $env(TELNET_TIMEOUT)
+set timeout 60
 
 set IP $env(IP)
 set PASS $env(PASS)
 set ENA $env(ENA)
 set LOCATION $env(LOCATION)
-set USER ""
-if {[info exists env(USER)]} { set USER $env(USER) }
 set TFTP_SERVER $env(TFTP_SERVER)
 set RENAMED_FILE $env(RENAMED_FILE)
-set LOCATION_TRIMMED [string trim [string map {"\\" "/"} $LOCATION] "/"]
-set DEST_PATH "$LOCATION_TRIMMED/$RENAMED_FILE"
 set prompt {.*[>#] ?$}
 
 proc fail_step {message code} {
@@ -50,126 +34,52 @@ proc fail_step {message code} {
     exit $code
 }
 
-proc try_enable_once {candidate prompt} {
-    send -- "enable\r"
-    set sentPassword 0
-
-    expect {
-        -re {(P|p)assword:} {
-            if {$sentPassword} {
-                return 0
-            }
-
-            send -- "$candidate\r"
-            set sentPassword 1
-            exp_continue
-        }
-        -re {(?i)% ?(bad secrets|access denied|authorization failed|invalid password)} {
-            return 0
-        }
-        -re {#} {
-            return 1
-        }
-        -re $prompt {
-            if {[string match *#* $expect_out(buffer)]} {
-                return 1
-            }
-
-            return 0
-        }
-        timeout {
-            fail_step "Enable timeout" 7
-        }
-        eof {
-            fail_step "Connection closed during enable" 10
-        }
-    }
-}
-
 spawn telnet $IP
 
-set authed 0
-set login_password_attempt 0
-while {!$authed} {
+expect {
+    -re {(P|p)assword:} { send -- "$PASS\r" }
+    timeout { fail_step "Login timeout waiting for switch password prompt" 5 }
+    eof { fail_step "Connection closed during login" 10 }
+}
+
+expect {
+    -re {>} {}
+    -re {#} {}
+    timeout { fail_step "Login timeout waiting for switch prompt" 6 }
+    eof { fail_step "Connection closed after login" 10 }
+}
+
+if {![string match *# $expect_out(buffer)]} {
+    send -- "enable\r"
     expect {
-        -re {Press RETURN to get started} { send -- "\r" }
-        -re {(U|u)sername:} {
-            if {$USER ne ""} {
-                send -- "$USER\r"
-            } else {
-                send -- "\r"
-            }
-            exp_continue
-        }
-        -re {(L|l)ogin:} {
-            if {$USER ne ""} {
-                send -- "$USER\r"
-            } else {
-                send -- "\r"
-            }
-            exp_continue
-        }
-        -re {(P|p)assword:} {
-            if {$login_password_attempt == 0} {
-                send -- "$PASS\r"
-            } elseif {$ENA ne "" && $ENA ne $PASS} {
-                send -- "$ENA\r"
-            } else {
-                send -- "$PASS\r"
-            }
-            incr login_password_attempt
-            exp_continue
-        }
-        -re $prompt { set authed 1 }
-        timeout { fail_step "Login timeout (check username/password)" 5 }
-        eof { fail_step "Connection closed during login (bad username/password)" 10 }
+        -re {(P|p)assword:} { send -- "$ENA\r" }
+        timeout { fail_step "Enable timeout waiting for password prompt" 7 }
+        eof { fail_step "Connection closed during enable" 10 }
     }
-}
 
-set priv 0
-if {[string match *# $expect_out(buffer)]} {
-    set priv 1
-}
-
-if {!$priv} {
-    if {[try_enable_once $ENA $prompt]} {
-        set priv 1
+    expect {
+        -re {#} {}
+        timeout { fail_step "Enable timeout waiting for privileged prompt" 8 }
+        eof { fail_step "Connection closed after enable" 10 }
     }
-}
-
-if {!$priv && $PASS ne "" && $PASS ne $ENA} {
-    if {[try_enable_once $PASS $prompt]} {
-        set priv 1
-    }
-}
-
-if {!$priv} {
-    if {[try_enable_once "" $prompt]} {
-        set priv 1
-    }
-}
-
-if {!$priv} {
-    fail_step "Enable failed: invalid enable password or insufficient privilege." 14
 }
 
 send -- "terminal length 0\r"
 expect {
     -re $prompt {}
-    timeout { fail_step "Paging disable timeout" 8 }
+    timeout { fail_step "Paging disable timeout" 9 }
     eof { fail_step "Connection closed while disabling paging" 10 }
 }
 
 send -- "write memory\r"
 expect {
+    -re {(Building configuration|Compressed configuration|bytes copied|Copy complete|copied successfully)} { exp_continue }
     -re $prompt {}
     timeout { fail_step "Write memory timeout" 11 }
     eof { fail_step "Connection closed during write memory" 10 }
 }
 
 send -- "copy running-config tftp:\r"
-set sentDestination 0
-set triedPlainFallback 0
 expect {
     -re {(A|a)ddress or name of remote host.*} {
         send -- "$TFTP_SERVER\r"
@@ -180,49 +90,21 @@ expect {
         exp_continue
     }
     -re {(D|d)estination filename.*} {
-        if {$sentDestination == 0 && $LOCATION_TRIMMED ne ""} {
-            # Prefer direct write into the device folder.
-            send -- "$DEST_PATH\r"
-            set sentDestination 1
-        } elseif {$triedPlainFallback == 0} {
-            # Fallback for IOS variants that reject path segments.
-            send -- "$RENAMED_FILE\r"
-            set triedPlainFallback 1
-        } else {
-            send -- "\r"
-        }
-        exp_continue
-    }
-    -re {(?i)%\s*invalid input} {
-        if {$sentDestination == 1 && $triedPlainFallback == 0} {
-            send -- "copy running-config tftp:\r"
-            set sentDestination 0
-            set triedPlainFallback 1
-            exp_continue
-        }
-        fail_step "Backup copy failed (invalid input)" 12
-    }
-    -re {(?i)tftp:\s*error|%Error opening} {
-        fail_step "Backup copy failed (TFTP write error)" 12
-    }
-    -re {(?i)permission denied|no such file} {
-        fail_step "Backup copy failed (destination path not writable)" 12
-    }
-    -re {(?i)copy aborted|copy failed} {
-        fail_step "Backup copy failed" 12
-    }
-    -re {(?i)\berror\b} {
-        fail_step "Backup copy failed" 12
-    }
-    -re {(?i)(bytes copied|copied in|Copy complete|copied successfully)} {
+        send -- "$LOCATION/$RENAMED_FILE\r"
         exp_continue
     }
     -re {(O|o)verwrite.*} {
         send -- "y\r"
         exp_continue
     }
+    -re {(bytes copied|copied in|Copy complete|copied successfully)} {
+        exp_continue
+    }
+    -re {%Error|TFTP put operation failed|Error opening tftp} {
+        fail_step $expect_out(0,string) 12
+    }
     -re $prompt {}
-    timeout { fail_step "Backup copy timeout" 12 }
+    timeout { fail_step "Backup copy timeout" 13 }
     eof { fail_step "Connection closed during backup copy" 10 }
 }
 
