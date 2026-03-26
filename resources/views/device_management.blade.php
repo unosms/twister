@@ -79,6 +79,35 @@ Manage and monitor {{ $totalDevices ?? 0 }} total devices
 </p>
 </div>
 <div class="flex gap-3">
+<details class="relative">
+<summary class="flex cursor-pointer list-none items-center gap-2 rounded-lg border border-[#cfd7e7] bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-gray-50">
+<span class="material-symbols-outlined text-xl">settings</span>
+Settings
+</summary>
+<div class="absolute right-0 z-20 mt-2 w-[360px] rounded-xl border border-[#cfd7e7] bg-white p-4 shadow-xl dark:border-gray-700 dark:bg-gray-900">
+<p class="text-sm font-bold text-slate-900 dark:text-white">Backup Folder Permissions</p>
+<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Use these controls to manually grant or revoke backup folder permissions when backup verification fails.</p>
+<div class="mt-3 space-y-2">
+<form method="POST" action="{{ route('devices.backup-permissions.update') }}" onsubmit="return confirm('Grant backup folder permissions now?');">
+@csrf
+<input type="hidden" name="operation" value="grant"/>
+<button class="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white hover:bg-primary/90" type="submit">
+<span class="material-symbols-outlined text-base">lock_open</span>
+Grant Backup Permissions
+</button>
+</form>
+<form method="POST" action="{{ route('devices.backup-permissions.update') }}" onsubmit="return confirm('Revoke backup folder permissions now?');">
+@csrf
+<input type="hidden" name="operation" value="revoke"/>
+<button class="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-rose-300 bg-rose-50 px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-100 dark:border-rose-900/60 dark:bg-rose-950/20 dark:text-rose-300 dark:hover:bg-rose-950/35" type="submit">
+<span class="material-symbols-outlined text-base">lock</span>
+Revoke Backup Permissions
+</button>
+</form>
+</div>
+<p class="mt-3 text-[11px] text-slate-500 dark:text-slate-400">Applies to configured backup roots and per-device backup folders.</p>
+</div>
+</details>
 <form method="POST" action="{{ route('devices.export') }}">
 @csrf
 <button class="flex items-center gap-2 px-4 py-2 bg-white dark:bg-gray-800 border border-[#cfd7e7] dark:border-gray-700 rounded-lg text-sm font-semibold hover:bg-gray-50" type="submit">
@@ -136,11 +165,22 @@ Export
 {{ session('status') }}
 </div>
 @endif
-@if ($errors->any())
+@if ($errors->has('backup_permissions'))
+<div class="mb-6 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+<p class="font-semibold mb-1">Backup permission action completed with warnings:</p>
+<p>{{ $errors->first('backup_permissions') }}</p>
+</div>
+@endif
+@php
+$deviceErrorMessages = collect($errors->getMessages())
+    ->except('backup_permissions')
+    ->flatten();
+@endphp
+@if ($deviceErrorMessages->isNotEmpty())
 <div class="mb-6 rounded-lg border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
 <p class="font-semibold mb-1">Could not save device. Please fix the following:</p>
 <ul class="list-disc pl-5 space-y-0.5">
-@foreach ($errors->all() as $error)
+@foreach ($deviceErrorMessages as $error)
 <li>{{ $error }}</li>
 @endforeach
 </ul>

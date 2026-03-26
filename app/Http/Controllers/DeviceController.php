@@ -248,6 +248,41 @@ class DeviceController extends Controller
         ]);
     }
 
+    public function updateBackupFolderPermissions(Request $request)
+    {
+        $data = $request->validate([
+            'operation' => ['required', Rule::in(['grant', 'revoke'])],
+        ]);
+
+        $grant = (string) $data['operation'] === 'grant';
+        $result = $this->applyBackupFolderPermissions($grant);
+        $actionLabel = $grant ? 'Grant' : 'Revoke';
+
+        if ($result['targets'] === 0) {
+            return back()->withErrors([
+                'backup_permissions' => 'No backup folders were found under the configured backup roots.',
+            ]);
+        }
+
+        $status = sprintf(
+            '%s permissions applied. Folders touched: %d, files touched: %d, folders created: %d.',
+            $actionLabel,
+            $result['directories_changed'],
+            $result['files_changed'],
+            $result['directories_created']
+        );
+
+        if (!empty($result['errors'])) {
+            $errorText = 'Some paths could not be updated: ' . implode(' | ', array_slice($result['errors'], 0, 8)) . '. If this persists, run the permission commands as root.';
+
+            return back()
+                ->with('status', $status)
+                ->withErrors(['backup_permissions' => $errorText]);
+        }
+
+        return back()->with('status', $status);
+    }
+
     public function eventsIndex(Request $request)
     {
         $authUser = User::find($request->session()->get('auth.user_id'));
@@ -1694,6 +1729,128 @@ class DeviceController extends Controller
         }
 
         return null;
+    }
+
+    private function applyBackupFolderPermissions(bool $grant): array
+    {
+        $directoryMode = $grant ? 0775 : 0755;
+        $fileMode = $grant ? 0664 : 0644;
+
+        $roots = $this->backupRoots();
+        $deviceRows = Device::query()
+            ->whereIn('type', ['CISCO', 'OLT'])
+            ->orderBy('id')
+            ->get(['id', 'type', 'name', 'metadata']);
+
+        $rootTargets = [];
+        $targets = [];
+        $directoriesCreated = 0;
+
+        foreach ($roots as $root) {
+            if (is_dir($root)) {
+                $rootTargets[] = $root;
+            }
+        }
+
+        foreach ($deviceRows as $device) {
+            $relative = $this->resolveBackupFolderRelativePath($device);
+            if ($relative === null) {
+                continue;
+            }
+
+            $relativePath = str_replace('/', DIRECTORY_SEPARATOR, $relative);
+            foreach ($roots as $root) {
+                if (!is_dir($root)) {
+                    continue;
+                }
+
+                $absolute = rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $relativePath;
+                if ($grant && !is_dir($absolute)) {
+                    try {
+                        File::ensureDirectoryExists($absolute);
+                        if (is_dir($absolute)) {
+                            $directoriesCreated++;
+                        }
+                    } catch (\Throwable) {
+                        // Keep going; permission sync below will report path errors.
+                    }
+                }
+
+                if (is_dir($absolute)) {
+                    $targets[] = $absolute;
+                }
+            }
+        }
+
+        $rootTargets = array_values(array_unique($rootTargets));
+        $targets = array_values(array_unique($targets));
+
+        $directoriesChanged = 0;
+        $filesChanged = 0;
+        $errors = [];
+
+        foreach ($rootTargets as $rootDirectory) {
+            if (!@chmod($rootDirectory, $directoryMode)) {
+                $errors[] = 'chmod failed: ' . $rootDirectory;
+            } else {
+                $directoriesChanged++;
+            }
+        }
+
+        foreach ($targets as $directory) {
+            if (!is_dir($directory)) {
+                continue;
+            }
+
+            if (!@chmod($directory, $directoryMode)) {
+                $errors[] = 'chmod failed: ' . $directory;
+            } else {
+                $directoriesChanged++;
+            }
+
+            try {
+                $iterator = new \RecursiveIteratorIterator(
+                    new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
+                    \RecursiveIteratorIterator::SELF_FIRST
+                );
+            } catch (\Throwable) {
+                $errors[] = 'scan failed: ' . $directory;
+                continue;
+            }
+
+            foreach ($iterator as $item) {
+                $path = $item->getPathname();
+                if ($item->isLink()) {
+                    continue;
+                }
+
+                if ($item->isDir()) {
+                    if (!@chmod($path, $directoryMode)) {
+                        $errors[] = 'chmod failed: ' . $path;
+                    } else {
+                        $directoriesChanged++;
+                    }
+
+                    continue;
+                }
+
+                if ($item->isFile()) {
+                    if (!@chmod($path, $fileMode)) {
+                        $errors[] = 'chmod failed: ' . $path;
+                    } else {
+                        $filesChanged++;
+                    }
+                }
+            }
+        }
+
+        return [
+            'targets' => count($rootTargets) + count($targets),
+            'directories_created' => $directoriesCreated,
+            'directories_changed' => $directoriesChanged,
+            'files_changed' => $filesChanged,
+            'errors' => array_values(array_unique($errors)),
+        ];
     }
 
     private function ensureDeviceBackupFolderExists(Device $device): void

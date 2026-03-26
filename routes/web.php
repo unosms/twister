@@ -67,6 +67,7 @@ Route::middleware(['admin.auth', 'audit.log'])->group(function () {
     Route::post('/devices/{device}/activate', [DeviceController::class, 'activate'])->name('devices.activate');
     Route::post('/devices/{device}/deactivate', [DeviceController::class, 'deactivate'])->name('devices.deactivate');
     Route::post('/devices/{device}/delete', [DeviceController::class, 'destroy'])->name('devices.delete');
+    Route::post('/devices/backup-permissions', [DeviceController::class, 'updateBackupFolderPermissions'])->name('devices.backup-permissions.update');
 
     Route::post('/users', [UserController::class, 'store'])->name('users.store');
     Route::post('/users/export', [UserController::class, 'export'])->name('users.export');
