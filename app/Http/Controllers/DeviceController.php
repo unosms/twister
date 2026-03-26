@@ -1736,21 +1736,14 @@ class DeviceController extends Controller
         $directoryMode = $grant ? 0775 : 0755;
         $fileMode = $grant ? 0664 : 0644;
 
-        $roots = $this->backupRoots();
+        $roots = $this->backupPermissionRoots();
         $deviceRows = Device::query()
             ->whereIn('type', ['CISCO', 'OLT'])
             ->orderBy('id')
             ->get(['id', 'type', 'name', 'metadata']);
 
-        $rootTargets = [];
         $targets = [];
         $directoriesCreated = 0;
-
-        foreach ($roots as $root) {
-            if (is_dir($root)) {
-                $rootTargets[] = $root;
-            }
-        }
 
         foreach ($deviceRows as $device) {
             $relative = $this->resolveBackupFolderRelativePath($device);
@@ -1782,20 +1775,11 @@ class DeviceController extends Controller
             }
         }
 
-        $rootTargets = array_values(array_unique($rootTargets));
         $targets = array_values(array_unique($targets));
 
         $directoriesChanged = 0;
         $filesChanged = 0;
         $errors = [];
-
-        foreach ($rootTargets as $rootDirectory) {
-            if (!@chmod($rootDirectory, $directoryMode)) {
-                $errors[] = 'chmod failed: ' . $rootDirectory;
-            } else {
-                $directoriesChanged++;
-            }
-        }
 
         foreach ($targets as $directory) {
             if (!is_dir($directory)) {
@@ -1845,12 +1829,49 @@ class DeviceController extends Controller
         }
 
         return [
-            'targets' => count($rootTargets) + count($targets),
+            'targets' => count($targets),
             'directories_created' => $directoriesCreated,
             'directories_changed' => $directoriesChanged,
             'files_changed' => $filesChanged,
             'errors' => array_values(array_unique($errors)),
         ];
+    }
+
+    private function backupPermissionRoots(): array
+    {
+        $roots = [];
+
+        $configuredRoots = trim((string) env('BACKUP_ROOTS', ''));
+        if ($configuredRoots !== '') {
+            foreach (explode(',', $configuredRoots) as $root) {
+                $root = trim($root);
+                if ($root !== '') {
+                    $roots[] = $root;
+                }
+            }
+        }
+
+        $singleRoot = trim((string) env('BACKUP_ROOT', ''));
+        if ($singleRoot !== '') {
+            $roots[] = $singleRoot;
+        }
+
+        $normalized = [];
+        foreach ($roots as $root) {
+            $root = rtrim(str_replace('\\', '/', (string) $root), '/');
+            if ($root === '') {
+                continue;
+            }
+            if (!in_array($root, $normalized, true)) {
+                $normalized[] = $root;
+            }
+        }
+
+        if (!empty($normalized)) {
+            return $normalized;
+        }
+
+        return $this->backupRoots();
     }
 
     private function ensureDeviceBackupFolderExists(Device $device): void
