@@ -1947,7 +1947,16 @@ class ScriptController extends Controller
     private function detectBackupFileFromProcessOutput(string $output, string $absolutePath, ?string $relativePath = null): ?array
     {
         $output = trim($output);
-        if ($output === '' || !preg_match('/(bytes copied|copied in|copy complete|copied successfully)/i', $output)) {
+        if ($output === '') {
+            return null;
+        }
+
+        $hasCopyRequest = preg_match('/copy\s+running-config\s+tftp/i', $output) === 1
+            || str_contains(strtolower($output), 'destination filename');
+        $hasCopySuccess = preg_match('/(bytes copied|copied in|copy complete|copied successfully)/i', $output) === 1
+            || preg_match('/^\s*!{2,}\s*$/m', $output) === 1;
+        $hasCopyFailure = preg_match('/(%\s*(error|invalid)|timed?\s*out|tftp:\s*error|no such file|permission denied|connection closed during login|bad secrets|invalid enable password|copy aborted|copy failed)/i', $output) === 1;
+        if (!$hasCopyRequest || (!$hasCopySuccess && $hasCopyFailure)) {
             return null;
         }
 
@@ -2052,19 +2061,30 @@ class ScriptController extends Controller
 
     private function extractDestinationFilenamePathFromOutput(string $output): ?string
     {
-        if (!preg_match('/Destination filename[^\r\n]*\?\s*([^\r\n]+)/i', $output, $matches)) {
-            return null;
+        $patterns = [
+            '/Destination filename[^\r\n]*\?\s*([^\r\n]+)/i',
+            '/Destination filename\s*\[([^\]]+)\]\s*\?/i',
+            '/copy\s+running-config\s+tftp:\/\/[^\s\/]+\/([^\s]+)/i',
+        ];
+
+        foreach ($patterns as $pattern) {
+            if (!preg_match($pattern, $output, $matches)) {
+                continue;
+            }
+
+            $path = trim((string) ($matches[1] ?? ''));
+            if ($path === '') {
+                continue;
+            }
+
+            $path = preg_replace('/[\x00-\x1F\x7F]/', '', $path) ?? $path;
+            $path = str_replace('\\', '/', trim($path, " \t\n\r\0\x0B\"'"));
+            if ($path !== '') {
+                return $path;
+            }
         }
 
-        $path = trim((string) ($matches[1] ?? ''));
-        if ($path === '') {
-            return null;
-        }
-
-        $path = preg_replace('/[\x00-\x1F\x7F]/', '', $path) ?? $path;
-        $path = str_replace('\\', '/', trim($path, " \t\n\r\0\x0B\"'"));
-
-        return $path !== '' ? $path : null;
+        return null;
     }
 
     private function verifyBackupArtifact(Device $device, array $processResult, array $snapshot, array $traceContext): array
