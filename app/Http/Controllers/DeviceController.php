@@ -636,6 +636,8 @@ class DeviceController extends Controller
             $switchSlug = preg_replace('/\s+/', '_', (string) $switchName);
             $switchModel = $data['switch_model'] ?? null;
             $model = $switchModel ?: null;
+            $ciscoPassword = $this->normalizeCredentialInput($data['cisco_password'] ?? null);
+            $ciscoEnablePassword = $this->normalizeCredentialInput($data['enable_password'] ?? null);
 
             $meta['cisco'] = [
                 'name' => $switchName,
@@ -644,8 +646,8 @@ class DeviceController extends Controller
                 'username' => $this->ciscoModelUsesUsername($switchModel)
                     ? $this->normalizeOptionalString($data['cisco_username'] ?? null)
                     : null,
-                'password' => !empty($data['cisco_password']) ? encrypt($data['cisco_password']) : null,
-                'enable_password' => !empty($data['enable_password']) ? encrypt($data['enable_password']) : null,
+                'password' => $ciscoPassword !== null ? encrypt($ciscoPassword) : null,
+                'enable_password' => $ciscoEnablePassword !== null ? encrypt($ciscoEnablePassword) : null,
                 'temp_poll_minutes' => (int) ($data['temp_poll_minutes'] ?? self::TEMP_POLL_MINUTES_DEFAULT),
                 'shbackup' => $data['shbackup'] ?? ($switchSlug !== '' ? 'showbackup.php?name=' . $switchSlug : null),
                 'exec_cmd' => $data['exec_cmd'] ?? ($switchSlug !== '' ? 'exec.php?name=' . $switchSlug : null),
@@ -960,11 +962,13 @@ class DeviceController extends Controller
             } else {
                 unset($cisco['snmp_port']);
             }
-            if (!empty($data['cisco_password'])) {
-                $cisco['password'] = encrypt($data['cisco_password']);
+            $ciscoPassword = $this->normalizeCredentialInput($data['cisco_password'] ?? null);
+            if ($ciscoPassword !== null) {
+                $cisco['password'] = encrypt($ciscoPassword);
             }
-            if (!empty($data['enable_password'])) {
-                $cisco['enable_password'] = encrypt($data['enable_password']);
+            $ciscoEnablePassword = $this->normalizeCredentialInput($data['enable_password'] ?? null);
+            if ($ciscoEnablePassword !== null) {
+                $cisco['enable_password'] = encrypt($ciscoEnablePassword);
             }
             $meta['cisco'] = $cisco;
             $updatedModel = $this->normalizeOptionalString($cisco['switch_model'] ?? null) ?? $updatedModel;
@@ -2311,6 +2315,25 @@ class DeviceController extends Controller
 
         $trimmed = trim((string) $value);
         return $trimmed !== '' ? $trimmed : null;
+    }
+
+    private function normalizeCredentialInput(mixed $value): ?string
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (!is_scalar($value)) {
+            return null;
+        }
+
+        $normalized = trim((string) $value);
+        if ($normalized === '') {
+            return null;
+        }
+
+        $normalized = preg_replace('/[\x00-\x1F\x7F]/u', '', $normalized) ?? $normalized;
+        return $normalized !== '' ? $normalized : null;
     }
 
     private function normalizeServerType(mixed $value): string
