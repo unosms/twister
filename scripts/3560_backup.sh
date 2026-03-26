@@ -6,7 +6,8 @@ PASS="${2:-}"
 ENA="${3:-}"
 LOCATION="${4:-}"
 USER="${5:-${SWITCH_USER:-${USERNAME:-}}}"
-TFTP_SERVER="192.168.88.57"
+TFTP_SERVER="${BACKUP_TFTP_SERVER:-${TFTP_SERVER:-192.168.88.57}}"
+TELNET_TIMEOUT="${BACKUP_TELNET_TIMEOUT:-45}"
 
 DATE_STR=$(date +"%F_%H-%M-%S")
 RENAMED_FILE="${DATE_STR}.txt"
@@ -16,11 +17,21 @@ if [[ -z "$IP" || -z "$PASS" || -z "$ENA" || -z "$LOCATION" ]]; then
     exit 1
 fi
 
-export IP PASS ENA LOCATION USER TFTP_SERVER RENAMED_FILE
+if ! command -v expect >/dev/null 2>&1; then
+    echo "expect is required but not installed"
+    exit 3
+fi
+
+if ! command -v telnet >/dev/null 2>&1; then
+    echo "telnet is required but not installed"
+    exit 4
+fi
+
+export IP PASS ENA LOCATION USER TFTP_SERVER RENAMED_FILE TELNET_TIMEOUT
 
 /usr/bin/expect <<'EOF'
 log_user 1
-set timeout 40
+set timeout $env(TELNET_TIMEOUT)
 
 set IP $env(IP)
 set PASS $env(PASS)

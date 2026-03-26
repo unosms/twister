@@ -1551,7 +1551,7 @@ class ScriptController extends Controller
 
             $attemptCount++;
             $command = ['bash', $scriptPath, $ip, $password, $enablePassword, $location];
-            if ($is3560 && $username) {
+            if ($username) {
                 $command[] = $username;
             }
 
@@ -2078,7 +2078,9 @@ class ScriptController extends Controller
             }
 
             $path = preg_replace('/[\x00-\x1F\x7F]/', '', $path) ?? $path;
+            $path = preg_split('/\s+/', $path, 2)[0] ?? $path;
             $path = str_replace('\\', '/', trim($path, " \t\n\r\0\x0B\"'"));
+            $path = rtrim($path, '?.,;');
             if ($path !== '') {
                 return $path;
             }

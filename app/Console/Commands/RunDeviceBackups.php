@@ -254,13 +254,11 @@ class RunDeviceBackups extends Command
             $command = ['bash', $scriptPath, $ip, $username, $password, $resolvedBackupDirectory['absolute']];
         } elseif ($isNexus) {
             $command = ['bash', $scriptPath, $ip, $username, $password, $location];
-        } elseif ($is3560) {
+        } else {
             $command = ['bash', $scriptPath, $ip, $password, $enablePassword, $location];
             if ($username) {
                 $command[] = $username;
             }
-        } else {
-            $command = ['bash', $scriptPath, $ip, $password, $enablePassword, $location];
         }
 
         $result = $this->runLoggedProcess($command, $traceContext + [
@@ -450,8 +448,6 @@ class RunDeviceBackups extends Command
             '/var/lib/tftpboot',
             '/var/tftpboot',
             '/tftpboot',
-            base_path(),
-            '/var/www/html',
         ])));
     }
 
@@ -499,7 +495,7 @@ class RunDeviceBackups extends Command
         $afterFiles = [];
         $createdFile = null;
         $createdMtime = null;
-        $maxAttempts = 8;
+        $maxAttempts = 20;
 
         for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
             $afterFiles = $this->backupFileMap($absolutePath);
@@ -656,7 +652,9 @@ class RunDeviceBackups extends Command
             }
 
             $path = preg_replace('/[\x00-\x1F\x7F]/', '', $path) ?? $path;
+            $path = preg_split('/\s+/', $path, 2)[0] ?? $path;
             $path = str_replace('\\', '/', trim($path, " \t\n\r\0\x0B\"'"));
+            $path = rtrim($path, '?.,;');
             if ($path !== '') {
                 return $path;
             }
