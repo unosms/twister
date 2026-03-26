@@ -82,6 +82,8 @@ expect {
 proc run_tftp_copy {prompt tftpServer destination} {
     send -- "copy running-config tftp:\r"
     set sawSuccess 0
+    set sawDestination 0
+    set lastError ""
 
     while {1} {
         expect {
@@ -94,6 +96,7 @@ proc run_tftp_copy {prompt tftpServer destination} {
                 exp_continue
             }
             -re {(D|d)estination filename[^\r\n]*} {
+                set sawDestination 1
                 send -- "$destination\r"
                 exp_continue
             }
@@ -105,11 +108,22 @@ proc run_tftp_copy {prompt tftpServer destination} {
                 set sawSuccess 1
                 exp_continue
             }
-            -re {(%Error[^\r\n]*|TFTP put operation failed[^\r\n]*|Error opening tftp[^\r\n]*)} {
-                return [list 0 [string trim $expect_out(0,string)]]
+            -re {(%\s*(Error|Invalid)[^\r\n]*|TFTP put operation failed[^\r\n]*|Error opening tftp[^\r\n]*)} {
+                set lastError [string trim $expect_out(0,string)]
+                exp_continue
             }
             -re $prompt {
+                if {$lastError ne ""} {
+                    return [list 0 $lastError]
+                }
+
                 if {$sawSuccess} {
+                    return [list 1 ""]
+                }
+
+                # Some IOS variants return directly to prompt without "bytes copied";
+                # let Laravel artifact verification decide final success.
+                if {$sawDestination} {
                     return [list 1 ""]
                 }
 
