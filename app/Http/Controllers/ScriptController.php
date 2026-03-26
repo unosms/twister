@@ -2025,6 +2025,10 @@ class ScriptController extends Controller
                     continue;
                 }
 
+                if ($this->backupArtifactSize($candidatePath) <= 0) {
+                    continue;
+                }
+
                 $mtime = filemtime($candidatePath);
                 return [
                     'file' => $candidateName,
@@ -2040,10 +2044,15 @@ class ScriptController extends Controller
         foreach ($searchDirectories as $searchDirectory) {
             $afterFiles = $this->backupFileMap($searchDirectory);
             foreach ($afterFiles as $name => $mtime) {
+                $candidatePath = rtrim($searchDirectory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $name;
+                if ($this->backupArtifactSize($candidatePath) <= 0) {
+                    continue;
+                }
+
                 if ($latestMtime === null || $mtime > $latestMtime) {
                     $latestFile = $name;
                     $latestMtime = $mtime;
-                    $latestFilePath = rtrim($searchDirectory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $name;
+                    $latestFilePath = $candidatePath;
                 }
             }
         }
@@ -2114,13 +2123,25 @@ class ScriptController extends Controller
         $createdMtime = $detected['created_mtime'] ?? null;
 
         if ($createdFile !== null) {
-            ProvisioningTrace::log('backup trace: verification succeeded - backup file detected', $traceContext + [
-                'backup_file' => $createdFile,
-                'backup_modified_at' => date('Y-m-d H:i:s', $createdMtime),
-                'backup_folder' => $resolved['relative'],
-            ]);
+            $createdPath = rtrim((string) ($resolved['absolute'] ?? ''), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $createdFile;
+            $createdSize = $this->backupArtifactSize($createdPath);
+            if ($createdSize > 0) {
+                ProvisioningTrace::log('backup trace: verification succeeded - backup file detected', $traceContext + [
+                    'backup_file' => $createdFile,
+                    'backup_modified_at' => date('Y-m-d H:i:s', $createdMtime),
+                    'backup_folder' => $resolved['relative'],
+                    'backup_size_bytes' => $createdSize,
+                ]);
 
-            return $processResult;
+                return $processResult;
+            }
+
+            $this->discardEmptyBackupArtifact($createdPath);
+            ProvisioningTrace::log('backup trace: verification found empty backup artifact and discarded it', $traceContext + [
+                'backup_file' => $createdFile,
+                'backup_folder' => $resolved['relative'],
+                'backup_path' => $createdPath,
+            ]);
         }
 
         $outputDetected = $this->detectBackupFileFromProcessOutput(
@@ -2132,6 +2153,23 @@ class ScriptController extends Controller
             $outputDetected = $this->moveDetectedBackupIntoResolvedDirectory($outputDetected, (string) ($resolved['absolute'] ?? ''));
             $resolvedAbsolute = (string) ($resolved['absolute'] ?? '');
             $detectedPath = (string) ($outputDetected['path'] ?? '');
+            $detectedSize = $this->backupArtifactSize($detectedPath);
+            if ($detectedSize <= 0) {
+                $this->discardEmptyBackupArtifact($detectedPath);
+                ProvisioningTrace::log('backup trace: verification recovered empty backup artifact from process output and discarded it', $traceContext + [
+                    'backup_file' => $outputDetected['file'] ?? null,
+                    'backup_folder' => $resolved['relative'],
+                    'backup_path' => $detectedPath !== '' ? $detectedPath : null,
+                ]);
+
+                return [
+                    'ok' => false,
+                    'status' => 500,
+                    'message' => 'Backup upload produced an empty file (0 B).',
+                    'output' => trim((string) ($processResult['output'] ?? '') . "\nBackup verification failed: backup file was created as 0 bytes. Check TFTP write permissions and destination path."),
+                ];
+            }
+
             $detectedInResolved = $this->pathIsInsideDirectory($detectedPath, $resolvedAbsolute);
             $detectedInManagedCandidate = $this->pathIsInsideBackupRelativeCandidates(
                 $detectedPath,
@@ -2174,6 +2212,31 @@ class ScriptController extends Controller
             'message' => 'Backup script finished, but no new backup file was created.',
             'output' => trim(($processResult['output'] ?? '') . "\nBackup verification failed: no new backup file was created in {$resolved['relative']}."),
         ];
+    }
+
+    private function backupArtifactSize(?string $path): int
+    {
+        $path = trim((string) $path);
+        if ($path === '' || !is_file($path)) {
+            return 0;
+        }
+
+        $size = @filesize($path);
+        return is_int($size) && $size > 0 ? $size : 0;
+    }
+
+    private function discardEmptyBackupArtifact(?string $path): void
+    {
+        $path = trim((string) $path);
+        if ($path === '' || !is_file($path)) {
+            return;
+        }
+
+        if ($this->backupArtifactSize($path) > 0) {
+            return;
+        }
+
+        @unlink($path);
     }
 
     private function prepareBackupDirectory(string $relative): ?array
@@ -2477,6 +2540,12 @@ class ScriptController extends Controller
                 }
 
                 $name = $file->getFilename();
+                $size = (int) $file->getSize();
+                if ($size <= 0) {
+                    @unlink($file->getPathname());
+                    continue;
+                }
+
                 $mtime = (int) $file->getMTime();
                 $existing = $filesByName[$name] ?? null;
                 if ($existing !== null && ((int) ($existing['mtime'] ?? 0)) >= $mtime) {
@@ -2485,7 +2554,7 @@ class ScriptController extends Controller
 
                 $filesByName[$name] = [
                     'name' => $name,
-                    'size' => (int) $file->getSize(),
+                    'size' => $size,
                     'mtime' => $mtime,
                 ];
             }

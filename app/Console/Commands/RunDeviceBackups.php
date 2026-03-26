@@ -597,6 +597,10 @@ class RunDeviceBackups extends Command
             foreach ($searchDirectories as $directory) {
                 $candidatePath = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $candidateName;
                 if (is_file($candidatePath)) {
+                    if ($this->backupArtifactSize($candidatePath) <= 0) {
+                        continue;
+                    }
+
                     $mtime = filemtime($candidatePath);
 
                     return [
@@ -614,10 +618,15 @@ class RunDeviceBackups extends Command
         foreach ($searchDirectories as $directory) {
             $afterFiles = $this->backupFileMap($directory);
             foreach ($afterFiles as $name => $mtime) {
+                $candidatePath = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $name;
+                if ($this->backupArtifactSize($candidatePath) <= 0) {
+                    continue;
+                }
+
                 if ($latestMtime === null || $mtime > $latestMtime) {
                     $latestFile = $name;
                     $latestMtime = $mtime;
-                    $latestPath = rtrim($directory, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $name;
+                    $latestPath = $candidatePath;
                 }
             }
         }
@@ -676,13 +685,25 @@ class RunDeviceBackups extends Command
         $createdMtime = $detected['created_mtime'] ?? null;
 
         if ($createdFile !== null) {
-            $this->writeProvisioningLog('backup trace: verification succeeded - backup file detected', $this->withoutProvisioningSecrets($traceContext) + [
-                'backup_file' => $createdFile,
-                'backup_modified_at' => date('Y-m-d H:i:s', $createdMtime),
-                'backup_folder' => $snapshot['relative'],
-            ]);
+            $createdPath = rtrim((string) ($snapshot['absolute'] ?? ''), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $createdFile;
+            $createdSize = $this->backupArtifactSize($createdPath);
+            if ($createdSize > 0) {
+                $this->writeProvisioningLog('backup trace: verification succeeded - backup file detected', $this->withoutProvisioningSecrets($traceContext) + [
+                    'backup_file' => $createdFile,
+                    'backup_modified_at' => date('Y-m-d H:i:s', $createdMtime),
+                    'backup_folder' => $snapshot['relative'],
+                    'backup_size_bytes' => $createdSize,
+                ]);
 
-            return $processResult;
+                return $processResult;
+            }
+
+            $this->discardEmptyBackupArtifact($createdPath);
+            $this->writeProvisioningLog('backup trace: verification found empty backup artifact and discarded it', $this->withoutProvisioningSecrets($traceContext) + [
+                'backup_file' => $createdFile,
+                'backup_folder' => $snapshot['relative'],
+                'backup_path' => $createdPath,
+            ]);
         }
 
         $outputDetected = $this->detectBackupFileFromProcessOutput(
@@ -694,6 +715,21 @@ class RunDeviceBackups extends Command
             $outputDetected = $this->moveDetectedBackupIntoDirectory($outputDetected, $snapshot['absolute']);
             $snapshotAbsolute = (string) ($snapshot['absolute'] ?? '');
             $detectedPath = (string) ($outputDetected['path'] ?? '');
+            $detectedSize = $this->backupArtifactSize($detectedPath);
+            if ($detectedSize <= 0) {
+                $this->discardEmptyBackupArtifact($detectedPath);
+                $this->writeProvisioningLog('backup trace: verification recovered empty backup artifact from process output and discarded it', $this->withoutProvisioningSecrets($traceContext) + [
+                    'backup_file' => $outputDetected['file'] ?? null,
+                    'backup_folder' => $snapshot['relative'],
+                    'backup_path' => $detectedPath !== '' ? $detectedPath : null,
+                ]);
+
+                return [
+                    'ok' => false,
+                    'output' => trim((string) ($processResult['output'] ?? '') . "\nBackup verification failed: backup file was created as 0 bytes. Check TFTP write permissions and destination path."),
+                ];
+            }
+
             $detectedInSnapshot = $this->pathIsInsideDirectory($detectedPath, $snapshotAbsolute);
             $detectedInManagedCandidate = $this->pathIsInsideBackupRelativeCandidates(
                 $detectedPath,
@@ -732,6 +768,31 @@ class RunDeviceBackups extends Command
             'ok' => false,
             'output' => trim(($processResult['output'] ?? '') . "\nBackup verification failed: no new backup file was created in {$snapshot['relative']}."),
         ];
+    }
+
+    private function backupArtifactSize(?string $path): int
+    {
+        $path = trim((string) $path);
+        if ($path === '' || !is_file($path)) {
+            return 0;
+        }
+
+        $size = @filesize($path);
+        return is_int($size) && $size > 0 ? $size : 0;
+    }
+
+    private function discardEmptyBackupArtifact(?string $path): void
+    {
+        $path = trim((string) $path);
+        if ($path === '' || !is_file($path)) {
+            return;
+        }
+
+        if ($this->backupArtifactSize($path) > 0) {
+            return;
+        }
+
+        @unlink($path);
     }
 
     private function moveDetectedBackupIntoDirectory(array $detected, string $targetDirectory): array
