@@ -417,10 +417,21 @@ class RunDeviceBackups extends Command
             return null;
         }
 
+        $this->relaxBackupDirectoryPermissions($absolute);
+
         return [
             'relative' => $relative,
             'absolute' => $absolute,
         ];
+    }
+
+    private function relaxBackupDirectoryPermissions(string $absolute): void
+    {
+        if (!is_dir($absolute)) {
+            return;
+        }
+
+        @chmod($absolute, 0777);
     }
 
     private function backupRoots(): array

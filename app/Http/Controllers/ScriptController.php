@@ -2271,6 +2271,7 @@ class ScriptController extends Controller
             }
 
             if (is_dir($candidatePath)) {
+                $this->relaxBackupDirectoryPermissions($candidatePath);
                 $availablePaths[] = $candidatePath;
             }
         }
@@ -2283,6 +2284,15 @@ class ScriptController extends Controller
             'relative' => $relative,
             'absolute' => $availablePaths[0],
         ];
+    }
+
+    private function relaxBackupDirectoryPermissions(string $absolute): void
+    {
+        if (!is_dir($absolute)) {
+            return;
+        }
+
+        @chmod($absolute, 0777);
     }
 
     private function pathIsInsideDirectory(string $path, string $directory): bool

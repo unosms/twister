@@ -1894,6 +1894,7 @@ class DeviceController extends Controller
             }
 
             if (is_dir($absolute)) {
+                $this->relaxBackupDirectoryPermissions($absolute);
                 return;
             }
         }
@@ -1904,6 +1905,15 @@ class DeviceController extends Controller
             'relative_path' => $relative,
             'roots' => $candidateRoots,
         ]);
+    }
+
+    private function relaxBackupDirectoryPermissions(string $absolute): void
+    {
+        if (!is_dir($absolute)) {
+            return;
+        }
+
+        @chmod($absolute, 0777);
     }
 
     private function backupFolderCreationRoots(): array
