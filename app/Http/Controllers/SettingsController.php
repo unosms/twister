@@ -51,6 +51,7 @@ class SettingsController extends Controller
             })
             ->values()
             ->all();
+        $backupScripts = $this->backupScriptInventory();
 
         return view('settings_system', [
             'currentTimezone' => $currentTimezone,
@@ -62,9 +63,11 @@ class SettingsController extends Controller
             'backupScheduleLabel' => BackupSchedule::humanLabel(),
             'backupDevices' => $backupDevices,
             'backupRootOptions' => $this->backupRoots(),
+            'backupScripts' => $backupScripts,
             'maintenanceStats' => [
                 'device_count' => Device::count(),
                 'backup_device_count' => count($backupDevices),
+                'backup_script_count' => count($backupScripts),
                 'alert_count' => $this->tableCount('alerts'),
                 'notification_count' => $this->tableCount('notifications'),
                 'telemetry_count' => $this->tableCount('telemetry_logs'),
@@ -883,6 +886,36 @@ class SettingsController extends Controller
                 '/var/www/html',
             ]))
         )));
+    }
+
+    private function backupScriptInventory(): array
+    {
+        $scriptsDirectory = base_path('scripts');
+        $scriptNames = [
+            '3560_backup.sh',
+            '4948_backup.sh',
+            'nexus_backup.sh',
+            'olt_backup.sh',
+        ];
+
+        return collect($scriptNames)
+            ->map(static function (string $scriptName) use ($scriptsDirectory): array {
+                $path = $scriptsDirectory . DIRECTORY_SEPARATOR . $scriptName;
+                $exists = is_file($path);
+                $mtime = $exists ? @filemtime($path) : null;
+                $size = $exists ? @filesize($path) : null;
+                $permissionOctal = $exists ? @substr(sprintf('%o', (int) @fileperms($path)), -4) : null;
+
+                return [
+                    'name' => $scriptName,
+                    'path' => str_replace('\\', '/', $path),
+                    'exists' => $exists,
+                    'permissions' => $permissionOctal !== false ? $permissionOctal : null,
+                    'size_bytes' => is_int($size) ? $size : null,
+                    'modified_at' => is_int($mtime) ? date('Y-m-d H:i:s', $mtime) : null,
+                ];
+            })
+            ->all();
     }
 
     private function firstNonEmpty(...$values): ?string

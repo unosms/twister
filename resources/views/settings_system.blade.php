@@ -104,6 +104,7 @@ This page is organized around practical system tasks: change the timezone, run o
 <div class="mt-5 flex flex-wrap gap-2">
 <a class="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:border-primary dark:hover:text-primary" href="#timezone-settings">Time Zone</a>
 <a class="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:border-primary dark:hover:text-primary" href="#backup-operations">Backups</a>
+<a class="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:border-primary dark:hover:text-primary" href="#backup-scripts">Backup Scripts</a>
 <a class="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:border-primary dark:hover:text-primary" href="#system-cleanup">Cleanup</a>
 <a class="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:border-primary dark:hover:text-primary" href="#config-backup">Config Backup</a>
 </div>
@@ -283,6 +284,50 @@ Clear All Backups
 Clear Selected Device Backups
 </button>
 </form>
+</div>
+
+<div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800" id="backup-scripts">
+<p class="text-sm font-bold text-slate-900 dark:text-white">Backup Scripts</p>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Runtime status for the backup scripts used by Cisco/Nexus/OLT jobs.</p>
+<div class="mt-4 overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
+<table class="min-w-full divide-y divide-slate-200 text-left text-sm dark:divide-slate-800">
+<thead class="bg-slate-50 dark:bg-slate-900/60">
+<tr>
+<th class="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Script</th>
+<th class="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Status</th>
+<th class="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Permissions</th>
+<th class="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Size</th>
+<th class="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Modified</th>
+</tr>
+</thead>
+<tbody class="divide-y divide-slate-100 bg-white dark:divide-slate-800 dark:bg-slate-950/30">
+@foreach ($backupScripts as $backupScript)
+<tr>
+<td class="px-4 py-3">
+<p class="font-semibold text-slate-900 dark:text-white">{{ $backupScript['name'] }}</p>
+<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ $backupScript['path'] }}</p>
+</td>
+<td class="px-4 py-3">
+@if ($backupScript['exists'])
+<span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">Found</span>
+@else
+<span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-800 dark:bg-red-900/30 dark:text-red-300">Missing</span>
+@endif
+</td>
+<td class="px-4 py-3 font-mono text-xs text-slate-700 dark:text-slate-200">{{ $backupScript['permissions'] ?? '-' }}</td>
+<td class="px-4 py-3 text-slate-700 dark:text-slate-200">{{ isset($backupScript['size_bytes']) ? number_format((int) $backupScript['size_bytes']) . ' B' : '-' }}</td>
+<td class="px-4 py-3 text-slate-700 dark:text-slate-200">{{ $backupScript['modified_at'] ?? '-' }}</td>
+</tr>
+@endforeach
+</tbody>
+</table>
+</div>
+<div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
+<p class="text-xs font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Quick Test Commands</p>
+<pre class="mt-2 overflow-x-auto whitespace-pre-wrap text-xs leading-6 text-slate-700 dark:text-slate-200">cd /var/www/html
+php artisan optimize:clear
+php artisan devices:run-backups --device=&lt;DEVICE_ID&gt; -vvv</pre>
+</div>
 </div>
 
 <div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
