@@ -1335,6 +1335,8 @@ class ScriptController extends Controller
                 'output' => 'Backup folder could not be prepared.',
             ];
         }
+        $backupFileName = now()->format('Y-m-d_H-i-s') . '.txt';
+        $this->prepareTftpUploadTargets($location, $backupFileName);
         $backupSnapshot = $this->snapshotBackupFiles($resolvedBackupDirectory);
 
         ProvisioningTrace::log('backup trace: resolved backup inputs', $traceContext + [
@@ -1468,6 +1470,7 @@ class ScriptController extends Controller
             $scriptPath,
             $ip,
             $location,
+            $backupFileName,
             $username,
             $is3560,
             $passwordCandidates,
@@ -1484,6 +1487,7 @@ class ScriptController extends Controller
         string $scriptPath,
         string $ip,
         string $location,
+        string $backupFileName,
         ?string $username,
         bool $is3560,
         array $passwordCandidates,
@@ -1550,9 +1554,10 @@ class ScriptController extends Controller
             }
 
             $attemptCount++;
-            $command = ['bash', $scriptPath, $ip, $password, $enablePassword, $location];
-            if ($username) {
-                $command[] = $username;
+            if ($is3560) {
+                $command = ['bash', $scriptPath, $ip, $password, $enablePassword, $location, $username ?? '', $backupFileName];
+            } else {
+                $command = ['bash', $scriptPath, $ip, $password, $enablePassword, $location, $backupFileName];
             }
 
             $result = $this->runProcess($command, [], $traceContext + [
@@ -1568,6 +1573,7 @@ class ScriptController extends Controller
                 'device_ip' => $ip,
                 'switch_ip' => $ip,
                 'location' => $location,
+                'backup_file_name' => $backupFileName,
                 'attempt' => $attemptCount,
                 'login_candidate_index' => $loginIndex + 1,
                 'enable_candidate_index' => $enableIndex + 1,
@@ -2284,6 +2290,95 @@ class ScriptController extends Controller
             'relative' => $relative,
             'absolute' => $availablePaths[0],
         ];
+    }
+
+    private function prepareTftpUploadTargets(string $relative, string $fileName): void
+    {
+        $relative = trim(str_replace('\\', '/', $relative), '/');
+        $fileName = basename(trim(str_replace('\\', '/', $fileName)));
+        if ($relative === '' || $fileName === '') {
+            return;
+        }
+
+        foreach ($this->writableBackupRoots() as $root) {
+            $root = rtrim((string) $root, DIRECTORY_SEPARATOR);
+            if ($root === '') {
+                continue;
+            }
+
+            $relativePath = str_replace('/', DIRECTORY_SEPARATOR, $relative);
+            $this->ensureBackupUploadPlaceholder($root . DIRECTORY_SEPARATOR . $relativePath . DIRECTORY_SEPARATOR . $fileName);
+            $this->ensureBackupUploadPlaceholder($root . DIRECTORY_SEPARATOR . $fileName);
+        }
+    }
+
+    private function ensureBackupUploadPlaceholder(string $path): void
+    {
+        $path = trim((string) $path);
+        if ($path === '') {
+            return;
+        }
+
+        $directory = dirname($path);
+        try {
+            if (!is_dir($directory)) {
+                File::ensureDirectoryExists($directory);
+            }
+        } catch (\Throwable) {
+            return;
+        }
+
+        if (is_dir($directory)) {
+            @chmod($directory, 02777);
+        }
+
+        if (!is_file($path)) {
+            @file_put_contents($path, '');
+        }
+
+        if (is_file($path)) {
+            @chmod($path, 0666);
+        }
+    }
+
+    private function writableBackupRoots(): array
+    {
+        $roots = [];
+
+        $configuredRoots = (string) env('BACKUP_ROOTS', '');
+        if ($configuredRoots !== '') {
+            foreach (explode(',', $configuredRoots) as $root) {
+                $root = trim($root);
+                if ($root !== '') {
+                    $roots[] = $root;
+                }
+            }
+        }
+
+        $singleRoot = trim((string) env('BACKUP_ROOT', ''));
+        if ($singleRoot !== '') {
+            $roots[] = $singleRoot;
+        }
+
+        $roots = array_merge($roots, [
+            '/srv/tftp',
+            '/srv/tftpboot',
+            '/var/lib/tftpboot',
+            '/var/tftpboot',
+            '/tftpboot',
+        ]);
+
+        $normalized = [];
+        foreach ($roots as $root) {
+            $root = rtrim(str_replace('\\', '/', (string) $root), '/');
+            if ($root === '' || in_array($root, $normalized, true)) {
+                continue;
+            }
+
+            $normalized[] = $root;
+        }
+
+        return $normalized;
     }
 
     private function relaxBackupDirectoryPermissions(string $absolute): void

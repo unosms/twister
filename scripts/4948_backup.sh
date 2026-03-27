@@ -5,10 +5,14 @@ IP="${1:-}"
 PASS="${2:-}"
 ENA="${3:-}"
 LOCATION="${4:-}"
+BACKUP_FILENAME="${5:-}"
 TFTP_SERVER="${BACKUP_TFTP_SERVER:-192.168.88.57}"
 
 DATE_STR=$(date +"%F_%H-%M-%S")
 RENAMED_FILE="${DATE_STR}.txt"
+if [[ -n "$BACKUP_FILENAME" ]]; then
+    RENAMED_FILE="$(basename "$BACKUP_FILENAME")"
+fi
 
 if [[ -z "$IP" || -z "$PASS" || -z "$ENA" || -z "$LOCATION" ]]; then
     echo "Usage: $0 <SWITCH_IP> <PASSWORD> <ENABLE_PASSWORD> <LOCATION>"

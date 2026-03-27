@@ -190,6 +190,8 @@ class RunDeviceBackups extends Command
                 'message' => 'backup folder could not be prepared',
             ];
         }
+        $backupFileName = date('Y-m-d_H-i-s') . '.txt';
+        $this->prepareTftpUploadTargets($location, $backupFileName);
         $backupSnapshot = $this->snapshotBackupFiles($resolvedBackupDirectory);
 
         $this->writeProvisioningLog('backup trace: scheduled backup inputs resolved', $traceContext + [
@@ -255,9 +257,10 @@ class RunDeviceBackups extends Command
         } elseif ($isNexus) {
             $command = ['bash', $scriptPath, $ip, $username, $password, $location];
         } else {
-            $command = ['bash', $scriptPath, $ip, $password, $enablePassword, $location];
-            if ($username) {
-                $command[] = $username;
+            if ($is3560) {
+                $command = ['bash', $scriptPath, $ip, $password, $enablePassword, $location, $username ?? '', $backupFileName];
+            } else {
+                $command = ['bash', $scriptPath, $ip, $password, $enablePassword, $location, $backupFileName];
             }
         }
 
@@ -268,6 +271,7 @@ class RunDeviceBackups extends Command
             'is_olt' => $isOlt,
             'switch_ip' => $ip,
             'location' => $location,
+            'backup_file_name' => $backupFileName,
             'script_name' => $script,
             'script_path' => $scriptPath,
             'command' => $this->redactBackupCommand($command, $isNexus),
@@ -423,6 +427,55 @@ class RunDeviceBackups extends Command
             'relative' => $relative,
             'absolute' => $absolute,
         ];
+    }
+
+    private function prepareTftpUploadTargets(string $relative, string $fileName): void
+    {
+        $relative = trim(str_replace('\\', '/', $relative), '/');
+        $fileName = basename(trim(str_replace('\\', '/', $fileName)));
+        if ($relative === '' || $fileName === '') {
+            return;
+        }
+
+        foreach ($this->backupRoots() as $root) {
+            $root = rtrim((string) $root, DIRECTORY_SEPARATOR);
+            if ($root === '') {
+                continue;
+            }
+
+            $relativePath = str_replace('/', DIRECTORY_SEPARATOR, $relative);
+            $this->ensureBackupUploadPlaceholder($root . DIRECTORY_SEPARATOR . $relativePath . DIRECTORY_SEPARATOR . $fileName);
+            $this->ensureBackupUploadPlaceholder($root . DIRECTORY_SEPARATOR . $fileName);
+        }
+    }
+
+    private function ensureBackupUploadPlaceholder(string $path): void
+    {
+        $path = trim((string) $path);
+        if ($path === '') {
+            return;
+        }
+
+        $directory = dirname($path);
+        try {
+            if (!is_dir($directory)) {
+                File::ensureDirectoryExists($directory);
+            }
+        } catch (\Throwable) {
+            return;
+        }
+
+        if (is_dir($directory)) {
+            @chmod($directory, 02777);
+        }
+
+        if (!is_file($path)) {
+            @file_put_contents($path, '');
+        }
+
+        if (is_file($path)) {
+            @chmod($path, 0666);
+        }
     }
 
     private function relaxBackupDirectoryPermissions(string $absolute): void
