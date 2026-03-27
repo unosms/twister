@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AppSetting;
 use App\Models\Device;
 use App\Models\DeviceAssignment;
 use App\Models\TelemetryLog;
@@ -230,6 +231,7 @@ class DeviceController extends Controller
             'totalDevices' => $totalDevices,
             'activeDevices' => $activeDevices,
             'firmwareOptions' => $firmwareOptions,
+            'backupTftpServerAddress' => $this->backupTftpServerAddress(),
         ]);
     }
 
@@ -251,8 +253,30 @@ class DeviceController extends Controller
     public function updateBackupFolderPermissions(Request $request)
     {
         $data = $request->validate([
-            'operation' => ['required', Rule::in(['grant', 'revoke'])],
+            'operation' => ['required', Rule::in(['grant', 'revoke', 'save_tftp'])],
+            'tftp_server_address' => ['nullable', 'string', 'max:255'],
         ]);
+
+        $tftpServerAddress = $this->normalizeOptionalString($data['tftp_server_address'] ?? null);
+        if ((string) $data['operation'] === 'save_tftp') {
+            if (!AppSetting::supportsStorage()) {
+                return back()->withErrors([
+                    'backup_permissions' => 'Could not save TFTP server address: settings storage is not available. Run migrations first.',
+                ]);
+            }
+
+            AppSetting::putValue('backup_tftp_server_address', $tftpServerAddress);
+
+            $status = $tftpServerAddress !== null
+                ? "TFTP server address saved: {$tftpServerAddress}."
+                : 'TFTP server address cleared.';
+
+            return back()->with('status', $status);
+        }
+
+        if ($tftpServerAddress !== null && AppSetting::supportsStorage()) {
+            AppSetting::putValue('backup_tftp_server_address', $tftpServerAddress);
+        }
 
         $grant = (string) $data['operation'] === 'grant';
         $result = $this->applyBackupFolderPermissions($grant);
@@ -281,6 +305,20 @@ class DeviceController extends Controller
         }
 
         return back()->with('status', $status);
+    }
+
+    private function backupTftpServerAddress(): string
+    {
+        $configured = AppSetting::supportsStorage()
+            ? AppSetting::getValue('backup_tftp_server_address')
+            : null;
+
+        $normalized = $this->normalizeOptionalString(is_scalar($configured) ? (string) $configured : null);
+        if ($normalized !== null) {
+            return $normalized;
+        }
+
+        return (string) env('BACKUP_TFTP_SERVER', '');
     }
 
     public function eventsIndex(Request $request)
