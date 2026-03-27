@@ -252,15 +252,20 @@ class RunDeviceBackups extends Command
             ];
         }
 
+        $resolvedBackupAbsolute = (string) ($resolvedBackupDirectory['absolute'] ?? '');
+        $localBackupTarget = $resolvedBackupAbsolute !== ''
+            ? rtrim($resolvedBackupAbsolute, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $backupFileName
+            : '';
+
         if ($isOlt) {
             $command = ['bash', $scriptPath, $ip, $username, $password, $resolvedBackupDirectory['absolute']];
         } elseif ($isNexus) {
             $command = ['bash', $scriptPath, $ip, $username, $password, $location];
         } else {
             if ($is3560) {
-                $command = ['bash', $scriptPath, $ip, $password, $enablePassword, $location, $username ?? '', $backupFileName];
+                $command = ['bash', $scriptPath, $ip, $password, $enablePassword, $location, $username ?? '', $backupFileName, $localBackupTarget];
             } else {
-                $command = ['bash', $scriptPath, $ip, $password, $enablePassword, $location, $backupFileName];
+                $command = ['bash', $scriptPath, $ip, $password, $enablePassword, $location, $backupFileName, $localBackupTarget];
             }
         }
 

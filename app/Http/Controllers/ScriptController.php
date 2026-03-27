@@ -1471,6 +1471,7 @@ class ScriptController extends Controller
             $ip,
             $location,
             $backupFileName,
+            (string) ($resolvedBackupDirectory['absolute'] ?? ''),
             $username,
             $is3560,
             $passwordCandidates,
@@ -1488,6 +1489,7 @@ class ScriptController extends Controller
         string $ip,
         string $location,
         string $backupFileName,
+        string $resolvedBackupAbsolute,
         ?string $username,
         bool $is3560,
         array $passwordCandidates,
@@ -1554,10 +1556,13 @@ class ScriptController extends Controller
             }
 
             $attemptCount++;
+            $localBackupTarget = $resolvedBackupAbsolute !== ''
+                ? rtrim($resolvedBackupAbsolute, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $backupFileName
+                : '';
             if ($is3560) {
-                $command = ['bash', $scriptPath, $ip, $password, $enablePassword, $location, $username ?? '', $backupFileName];
+                $command = ['bash', $scriptPath, $ip, $password, $enablePassword, $location, $username ?? '', $backupFileName, $localBackupTarget];
             } else {
-                $command = ['bash', $scriptPath, $ip, $password, $enablePassword, $location, $backupFileName];
+                $command = ['bash', $scriptPath, $ip, $password, $enablePassword, $location, $backupFileName, $localBackupTarget];
             }
 
             $result = $this->runProcess($command, [], $traceContext + [

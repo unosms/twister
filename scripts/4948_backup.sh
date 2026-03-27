@@ -6,6 +6,7 @@ PASS="${2:-}"
 ENA="${3:-}"
 LOCATION="${4:-}"
 BACKUP_FILENAME="${5:-}"
+LOCAL_BACKUP_TARGET="${6:-}"
 DEFAULT_4948_TFTP_SERVER="172.16.208.2"
 COMMON_TFTP_SERVER="192.168.88.57"
 TFTP_SERVER="${BACKUP_TFTP_SERVER:-$DEFAULT_4948_TFTP_SERVER}"
@@ -26,11 +27,11 @@ if [[ -n "$BACKUP_FILENAME" ]]; then
 fi
 
 if [[ -z "$IP" || -z "$PASS" || -z "$ENA" || -z "$LOCATION" ]]; then
-    echo "Usage: $0 <SWITCH_IP> <PASSWORD> <ENABLE_PASSWORD> <LOCATION>"
+    echo "Usage: $0 <SWITCH_IP> <PASSWORD> <ENABLE_PASSWORD> <LOCATION> [BACKUP_FILENAME] [LOCAL_BACKUP_TARGET]"
     exit 1
 fi
 
-export IP PASS ENA LOCATION TFTP_SERVER FALLBACK_TFTP_SERVER RENAMED_FILE
+export IP PASS ENA LOCATION TFTP_SERVER FALLBACK_TFTP_SERVER RENAMED_FILE LOCAL_BACKUP_TARGET
 
 /usr/bin/expect <<'EOF'
 log_user 1
@@ -44,6 +45,8 @@ set TFTP_SERVER $env(TFTP_SERVER)
 set FALLBACK_TFTP_SERVER ""
 if {[info exists env(FALLBACK_TFTP_SERVER)]} { set FALLBACK_TFTP_SERVER $env(FALLBACK_TFTP_SERVER) }
 set RENAMED_FILE $env(RENAMED_FILE)
+set LOCAL_BACKUP_TARGET ""
+if {[info exists env(LOCAL_BACKUP_TARGET)]} { set LOCAL_BACKUP_TARGET $env(LOCAL_BACKUP_TARGET) }
 set prompt {.*[>#] ?$}
 
 proc fail_step {message code} {
@@ -156,6 +159,66 @@ proc run_tftp_copy {prompt tftpServer destination} {
     }
 }
 
+proc capture_local_backup {prompt localTargetPath} {
+    if {$localTargetPath eq ""} {
+        return [list 0 "Direct backup target path is missing"]
+    }
+
+    set localDirectory [file dirname $localTargetPath]
+    if {$localDirectory eq "" || $localDirectory eq "."} {
+        return [list 0 "Direct backup target directory is invalid"]
+    }
+
+    if {[catch {file mkdir $localDirectory} errorMessage]} {
+        return [list 0 "Failed to create direct backup directory: $errorMessage"]
+    }
+
+    if {[file exists $localTargetPath]} {
+        catch {file delete -force $localTargetPath}
+    }
+
+    set previousTimeout $::timeout
+    set ::timeout 180
+    catch {log_file}
+
+    if {[catch {log_file -noappend $localTargetPath} errorMessage]} {
+        set ::timeout $previousTimeout
+        return [list 0 "Failed to open direct backup file: $errorMessage"]
+    }
+
+    send -- "show running-config\r"
+    set captureOk 0
+    set captureError ""
+    expect {
+        -re $prompt { set captureOk 1 }
+        timeout { set captureError "Timed out while capturing running-config" }
+        eof { set captureError "Connection closed while capturing running-config" }
+    }
+
+    catch {log_file}
+    set ::timeout $previousTimeout
+
+    if {!$captureOk} {
+        catch {file delete -force $localTargetPath}
+        return [list 0 $captureError]
+    }
+
+    if {![file exists $localTargetPath]} {
+        return [list 0 "Direct backup file was not created"]
+    }
+
+    set capturedSize 0
+    if {[catch {set capturedSize [file size $localTargetPath]} errorMessage]} {
+        return [list 0 "Failed to inspect direct backup file size: $errorMessage"]
+    }
+
+    if {$capturedSize < 128} {
+        return [list 0 "Direct backup file is too small ($capturedSize bytes)"]
+    }
+
+    return [list 1 ""]
+}
+
 set tftpServers [list $TFTP_SERVER]
 if {$FALLBACK_TFTP_SERVER ne "" && [string compare $FALLBACK_TFTP_SERVER $TFTP_SERVER] != 0} {
     lappend tftpServers $FALLBACK_TFTP_SERVER
@@ -198,7 +261,22 @@ foreach server $tftpServers {
 }
 
 if {!$copySucceeded} {
-    fail_step $lastCopyError 12
+    if {$LOCAL_BACKUP_TARGET ne ""} {
+        send_user "TFTP upload failed; attempting direct CLI capture to local file.\n"
+        set localResult [capture_local_backup $prompt $LOCAL_BACKUP_TARGET]
+        if {[lindex $localResult 0] == 1} {
+            set copySucceeded 1
+            send_user "Direct CLI capture succeeded: $LOCAL_BACKUP_TARGET\n"
+        } else {
+            set localError [string trim [lindex $localResult 1]]
+            if {$lastCopyError ne ""} {
+                fail_step "$lastCopyError | Direct fallback failed: $localError" 12
+            }
+            fail_step "Direct fallback failed: $localError" 12
+        }
+    } else {
+        fail_step $lastCopyError 12
+    }
 }
 
 send -- "exit\r"
