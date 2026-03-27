@@ -396,7 +396,9 @@ class SettingsController extends Controller
                 'files_count' => $scriptFiles->count(),
             ];
 
-            if (class_exists(\ZipArchive::class)) {
+            if ($this->commandBinaryExists('zip')) {
+                $this->createScriptsArchiveWithZipCommand($scriptsRoot, $archivePath, $manifestPayload);
+            } elseif (class_exists(\ZipArchive::class)) {
                 $zip = new \ZipArchive();
                 $openResult = $zip->open($archivePath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
                 if ($openResult !== true) {
@@ -417,7 +419,7 @@ class SettingsController extends Controller
                 $zip->addFromString('manifest.json', json_encode($manifestPayload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
                 $zip->close();
             } else {
-                $this->createScriptsArchiveWithZipCommand($scriptsRoot, $archivePath, $manifestPayload);
+                throw new \RuntimeException('Neither zip command nor ZipArchive is available on this server.');
             }
 
             return response()->download($archivePath, $archiveFileName)->deleteFileAfterSend(true);
@@ -425,7 +427,7 @@ class SettingsController extends Controller
             return redirect()
                 ->route('settings.index')
                 ->withErrors([
-                    'scripts_backup' => 'Could not create scripts backup: ' . $exception->getMessage(),
+                    'scripts_backup' => 'Could not create scripts backup: ' . $exception->getMessage() . ' (Install zip/unzip and php-zip on server if needed.)',
                 ]);
         }
     }
@@ -453,7 +455,9 @@ class SettingsController extends Controller
             $extractRoot = $temporaryImportRoot . DIRECTORY_SEPARATOR . 'extracted';
             File::ensureDirectoryExists($extractRoot);
 
-            if (class_exists(\ZipArchive::class)) {
+            if ($this->commandBinaryExists('unzip')) {
+                $this->extractScriptsArchiveWithUnzipCommand($archivePath, $extractRoot);
+            } elseif (class_exists(\ZipArchive::class)) {
                 $zip = new \ZipArchive();
                 $openResult = $zip->open($archivePath);
                 if ($openResult !== true) {
@@ -497,7 +501,7 @@ class SettingsController extends Controller
                 $zip->close();
                 $zip = null;
             } else {
-                $this->extractScriptsArchiveWithUnzipCommand($archivePath, $extractRoot);
+                throw new \RuntimeException('Neither unzip command nor ZipArchive is available on this server.');
             }
 
             $updatedFiles = $this->applyImportedScripts($extractRoot, $scriptsRoot, true);
@@ -520,7 +524,7 @@ class SettingsController extends Controller
             return redirect()
                 ->route('settings.index')
                 ->withErrors([
-                    'scripts_import' => 'Could not import scripts backup: ' . $exception->getMessage(),
+                    'scripts_import' => 'Could not import scripts backup: ' . $exception->getMessage() . ' (Install zip/unzip and php-zip on server if needed.)',
                 ]);
         } finally {
             if (is_string($temporaryImportRoot) && $temporaryImportRoot !== '' && File::isDirectory($temporaryImportRoot)) {
@@ -688,6 +692,35 @@ class SettingsController extends Controller
 
         if ($writtenFiles <= 0) {
             throw new \RuntimeException('Archive did not contain valid scripts entries.');
+        }
+    }
+
+    private function commandBinaryExists(string $binary): bool
+    {
+        $binary = trim($binary);
+        if ($binary === '') {
+            return false;
+        }
+
+        $commonPaths = [
+            '/usr/bin/' . $binary,
+            '/bin/' . $binary,
+            '/usr/local/bin/' . $binary,
+        ];
+
+        foreach ($commonPaths as $path) {
+            if (is_file($path) && is_executable($path)) {
+                return true;
+            }
+        }
+
+        try {
+            $process = new Process(['which', $binary]);
+            $process->setTimeout(5);
+            $process->run();
+            return $process->isSuccessful() && trim($process->getOutput()) !== '';
+        } catch (\Throwable) {
+            return false;
         }
     }
 
