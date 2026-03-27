@@ -370,10 +370,6 @@ class SettingsController extends Controller
     public function exportScriptsBackup(Request $request)
     {
         try {
-            if (!class_exists(\ZipArchive::class)) {
-                throw new \RuntimeException('ZipArchive is not available on this server.');
-            }
-
             $scriptsRoot = base_path('scripts');
             if (!File::isDirectory($scriptsRoot)) {
                 throw new \RuntimeException('Scripts directory was not found: ' . $scriptsRoot);
@@ -392,32 +388,37 @@ class SettingsController extends Controller
 
             $archiveFileName = 'system-scripts-backup-' . now()->format('Y-m-d_H-i-s') . '.zip';
             $archivePath = $exportDirectory . DIRECTORY_SEPARATOR . $archiveFileName;
-
-            $zip = new \ZipArchive();
-            $openResult = $zip->open($archivePath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
-            if ($openResult !== true) {
-                throw new \RuntimeException('Could not create zip archive (code: ' . $openResult . ').');
-            }
-
-            foreach ($scriptFiles as $scriptFile) {
-                $absolutePath = $scriptFile->getPathname();
-                $relativePath = ltrim(Str::after($absolutePath, $scriptsRoot), '\\/');
-                $relativePath = str_replace('\\', '/', $relativePath);
-                if ($relativePath === '') {
-                    continue;
-                }
-
-                $zip->addFile($absolutePath, 'scripts/' . $relativePath);
-            }
-
-            $zip->addFromString('manifest.json', json_encode([
+            $manifestPayload = [
                 'type' => 'device-control-scripts-backup',
                 'generated_at' => now()->toIso8601String(),
                 'generated_by_user_id' => $request->session()->get('auth.user_id'),
                 'source_root' => str_replace('\\', '/', $scriptsRoot),
                 'files_count' => $scriptFiles->count(),
-            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
-            $zip->close();
+            ];
+
+            if (class_exists(\ZipArchive::class)) {
+                $zip = new \ZipArchive();
+                $openResult = $zip->open($archivePath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+                if ($openResult !== true) {
+                    throw new \RuntimeException('Could not create zip archive (code: ' . $openResult . ').');
+                }
+
+                foreach ($scriptFiles as $scriptFile) {
+                    $absolutePath = $scriptFile->getPathname();
+                    $relativePath = ltrim(Str::after($absolutePath, $scriptsRoot), '\\/');
+                    $relativePath = str_replace('\\', '/', $relativePath);
+                    if ($relativePath === '') {
+                        continue;
+                    }
+
+                    $zip->addFile($absolutePath, 'scripts/' . $relativePath);
+                }
+
+                $zip->addFromString('manifest.json', json_encode($manifestPayload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+                $zip->close();
+            } else {
+                $this->createScriptsArchiveWithZipCommand($scriptsRoot, $archivePath, $manifestPayload);
+            }
 
             return response()->download($archivePath, $archiveFileName)->deleteFileAfterSend(true);
         } catch (\Throwable $exception) {
@@ -432,7 +433,7 @@ class SettingsController extends Controller
     public function importScriptsBackup(Request $request)
     {
         $data = $request->validate([
-            'scripts_backup_archive' => ['required', 'file', 'mimes:zip', 'max:102400'],
+            'scripts_backup_archive' => ['required', 'file', 'mimes:zip', 'mimetypes:application/zip,application/x-zip-compressed,multipart/x-zip', 'max:102400'],
             'replace_existing_scripts' => ['required', 'accepted'],
         ]);
 
@@ -440,10 +441,6 @@ class SettingsController extends Controller
         $zip = null;
 
         try {
-            if (!class_exists(\ZipArchive::class)) {
-                throw new \RuntimeException('ZipArchive is not available on this server.');
-            }
-
             $scriptsRoot = base_path('scripts');
             File::ensureDirectoryExists($scriptsRoot);
 
@@ -456,48 +453,52 @@ class SettingsController extends Controller
             $extractRoot = $temporaryImportRoot . DIRECTORY_SEPARATOR . 'extracted';
             File::ensureDirectoryExists($extractRoot);
 
-            $zip = new \ZipArchive();
-            $openResult = $zip->open($archivePath);
-            if ($openResult !== true) {
-                throw new \RuntimeException('Could not open scripts archive (code: ' . $openResult . ').');
-            }
-
-            for ($index = 0; $index < $zip->numFiles; $index++) {
-                $entryName = $zip->getNameIndex($index);
-                if (!is_string($entryName) || $entryName === '') {
-                    continue;
+            if (class_exists(\ZipArchive::class)) {
+                $zip = new \ZipArchive();
+                $openResult = $zip->open($archivePath);
+                if ($openResult !== true) {
+                    throw new \RuntimeException('Could not open scripts archive (code: ' . $openResult . ').');
                 }
 
-                $normalizedPath = $this->normalizeScriptsZipEntryPath($entryName);
-                if ($normalizedPath === null) {
-                    continue;
-                }
+                for ($index = 0; $index < $zip->numFiles; $index++) {
+                    $entryName = $zip->getNameIndex($index);
+                    if (!is_string($entryName) || $entryName === '') {
+                        continue;
+                    }
 
-                $targetPath = $extractRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $normalizedPath);
-                if ($this->scriptsZipEntryIsDirectory($entryName)) {
-                    File::ensureDirectoryExists($targetPath);
-                    continue;
-                }
+                    $normalizedPath = $this->normalizeScriptsZipEntryPath($entryName);
+                    if ($normalizedPath === null) {
+                        continue;
+                    }
 
-                $stream = $zip->getStream($entryName);
-                if ($stream === false) {
-                    throw new \RuntimeException('Could not read archive entry: ' . $entryName);
-                }
+                    $targetPath = $extractRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $normalizedPath);
+                    if ($this->scriptsZipEntryIsDirectory($entryName)) {
+                        File::ensureDirectoryExists($targetPath);
+                        continue;
+                    }
 
-                File::ensureDirectoryExists(dirname($targetPath));
-                $targetHandle = fopen($targetPath, 'wb');
-                if ($targetHandle === false) {
+                    $stream = $zip->getStream($entryName);
+                    if ($stream === false) {
+                        throw new \RuntimeException('Could not read archive entry: ' . $entryName);
+                    }
+
+                    File::ensureDirectoryExists(dirname($targetPath));
+                    $targetHandle = fopen($targetPath, 'wb');
+                    if ($targetHandle === false) {
+                        fclose($stream);
+                        throw new \RuntimeException('Could not write extracted file: ' . $normalizedPath);
+                    }
+
+                    stream_copy_to_stream($stream, $targetHandle);
                     fclose($stream);
-                    throw new \RuntimeException('Could not write extracted file: ' . $normalizedPath);
+                    fclose($targetHandle);
                 }
 
-                stream_copy_to_stream($stream, $targetHandle);
-                fclose($stream);
-                fclose($targetHandle);
+                $zip->close();
+                $zip = null;
+            } else {
+                $this->extractScriptsArchiveWithUnzipCommand($archivePath, $extractRoot);
             }
-
-            $zip->close();
-            $zip = null;
 
             $updatedFiles = $this->applyImportedScripts($extractRoot, $scriptsRoot, true);
             if ($updatedFiles <= 0) {
@@ -594,6 +595,100 @@ class SettingsController extends Controller
     {
         $entryName = str_replace('\\', '/', $entryName);
         return str_ends_with($entryName, '/');
+    }
+
+    private function createScriptsArchiveWithZipCommand(string $scriptsRoot, string $archivePath, array $manifestPayload): void
+    {
+        $stagingRoot = storage_path('app/exports/scripts/staging-' . (string) Str::uuid());
+        try {
+            File::ensureDirectoryExists($stagingRoot);
+            $stagingScriptsRoot = $stagingRoot . DIRECTORY_SEPARATOR . 'scripts';
+            File::ensureDirectoryExists($stagingScriptsRoot);
+            File::copyDirectory($scriptsRoot, $stagingScriptsRoot);
+            File::put(
+                $stagingRoot . DIRECTORY_SEPARATOR . 'manifest.json',
+                json_encode($manifestPayload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)
+            );
+
+            $process = new Process(['zip', '-rq', $archivePath, 'scripts', 'manifest.json'], $stagingRoot);
+            $process->setTimeout(180);
+            $process->run();
+            if (!$process->isSuccessful()) {
+                $error = trim($process->getErrorOutput());
+                $output = trim($process->getOutput());
+                throw new \RuntimeException(
+                    $error !== ''
+                        ? $error
+                        : ($output !== '' ? $output : 'zip command failed while building scripts backup archive.')
+                );
+            }
+
+            if (!is_file($archivePath) || (int) filesize($archivePath) <= 0) {
+                throw new \RuntimeException('Scripts backup archive was not created.');
+            }
+        } finally {
+            if (File::isDirectory($stagingRoot)) {
+                File::deleteDirectory($stagingRoot);
+            }
+        }
+    }
+
+    private function extractScriptsArchiveWithUnzipCommand(string $archivePath, string $extractRoot): void
+    {
+        $listProcess = new Process(['unzip', '-Z1', $archivePath]);
+        $listProcess->setTimeout(60);
+        $listProcess->run();
+        if (!$listProcess->isSuccessful()) {
+            $error = trim($listProcess->getErrorOutput());
+            $output = trim($listProcess->getOutput());
+            throw new \RuntimeException(
+                $error !== ''
+                    ? $error
+                    : ($output !== '' ? $output : 'Could not inspect scripts backup archive with unzip.')
+            );
+        }
+
+        $entries = preg_split('/\r\n|\r|\n/', trim($listProcess->getOutput())) ?: [];
+        $writtenFiles = 0;
+
+        foreach ($entries as $entryName) {
+            $entryName = trim((string) $entryName);
+            if ($entryName === '') {
+                continue;
+            }
+
+            $normalizedPath = $this->normalizeScriptsZipEntryPath($entryName);
+            if ($normalizedPath === null) {
+                continue;
+            }
+
+            $targetPath = $extractRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $normalizedPath);
+            if ($this->scriptsZipEntryIsDirectory($entryName)) {
+                File::ensureDirectoryExists($targetPath);
+                continue;
+            }
+
+            File::ensureDirectoryExists(dirname($targetPath));
+            $extractProcess = new Process(['unzip', '-p', $archivePath, $entryName]);
+            $extractProcess->setTimeout(120);
+            $extractProcess->run();
+            if (!$extractProcess->isSuccessful()) {
+                $error = trim($extractProcess->getErrorOutput());
+                $output = trim($extractProcess->getOutput());
+                throw new \RuntimeException(
+                    $error !== ''
+                        ? $error
+                        : ($output !== '' ? $output : 'Could not extract archive entry: ' . $entryName)
+                );
+            }
+
+            File::put($targetPath, $extractProcess->getOutput());
+            $writtenFiles++;
+        }
+
+        if ($writtenFiles <= 0) {
+            throw new \RuntimeException('Archive did not contain valid scripts entries.');
+        }
     }
 
     private function buildTimezoneEntries(): array
