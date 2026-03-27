@@ -186,7 +186,7 @@ if {[lindex $primaryResult 0] != 1} {
     set primaryError [string trim [lindex $primaryResult 1]]
     set primaryErrorLower [string tolower $primaryError]
 
-    if {[string match "*permission denied*" $primaryErrorLower] || [string match "*no such file*" $primaryErrorLower] || [string match "*access violation*" $primaryErrorLower]} {
+    if {[string match "*permission denied*" $primaryErrorLower] || [string match "*no such file*" $primaryErrorLower] || [string match "*access violation*" $primaryErrorLower] || [string match "*timed out*" $primaryErrorLower] || [string match "*timeout*" $primaryErrorLower]} {
         send_user "Primary destination failed: $primaryError\n"
         send_user "Retrying using TFTP root destination: $RENAMED_FILE\n"
 
