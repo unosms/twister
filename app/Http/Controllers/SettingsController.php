@@ -64,6 +64,7 @@ class SettingsController extends Controller
             'backupDevices' => $backupDevices,
             'backupRootOptions' => $this->backupRoots(),
             'backupScripts' => $backupScripts,
+            'backupScriptsRoot' => str_replace('\\', '/', base_path('scripts')),
             'maintenanceStats' => [
                 'device_count' => Device::count(),
                 'backup_device_count' => count($backupDevices),
@@ -363,6 +364,68 @@ class SettingsController extends Controller
             return back()->withErrors([
                 'configuration_backup' => 'Could not import configuration backup: ' . $exception->getMessage(),
             ]);
+        }
+    }
+
+    public function exportScriptsBackup(Request $request)
+    {
+        try {
+            if (!class_exists(\ZipArchive::class)) {
+                throw new \RuntimeException('ZipArchive is not available on this server.');
+            }
+
+            $scriptsRoot = base_path('scripts');
+            if (!File::isDirectory($scriptsRoot)) {
+                throw new \RuntimeException('Scripts directory was not found: ' . $scriptsRoot);
+            }
+
+            $scriptFiles = collect(File::allFiles($scriptsRoot))
+                ->filter(static fn (\SplFileInfo $file): bool => $file->isFile())
+                ->values();
+
+            if ($scriptFiles->isEmpty()) {
+                throw new \RuntimeException('No script files were found in the scripts directory.');
+            }
+
+            $exportDirectory = storage_path('app/exports/scripts');
+            File::ensureDirectoryExists($exportDirectory);
+
+            $archiveFileName = 'system-scripts-backup-' . now()->format('Y-m-d_H-i-s') . '.zip';
+            $archivePath = $exportDirectory . DIRECTORY_SEPARATOR . $archiveFileName;
+
+            $zip = new \ZipArchive();
+            $openResult = $zip->open($archivePath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE);
+            if ($openResult !== true) {
+                throw new \RuntimeException('Could not create zip archive (code: ' . $openResult . ').');
+            }
+
+            foreach ($scriptFiles as $scriptFile) {
+                $absolutePath = $scriptFile->getPathname();
+                $relativePath = ltrim(Str::after($absolutePath, $scriptsRoot), '\\/');
+                $relativePath = str_replace('\\', '/', $relativePath);
+                if ($relativePath === '') {
+                    continue;
+                }
+
+                $zip->addFile($absolutePath, 'scripts/' . $relativePath);
+            }
+
+            $zip->addFromString('manifest.json', json_encode([
+                'type' => 'device-control-scripts-backup',
+                'generated_at' => now()->toIso8601String(),
+                'generated_by_user_id' => $request->session()->get('auth.user_id'),
+                'source_root' => str_replace('\\', '/', $scriptsRoot),
+                'files_count' => $scriptFiles->count(),
+            ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+            $zip->close();
+
+            return response()->download($archivePath, $archiveFileName)->deleteFileAfterSend(true);
+        } catch (\Throwable $exception) {
+            return redirect()
+                ->route('settings.index')
+                ->withErrors([
+                    'scripts_backup' => 'Could not create scripts backup: ' . $exception->getMessage(),
+                ]);
         }
     }
 
@@ -891,25 +954,27 @@ class SettingsController extends Controller
     private function backupScriptInventory(): array
     {
         $scriptsDirectory = base_path('scripts');
-        $scriptNames = [
-            '3560_backup.sh',
-            '4948_backup.sh',
-            'nexus_backup.sh',
-            'olt_backup.sh',
-        ];
+        if (!File::isDirectory($scriptsDirectory)) {
+            return [];
+        }
 
-        return collect($scriptNames)
-            ->map(static function (string $scriptName) use ($scriptsDirectory): array {
-                $path = $scriptsDirectory . DIRECTORY_SEPARATOR . $scriptName;
-                $exists = is_file($path);
-                $mtime = $exists ? @filemtime($path) : null;
-                $size = $exists ? @filesize($path) : null;
-                $permissionOctal = $exists ? @substr(sprintf('%o', (int) @fileperms($path)), -4) : null;
+        return collect(File::allFiles($scriptsDirectory))
+            ->filter(static fn (\SplFileInfo $file): bool => $file->isFile())
+            ->sortBy(static fn (\SplFileInfo $file): string => str_replace('\\', '/', $file->getPathname()))
+            ->values()
+            ->map(static function (\SplFileInfo $file) use ($scriptsDirectory): array {
+                $path = $file->getPathname();
+                $relativePath = ltrim(Str::after($path, $scriptsDirectory), '\\/');
+                $relativePath = str_replace('\\', '/', $relativePath);
+
+                $mtime = @filemtime($path);
+                $size = @filesize($path);
+                $permissionOctal = @substr(sprintf('%o', (int) @fileperms($path)), -4);
 
                 return [
-                    'name' => $scriptName,
+                    'name' => $relativePath !== '' ? $relativePath : $file->getFilename(),
                     'path' => str_replace('\\', '/', $path),
-                    'exists' => $exists,
+                    'exists' => true,
                     'permissions' => $permissionOctal !== false ? $permissionOctal : null,
                     'size_bytes' => is_int($size) ? $size : null,
                     'modified_at' => is_int($mtime) ? date('Y-m-d H:i:s', $mtime) : null,

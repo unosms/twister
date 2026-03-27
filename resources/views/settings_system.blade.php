@@ -288,45 +288,26 @@ Clear Selected Device Backups
 
 <div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800" id="backup-scripts">
 <p class="text-sm font-bold text-slate-900 dark:text-white">Backup Scripts</p>
-<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Runtime status for the backup scripts used by Cisco/Nexus/OLT jobs.</p>
-<div class="mt-4 overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-800">
-<table class="min-w-full divide-y divide-slate-200 text-left text-sm dark:divide-slate-800">
-<thead class="bg-slate-50 dark:bg-slate-900/60">
-<tr>
-<th class="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Script</th>
-<th class="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Status</th>
-<th class="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Permissions</th>
-<th class="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Size</th>
-<th class="px-4 py-3 font-semibold text-slate-700 dark:text-slate-200">Modified</th>
-</tr>
-</thead>
-<tbody class="divide-y divide-slate-100 bg-white dark:divide-slate-800 dark:bg-slate-950/30">
-@foreach ($backupScripts as $backupScript)
-<tr>
-<td class="px-4 py-3">
-<p class="font-semibold text-slate-900 dark:text-white">{{ $backupScript['name'] }}</p>
-<p class="mt-1 text-xs text-slate-500 dark:text-slate-400">{{ $backupScript['path'] }}</p>
-</td>
-<td class="px-4 py-3">
-@if ($backupScript['exists'])
-<span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-bold text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300">Found</span>
-@else
-<span class="inline-flex items-center rounded-full bg-red-100 px-2.5 py-1 text-xs font-bold text-red-800 dark:bg-red-900/30 dark:text-red-300">Missing</span>
-@endif
-</td>
-<td class="px-4 py-3 font-mono text-xs text-slate-700 dark:text-slate-200">{{ $backupScript['permissions'] ?? '-' }}</td>
-<td class="px-4 py-3 text-slate-700 dark:text-slate-200">{{ isset($backupScript['size_bytes']) ? number_format((int) $backupScript['size_bytes']) . ' B' : '-' }}</td>
-<td class="px-4 py-3 text-slate-700 dark:text-slate-200">{{ $backupScript['modified_at'] ?? '-' }}</td>
-</tr>
-@endforeach
-</tbody>
-</table>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Download one ZIP file containing all automation scripts from the system scripts directory.</p>
+@if ($errors->has('scripts_backup'))
+<div class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+{{ $errors->first('scripts_backup') }}
 </div>
-<div class="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
-<p class="text-xs font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Quick Test Commands</p>
-<pre class="mt-2 overflow-x-auto whitespace-pre-wrap text-xs leading-6 text-slate-700 dark:text-slate-200">cd /var/www/html
-php artisan optimize:clear
-php artisan devices:run-backups --device=&lt;DEVICE_ID&gt; -vvv</pre>
+@endif
+<div class="mt-4 grid gap-4 md:grid-cols-2">
+<div class="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
+<p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Scripts Source</p>
+<p class="mt-2 break-all text-xs font-semibold text-slate-700 dark:text-slate-200">{{ $backupScriptsRoot }}</p>
+<p class="mt-3 text-sm text-slate-600 dark:text-slate-300">{{ number_format($maintenanceStats['backup_script_count'] ?? count($backupScripts)) }} script files detected.</p>
+</div>
+<div class="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
+<p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Download</p>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Creates a fresh backup archive every time you click.</p>
+<a class="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-primary/90" href="{{ route('settings.scripts.export') }}">
+<span class="material-symbols-outlined text-[18px]">download</span>
+Download All Scripts Backup
+</a>
+</div>
 </div>
 </div>
 
