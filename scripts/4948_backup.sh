@@ -6,7 +6,18 @@ PASS="${2:-}"
 ENA="${3:-}"
 LOCATION="${4:-}"
 BACKUP_FILENAME="${5:-}"
-TFTP_SERVER="${BACKUP_TFTP_SERVER:-192.168.88.57}"
+DEFAULT_4948_TFTP_SERVER="172.16.208.2"
+COMMON_TFTP_SERVER="192.168.88.57"
+TFTP_SERVER="${BACKUP_TFTP_SERVER:-$DEFAULT_4948_TFTP_SERVER}"
+FALLBACK_TFTP_SERVER="${BACKUP_TFTP_SERVER_FALLBACK:-$COMMON_TFTP_SERVER}"
+
+if [[ "$FALLBACK_TFTP_SERVER" == "$TFTP_SERVER" ]]; then
+    if [[ "$TFTP_SERVER" == "$COMMON_TFTP_SERVER" ]]; then
+        FALLBACK_TFTP_SERVER="$DEFAULT_4948_TFTP_SERVER"
+    else
+        FALLBACK_TFTP_SERVER="$COMMON_TFTP_SERVER"
+    fi
+fi
 
 DATE_STR=$(date +"%F_%H-%M-%S")
 RENAMED_FILE="${DATE_STR}.txt"
@@ -19,7 +30,7 @@ if [[ -z "$IP" || -z "$PASS" || -z "$ENA" || -z "$LOCATION" ]]; then
     exit 1
 fi
 
-export IP PASS ENA LOCATION TFTP_SERVER RENAMED_FILE
+export IP PASS ENA LOCATION TFTP_SERVER FALLBACK_TFTP_SERVER RENAMED_FILE
 
 /usr/bin/expect <<'EOF'
 log_user 1
@@ -30,6 +41,8 @@ set PASS $env(PASS)
 set ENA $env(ENA)
 set LOCATION $env(LOCATION)
 set TFTP_SERVER $env(TFTP_SERVER)
+set FALLBACK_TFTP_SERVER ""
+if {[info exists env(FALLBACK_TFTP_SERVER)]} { set FALLBACK_TFTP_SERVER $env(FALLBACK_TFTP_SERVER) }
 set RENAMED_FILE $env(RENAMED_FILE)
 set prompt {.*[>#] ?$}
 
@@ -143,23 +156,49 @@ proc run_tftp_copy {prompt tftpServer destination} {
     }
 }
 
-set primaryDestination "$LOCATION/$RENAMED_FILE"
-set primaryResult [run_tftp_copy $prompt $TFTP_SERVER $primaryDestination]
-if {[lindex $primaryResult 0] != 1} {
+set tftpServers [list $TFTP_SERVER]
+if {$FALLBACK_TFTP_SERVER ne "" && [string compare $FALLBACK_TFTP_SERVER $TFTP_SERVER] != 0} {
+    lappend tftpServers $FALLBACK_TFTP_SERVER
+}
+
+set copySucceeded 0
+set lastCopyError "Backup copy failed."
+
+foreach server $tftpServers {
+    if {$server ne $TFTP_SERVER} {
+        send_user "Retrying backup copy with alternate TFTP server: $server\n"
+    }
+
+    set primaryDestination "$LOCATION/$RENAMED_FILE"
+    set primaryResult [run_tftp_copy $prompt $server $primaryDestination]
+    if {[lindex $primaryResult 0] == 1} {
+        set copySucceeded 1
+        break
+    }
+
     set primaryError [string trim [lindex $primaryResult 1]]
     set primaryErrorLower [string tolower $primaryError]
+    set lastCopyError $primaryError
 
     if {[string match "*permission denied*" $primaryErrorLower] || [string match "*no such file*" $primaryErrorLower] || [string match "*access violation*" $primaryErrorLower] || [string match "*timed out*" $primaryErrorLower] || [string match "*timeout*" $primaryErrorLower]} {
         send_user "Primary destination failed: $primaryError\n"
         send_user "Retrying using TFTP root destination: $RENAMED_FILE\n"
 
-        set fallbackResult [run_tftp_copy $prompt $TFTP_SERVER $RENAMED_FILE]
-        if {[lindex $fallbackResult 0] != 1} {
-            fail_step [lindex $fallbackResult 1] 12
+        set rootResult [run_tftp_copy $prompt $server $RENAMED_FILE]
+        if {[lindex $rootResult 0] == 1} {
+            set copySucceeded 1
+            break
         }
-    } else {
-        fail_step $primaryError 12
+
+        set lastCopyError [string trim [lindex $rootResult 1]]
+        continue
     }
+
+    fail_step $primaryError 12
+}
+
+if {!$copySucceeded} {
+    fail_step $lastCopyError 12
 }
 
 send -- "exit\r"
