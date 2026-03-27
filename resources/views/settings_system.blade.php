@@ -299,31 +299,35 @@ Clear Selected Device Backups
 {{ $errors->first('scripts_import') }}
 </div>
 @endif
-<div class="mt-4 grid gap-4 xl:grid-cols-3">
-<div class="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
+<div class="mt-6 grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
+<div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
+<p class="text-sm font-bold text-slate-900 dark:text-white">Export Scripts Backup</p>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Download all files from the system scripts directory as a single ZIP archive.</p>
+<div class="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/40">
 <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Scripts Source</p>
 <p class="mt-2 break-all text-xs font-semibold text-slate-700 dark:text-slate-200">{{ $backupScriptsRoot }}</p>
 <p class="mt-3 text-sm text-slate-600 dark:text-slate-300">{{ number_format($maintenanceStats['backup_script_count'] ?? count($backupScripts)) }} script files detected.</p>
 </div>
-<div class="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
-<p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Download</p>
-<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Creates a fresh backup archive every time you click.</p>
-<a class="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-primary/90" href="{{ route('settings.scripts.export') }}">
+<a class="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-primary/90" href="{{ route('settings.scripts.export') }}">
 <span class="material-symbols-outlined text-[18px]">download</span>
-Download All Scripts Backup
+Export Scripts Backup
 </a>
 </div>
-<div class="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
-<p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Import</p>
-<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Upload a ZIP previously exported from this panel.</p>
-<form class="mt-3 space-y-3" method="POST" action="{{ route('settings.scripts.import') }}" enctype="multipart/form-data" onsubmit="return confirm('This will replace existing files in scripts/. Continue?');">
+
+<div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
+<p class="text-sm font-bold text-slate-900 dark:text-white">Import Scripts Backup</p>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Upload a ZIP exported from this panel to restore or update files in `scripts/`.</p>
+<form class="mt-5 space-y-4" method="POST" action="{{ route('settings.scripts.import') }}" enctype="multipart/form-data" onsubmit="return confirm('Importing a scripts backup replaces the existing scripts files. Continue?');">
 @csrf
-<input class="block w-full cursor-pointer rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-2 file:text-xs file:font-bold file:text-white hover:file:bg-primary/90 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200" name="scripts_backup_archive" type="file" accept=".zip" required>
-<label class="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-300">
-<input class="mt-0.5 rounded border-slate-300 text-primary focus:ring-primary dark:border-slate-600" name="replace_existing_scripts" type="checkbox" value="1" required>
-<span>Replace existing files inside `scripts/` with the uploaded backup.</span>
+<div>
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-200" for="scripts_backup_archive">Scripts Backup File</label>
+<input class="mt-2 block w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 file:mr-4 file:rounded-xl file:border-0 file:bg-slate-100 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-slate-700 hover:file:bg-slate-200 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white dark:file:bg-slate-800 dark:file:text-slate-200 dark:hover:file:bg-slate-700" id="scripts_backup_archive" name="scripts_backup_archive" type="file" accept=".zip,application/zip" required/>
+</div>
+<label class="flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900 dark:border-amber-900/60 dark:bg-amber-950/25 dark:text-amber-200">
+<input class="mt-1 rounded border-amber-400 text-primary focus:ring-primary" type="checkbox" name="replace_existing_scripts" value="1" required/>
+<span>I understand this will replace existing files inside `scripts/` with files from the uploaded backup ZIP.</span>
 </label>
-<button class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" type="submit">
+<button class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-5 py-3 text-sm font-bold text-amber-800 transition hover:bg-amber-100 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-300 dark:hover:bg-amber-950/35" type="submit">
 <span class="material-symbols-outlined text-[18px]">upload</span>
 Import Scripts Backup
 </button>
