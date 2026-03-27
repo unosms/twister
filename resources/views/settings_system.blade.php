@@ -288,13 +288,18 @@ Clear Selected Device Backups
 
 <div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800" id="backup-scripts">
 <p class="text-sm font-bold text-slate-900 dark:text-white">Backup Scripts</p>
-<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Download one ZIP file containing all automation scripts from the system scripts directory.</p>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Export all scripts to a ZIP backup, or import a scripts backup ZIP to restore/update automation scripts.</p>
 @if ($errors->has('scripts_backup'))
 <div class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
 {{ $errors->first('scripts_backup') }}
 </div>
 @endif
-<div class="mt-4 grid gap-4 md:grid-cols-2">
+@if ($errors->has('scripts_import'))
+<div class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+{{ $errors->first('scripts_import') }}
+</div>
+@endif
+<div class="mt-4 grid gap-4 xl:grid-cols-3">
 <div class="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
 <p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Scripts Source</p>
 <p class="mt-2 break-all text-xs font-semibold text-slate-700 dark:text-slate-200">{{ $backupScriptsRoot }}</p>
@@ -307,6 +312,22 @@ Clear Selected Device Backups
 <span class="material-symbols-outlined text-[18px]">download</span>
 Download All Scripts Backup
 </a>
+</div>
+<div class="rounded-xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900/50">
+<p class="text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">Import</p>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Upload a ZIP previously exported from this panel.</p>
+<form class="mt-3 space-y-3" method="POST" action="{{ route('settings.scripts.import') }}" enctype="multipart/form-data" onsubmit="return confirm('This will replace existing files in scripts/. Continue?');">
+@csrf
+<input class="block w-full cursor-pointer rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-primary file:px-3 file:py-2 file:text-xs file:font-bold file:text-white hover:file:bg-primary/90 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200" name="scripts_backup_archive" type="file" accept=".zip" required>
+<label class="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-300">
+<input class="mt-0.5 rounded border-slate-300 text-primary focus:ring-primary dark:border-slate-600" name="replace_existing_scripts" type="checkbox" value="1" required>
+<span>Replace existing files inside `scripts/` with the uploaded backup.</span>
+</label>
+<button class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" type="submit">
+<span class="material-symbols-outlined text-[18px]">upload</span>
+Import Scripts Backup
+</button>
+</form>
 </div>
 </div>
 </div>

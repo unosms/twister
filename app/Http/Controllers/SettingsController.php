@@ -429,6 +429,173 @@ class SettingsController extends Controller
         }
     }
 
+    public function importScriptsBackup(Request $request)
+    {
+        $data = $request->validate([
+            'scripts_backup_archive' => ['required', 'file', 'mimes:zip', 'max:102400'],
+            'replace_existing_scripts' => ['required', 'accepted'],
+        ]);
+
+        $temporaryImportRoot = null;
+        $zip = null;
+
+        try {
+            if (!class_exists(\ZipArchive::class)) {
+                throw new \RuntimeException('ZipArchive is not available on this server.');
+            }
+
+            $scriptsRoot = base_path('scripts');
+            File::ensureDirectoryExists($scriptsRoot);
+
+            $archivePath = $data['scripts_backup_archive']->getRealPath();
+            if (!is_string($archivePath) || $archivePath === '') {
+                throw new \RuntimeException('Could not access the uploaded scripts archive.');
+            }
+
+            $temporaryImportRoot = storage_path('app/imports/scripts/' . (string) Str::uuid());
+            $extractRoot = $temporaryImportRoot . DIRECTORY_SEPARATOR . 'extracted';
+            File::ensureDirectoryExists($extractRoot);
+
+            $zip = new \ZipArchive();
+            $openResult = $zip->open($archivePath);
+            if ($openResult !== true) {
+                throw new \RuntimeException('Could not open scripts archive (code: ' . $openResult . ').');
+            }
+
+            for ($index = 0; $index < $zip->numFiles; $index++) {
+                $entryName = $zip->getNameIndex($index);
+                if (!is_string($entryName) || $entryName === '') {
+                    continue;
+                }
+
+                $normalizedPath = $this->normalizeScriptsZipEntryPath($entryName);
+                if ($normalizedPath === null) {
+                    continue;
+                }
+
+                $targetPath = $extractRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $normalizedPath);
+                if ($this->scriptsZipEntryIsDirectory($entryName)) {
+                    File::ensureDirectoryExists($targetPath);
+                    continue;
+                }
+
+                $stream = $zip->getStream($entryName);
+                if ($stream === false) {
+                    throw new \RuntimeException('Could not read archive entry: ' . $entryName);
+                }
+
+                File::ensureDirectoryExists(dirname($targetPath));
+                $targetHandle = fopen($targetPath, 'wb');
+                if ($targetHandle === false) {
+                    fclose($stream);
+                    throw new \RuntimeException('Could not write extracted file: ' . $normalizedPath);
+                }
+
+                stream_copy_to_stream($stream, $targetHandle);
+                fclose($stream);
+                fclose($targetHandle);
+            }
+
+            $zip->close();
+            $zip = null;
+
+            $updatedFiles = $this->applyImportedScripts($extractRoot, $scriptsRoot, true);
+            if ($updatedFiles <= 0) {
+                throw new \RuntimeException('Archive did not contain any files under scripts/.');
+            }
+
+            return redirect()
+                ->route('settings.index')
+                ->with('status', "Scripts backup imported successfully. Updated {$updatedFiles} file(s).");
+        } catch (\Throwable $exception) {
+            if ($zip instanceof \ZipArchive) {
+                try {
+                    $zip->close();
+                } catch (\Throwable) {
+                    // Ignore close failures while handling the original error.
+                }
+            }
+
+            return redirect()
+                ->route('settings.index')
+                ->withErrors([
+                    'scripts_import' => 'Could not import scripts backup: ' . $exception->getMessage(),
+                ]);
+        } finally {
+            if (is_string($temporaryImportRoot) && $temporaryImportRoot !== '' && File::isDirectory($temporaryImportRoot)) {
+                File::deleteDirectory($temporaryImportRoot);
+            }
+        }
+    }
+
+    private function applyImportedScripts(string $extractRoot, string $scriptsRoot, bool $replaceExisting): int
+    {
+        $extractedScriptsRoot = $extractRoot . DIRECTORY_SEPARATOR . 'scripts';
+        if (!File::isDirectory($extractedScriptsRoot)) {
+            return 0;
+        }
+
+        if ($replaceExisting && File::isDirectory($scriptsRoot)) {
+            foreach (File::allFiles($scriptsRoot) as $existingFile) {
+                if ($existingFile->isFile()) {
+                    File::delete($existingFile->getPathname());
+                }
+            }
+        }
+
+        $updatedFiles = 0;
+        foreach (File::allFiles($extractedScriptsRoot) as $sourceFile) {
+            if (!$sourceFile->isFile()) {
+                continue;
+            }
+
+            $sourcePath = $sourceFile->getPathname();
+            $relativePath = ltrim(Str::after($sourcePath, $extractedScriptsRoot), '\\/');
+            $relativePath = str_replace('\\', '/', $relativePath);
+            if ($relativePath === '' || str_contains($relativePath, '..')) {
+                continue;
+            }
+
+            $targetPath = $scriptsRoot . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relativePath);
+            File::ensureDirectoryExists(dirname($targetPath));
+            File::copy($sourcePath, $targetPath);
+
+            if (str_ends_with(strtolower($targetPath), '.sh')) {
+                @chmod($targetPath, 0755);
+            }
+
+            $updatedFiles++;
+        }
+
+        return $updatedFiles;
+    }
+
+    private function normalizeScriptsZipEntryPath(string $entryName): ?string
+    {
+        $path = trim(str_replace('\\', '/', $entryName));
+        if ($path === '') {
+            return null;
+        }
+
+        $path = ltrim($path, '/');
+        $path = preg_replace('#/+#', '/', $path) ?? $path;
+        if ($path === '' || str_contains($path, '..') || preg_match('/^[A-Za-z]:/', $path) === 1) {
+            return null;
+        }
+
+        if ($path === 'scripts' || str_starts_with($path, 'scripts/')) {
+            return $path;
+        }
+
+        return null;
+    }
+
+    private function scriptsZipEntryIsDirectory(string $entryName): bool
+    {
+        $entryName = str_replace('\\', '/', $entryName);
+        return str_ends_with($entryName, '/');
+    }
+
     private function buildTimezoneEntries(): array
     {
         $entries = [];
