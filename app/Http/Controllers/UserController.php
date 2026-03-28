@@ -99,20 +99,39 @@ class UserController extends Controller
     public function index(Request $request)
     {
         $filters = $this->normalizeUserFilters($request);
+        $editUserId = max(0, (int) $request->query('edit_user', 0));
 
         $userQuery = $this->buildFilteredUserQuery($filters)
-            ->orderBy('name')
-            ->with(['commandTemplates', 'permittedDevices'])
             ->withCount('devices');
 
+        $this->applySuperAdminFirstOrdering($userQuery);
+        $userQuery->orderByRaw('LOWER(COALESCE(name, \'\')) ASC');
+
         $users = $userQuery->paginate(10)->withQueryString();
+        $selectedEditUser = null;
+        if ($editUserId > 0) {
+            $selectedEditUser = $users->getCollection()->first(
+                static fn (User $candidate): bool => (int) $candidate->id === $editUserId
+            );
+        }
+
+        if ($selectedEditUser instanceof User) {
+            $selectedEditUser->load(['commandTemplates', 'permittedDevices']);
+        } else {
+            $editUserId = 0;
+        }
+
+        $formViewData = $editUserId > 0
+            ? $this->buildUserFormViewData()
+            : $this->emptyUserFormViewData();
 
         return view('user_management_tables_drawer', array_merge([
             'users' => $users,
             'filters' => $filters,
+            'editUserId' => $editUserId,
             'authUser' => $this->resolveCurrentUser($request),
             'canManageUserIdentity' => $this->currentUserIsSuperAdmin($request),
-        ], $this->buildUserFormViewData()));
+        ], $formViewData));
     }
 
     public function store(Request $request)
@@ -325,6 +344,45 @@ class UserController extends Controller
             'telegramSeverityOptions' => self::TELEGRAM_SEVERITIES,
             'telegramEventTypeOptions' => self::TELEGRAM_EVENT_TYPES,
         ];
+    }
+
+    private function emptyUserFormViewData(): array
+    {
+        return [
+            'devices' => collect(),
+            'commandTemplates' => collect(),
+            'graphInterfaceOptionsByDevice' => [],
+            'avatarStorageReady' => User::supportsAvatarStorage(),
+            'assignedDeviceGraphAccessReady' => User::supportsAssignedDeviceGraphAccess(),
+            'assignedDeviceEventAccessReady' => User::supportsAssignedDeviceEventAccess(),
+            'passwordRevealStorageReady' => User::supportsPasswordRevealStorage(),
+            'deviceGraphScopeReady' => DeviceGraphPermission::supportsScopedAccess(),
+            'deviceEventScopeReady' => DeviceEventPermission::supportsScopedAccess(),
+            'deviceEventInterfaceScopeReady' => DeviceEventPermission::supportsInterfaceScope(),
+            'telegramDeviceInterfaceScopeReady' => User::supportsTelegramDeviceInterfaceScope(),
+            'deviceCommandRestrictionsReady' => DevicePermission::supportsAllowedCommandTemplateIds(),
+            'telegramSeverityOptions' => self::TELEGRAM_SEVERITIES,
+            'telegramEventTypeOptions' => self::TELEGRAM_EVENT_TYPES,
+        ];
+    }
+
+    private function applySuperAdminFirstOrdering(Builder $query): void
+    {
+        $identifiers = array_values(array_unique(array_filter(array_map(
+            static fn ($value): string => Str::lower(trim((string) $value)),
+            config('admin.super_admin_identifiers', [])
+        ), static fn (string $value): bool => $value !== '')));
+
+        if ($identifiers === []) {
+            return;
+        }
+
+        $placeholders = implode(',', array_fill(0, count($identifiers), '?'));
+        $bindings = array_merge($identifiers, $identifiers);
+        $query->orderByRaw(
+            "CASE WHEN role = 'admin' AND (LOWER(COALESCE(name, '')) IN ({$placeholders}) OR LOWER(COALESCE(email, '')) IN ({$placeholders})) THEN 0 ELSE 1 END ASC",
+            $bindings
+        );
     }
 
     private function buildGraphInterfaceOptionsByDevice(\Illuminate\Support\Collection $devices): array

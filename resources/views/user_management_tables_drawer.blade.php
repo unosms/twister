@@ -175,6 +175,13 @@ $currentAuthUserId = session('auth.user_id');
 $isCurrentAuthUser = is_numeric($currentAuthUserId) && (int) $currentAuthUserId === (int) $user->id;
 $isSuperAdmin = $user->isSuperAdmin();
 $canEditProtectedSelf = $isSuperAdmin && $isCurrentAuthUser;
+$isEditTarget = (int) ($editUserId ?? 0) === (int) $user->id;
+$editQuery = request()->query();
+$editQuery['edit_user'] = (int) $user->id;
+$closeQuery = request()->query();
+unset($closeQuery['edit_user']);
+$editUrl = route('users.index', $editQuery);
+$closeUrl = route('users.index', $closeQuery);
 $roleClass = $isSuperAdmin
     ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-200'
     : (($role === 'admin')
@@ -212,14 +219,14 @@ $statusClass = $isActive
 <div class="inline-flex flex-wrap items-center justify-end gap-2">
 <?php if($isSuperAdmin): ?>
 <?php if($canEditProtectedSelf): ?>
-<button class="text-primary hover:text-primary/70 font-bold text-sm" type="button" data-no-dispatch="true" data-user-edit="<?php echo e($user->id); ?>">Edit</button>
+<a class="text-primary hover:text-primary/70 font-bold text-sm" href="<?php echo e($editUrl); ?>">Edit</a>
 <?php endif; ?>
 <span class="px-3 py-1.5 text-xs font-semibold text-amber-700 border border-amber-200 rounded-lg bg-amber-50 dark:bg-amber-500/10 dark:border-amber-500/20 dark:text-amber-200">Protected Super Admin</span>
 <?php if($isCurrentAuthUser): ?>
 <span class="px-3 py-1.5 text-xs font-semibold text-slate-400 border border-slate-200 rounded-lg cursor-not-allowed">Current Account</span>
 <?php endif; ?>
 <?php else: ?>
-<button class="text-primary hover:text-primary/70 font-bold text-sm" type="button" data-no-dispatch="true" data-user-edit="<?php echo e($user->id); ?>">Edit</button>
+<a class="text-primary hover:text-primary/70 font-bold text-sm" href="<?php echo e($editUrl); ?>">Edit</a>
 <?php if($role !== 'admin'): ?>
 <form method="POST" action="<?php echo e(route('users.status')); ?>" class="inline">
 <?php echo csrf_field(); ?>
@@ -243,8 +250,8 @@ $statusClass = $isActive
 </div>
 </td>
 </tr>
-<?php if(!$isSuperAdmin || $canEditProtectedSelf): ?>
-<tr class="hidden bg-gray-50/60 dark:bg-gray-900/40" data-user-edit-row="<?php echo e($user->id); ?>">
+<?php if((!$isSuperAdmin || $canEditProtectedSelf) && $isEditTarget): ?>
+<tr class="bg-gray-50/60 dark:bg-gray-900/40" data-user-edit-row="<?php echo e($user->id); ?>">
 <td class="px-6 py-4" colspan="6">
 <form class="space-y-6" method="POST" action="<?php echo e(route('users.update', $user)); ?>" enctype="multipart/form-data">
 <?php echo csrf_field(); ?>
@@ -1201,7 +1208,7 @@ Run <code>php artisan migrate --force</code> to enable Telegram per-device inter
 <?php if (\Illuminate\Support\Facades\Route::has('users.telegram.test')): ?>
 <button class="px-4 py-2 text-sm font-semibold text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-50" type="submit" formaction="<?php echo e(route('users.telegram.test', $user)); ?>" formnovalidate>Send Telegram Test</button>
 <?php endif; ?>
-<button class="px-4 py-2 text-sm font-semibold text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50" type="button" data-no-dispatch="true" data-user-edit-close="<?php echo e($user->id); ?>">Close</button>
+<a class="px-4 py-2 text-sm font-semibold text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50" href="<?php echo e($closeUrl); ?>">Close</a>
 <button class="px-4 py-2 text-sm font-semibold text-white bg-primary rounded-lg hover:bg-primary/90" type="submit">Save Changes</button>
 </div>
 </div>
