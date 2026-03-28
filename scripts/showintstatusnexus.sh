@@ -20,6 +20,8 @@ expect <<'EXP'
     set ip        $env(SWITCH_IP)
     set username  $env(SWITCH_USERNAME)
     set password  $env(SWITCH_PASS)
+    set iface     ""
+    if {[info exists env(INTERFACE)]} { set iface [string trim $env(INTERFACE)] }
 
     # Connect via telnet (tell me if you prefer SSH)
     spawn telnet $ip
@@ -65,7 +67,11 @@ expect <<'EXP'
     expect -re $prompt
 
     # Show interface status (NX-OS)
-    send -- "show interface status\r"
+    if {$iface ne ""} {
+        send -- "show interface status | include $iface\r"
+    } else {
+        send -- "show interface status\r"
+    }
     expect -re $prompt
 
     # Exit

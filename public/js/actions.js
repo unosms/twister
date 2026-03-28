@@ -322,12 +322,17 @@
           'renameint',
           'shtransceiver',
         ]);
+        const supportsScopedInterfaceFilter = new Set(['showlog', 'showintstatus']);
         const needsDescription = new Set(['renameint']);
 
         let iface = '';
         let desc = '';
 
-        if (needsInterface.has(action)) {
+        const portScoped = select.dataset.portScoped === '1';
+        const requireInterface =
+          needsInterface.has(action) || (portScoped && supportsScopedInterfaceFilter.has(action));
+
+        if (requireInterface) {
           iface = window.prompt('Enter interface (e.g. Gi1/0/1):', '') || '';
           if (!iface.trim()) {
             select.selectedIndex = 0;

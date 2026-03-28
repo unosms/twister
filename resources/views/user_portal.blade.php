@@ -510,7 +510,7 @@ $lastSeenText = $device->last_seen_at ? $device->last_seen_at->diffForHumans() :
 
 <div class="mt-5">
 <label class="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">Launch Approved Command</label>
-<select class="mt-2 h-11 w-full rounded-2xl border-slate-200 bg-white text-sm font-medium text-slate-800 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" data-command-select data-device-id="{{ $device->id }}">
+<select class="mt-2 h-11 w-full rounded-2xl border-slate-200 bg-white text-sm font-medium text-slate-800 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" data-command-select data-device-id="{{ $device->id }}" data-port-scoped="{{ ($devicePortScopedLookup[(int) $device->id] ?? false) ? '1' : '0' }}">
 @if ($deviceCommandTemplates->isNotEmpty())
 <option value="" disabled selected>Select a command</option>
 @foreach ($deviceCommandTemplates as $template)

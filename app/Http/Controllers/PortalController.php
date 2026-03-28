@@ -35,6 +35,7 @@ class PortalController extends Controller
         $allDevices = collect();
         $commandTemplates = collect();
         $commandTemplatesByDevice = [];
+        $devicePortScopedLookup = [];
         if ($role === 'admin') {
             $allDevices = Device::orderByDesc('created_at')->get();
             $devices = Device::orderByDesc('created_at')->paginate(12)->withQueryString();
@@ -59,7 +60,7 @@ class PortalController extends Controller
                 ->pluck('device_id')
                 ->all();
 
-            $permissionColumns = ['device_id'];
+            $permissionColumns = ['device_id', 'allowed_ports'];
             if (DevicePermission::supportsAllowedCommandTemplateIds()) {
                 $permissionColumns[] = 'allowed_command_template_ids';
             }
@@ -147,10 +148,15 @@ class PortalController extends Controller
             $restrictedCommandMap = $permissionRows->mapWithKeys(static function ($row) {
                 return [(int) $row->device_id => DevicePermission::decodeAllowedCommandTemplateIds($row->allowed_command_template_ids ?? null)];
             });
+            $permissionPortMap = $permissionRows->mapWithKeys(static function ($row) {
+                return [(int) $row->device_id => trim((string) ($row->allowed_ports ?? ''))];
+            });
 
             foreach ($allDevices as $device) {
                 $deviceId = (int) $device->id;
                 $restrictedIds = $restrictedCommandMap->get($deviceId, []);
+                $allowedPorts = (string) ($permissionPortMap->get($deviceId, ''));
+                $devicePortScopedLookup[$deviceId] = $allowedPorts !== '';
 
                 if (empty($restrictedIds)) {
                     $commandTemplatesByDevice[$deviceId] = $commandTemplates->values();
@@ -252,6 +258,7 @@ class PortalController extends Controller
             'commandTemplateCount' => $commandTemplateCount,
             'commandTemplates' => $commandTemplates,
             'commandTemplatesByDevice' => $commandTemplatesByDevice,
+            'devicePortScopedLookup' => $devicePortScopedLookup,
             'canViewAssignedDeviceGraphs' => $canViewAssignedDeviceGraphs,
             'graphAccessibleDeviceLookup' => $graphAccessibleDeviceLookup,
             'canViewAssignedDeviceEvents' => $canViewAssignedDeviceEvents,

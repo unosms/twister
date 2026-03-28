@@ -26,6 +26,8 @@ if {[info exists env(SWITCH_USER)] && $user eq ""} { set user $env(SWITCH_USER) 
 if {[info exists env(SWITCH_ENA)]} { set ena $env(SWITCH_ENA) }
 
 set prompt {.*[>#] ?$}
+set iface ""
+if {[info exists env(INTERFACE)]} { set iface [string trim $env(INTERFACE)] }
 
 spawn telnet $ip
 
@@ -98,7 +100,11 @@ expect {
     timeout { puts "ERROR: Timeout disabling pagination"; exit 27 }
 }
 
-send -- "show logging\r"
+if {$iface ne ""} {
+    send -- "show logging | include $iface\r"
+} else {
+    send -- "show logging\r"
+}
 expect {
     -re $prompt {}
     timeout { puts "ERROR: Timeout waiting for show logging output"; exit 28 }

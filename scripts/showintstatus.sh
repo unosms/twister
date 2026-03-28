@@ -12,6 +12,8 @@ echo "Running showintstatus on '$NAME' ($IP)"
 
 /usr/bin/expect <<'EOF'
 set timeout 20
+set iface ""
+if {[info exists env(INTERFACE)]} { set iface [string trim $env(INTERFACE)] }
 
 spawn telnet $env(SWITCH_IP)
 expect "Password:"
@@ -25,7 +27,11 @@ expect "#"
 send "terminal length 0\r"
 expect "#"
 
-send "show interface status\r"
+if {$iface ne ""} {
+    send "show interfaces status | include $iface\r"
+} else {
+    send "show interface status\r"
+}
 expect "#"
 
 send "exit\r"

@@ -3001,7 +3001,7 @@ class ScriptController extends Controller
         }
 
         $allowedPorts = trim((string) ($permissionRow->allowed_ports ?? ''));
-        if ($allowedPorts !== '' && $this->commandNeedsInterface($actionKey)) {
+        if ($allowedPorts !== '' && ($this->commandNeedsInterface($actionKey) || $this->commandSupportsScopedInterfaceFilter($actionKey))) {
             $interface = $this->firstNonEmpty(
                 $request->query('iface'),
                 $request->query('interface')
@@ -3029,6 +3029,11 @@ class ScriptController extends Controller
 
         $needs = $command['needs'] ?? [];
         return is_array($needs) && in_array('interface', $needs, true);
+    }
+
+    private function commandSupportsScopedInterfaceFilter(string $cmd): bool
+    {
+        return in_array(strtolower(trim($cmd)), ['showlog', 'showintstatus'], true);
     }
 
     private function interfaceMatchesAllowedList(string $interface, string $allowedPorts): bool
@@ -3206,6 +3211,24 @@ class ScriptController extends Controller
         }
 
         $value = preg_replace('/\s+/', '', $value) ?? '';
+        $prefixMap = [
+            '/^tengigabitethernet/i' => 'te',
+            '/^twentygigabitethernet/i' => 'tw',
+            '/^fortygigabitethernet/i' => 'fo',
+            '/^hundredgigabitethernet/i' => 'hu',
+            '/^gigabitethernet/i' => 'gi',
+            '/^fastethernet/i' => 'fa',
+            '/^ethernet/i' => 'eth',
+            '/^port-?channel/i' => 'po',
+            '/^loopback/i' => 'lo',
+            '/^vlan/i' => 'vlan',
+        ];
+        foreach ($prefixMap as $pattern => $replacement) {
+            if (preg_match($pattern, $value) === 1) {
+                $value = preg_replace($pattern, $replacement, $value) ?? $value;
+                break;
+            }
+        }
         return strtolower($value);
     }
 

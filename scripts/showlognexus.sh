@@ -17,6 +17,8 @@ expect <<'EXP'
     set ip        $env(SWITCH_IP)
     set username  $env(SWITCH_USERNAME)
     set password  $env(SWITCH_PASS)
+    set iface     ""
+    if {[info exists env(INTERFACE)]} { set iface [string trim $env(INTERFACE)] }
 
     # Connect via telnet (tell me if you prefer SSH)
     spawn telnet $ip
@@ -62,7 +64,11 @@ expect <<'EXP'
     send -- "terminal length 0\r"
     expect -re $prompt
 
-    send -- "show logging\r"
+    if {$iface ne ""} {
+        send -- "show logging | include $iface\r"
+    } else {
+        send -- "show logging\r"
+    }
     expect -re $prompt
 
     send -- "exit\r"
