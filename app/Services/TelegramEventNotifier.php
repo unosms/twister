@@ -373,10 +373,10 @@ class TelegramEventNotifier
     private function resolveSeveritySymbol(string $severity): string
     {
         return match (strtolower(trim($severity))) {
-            'critical' => '🚨',
-            'high' => '🔶',
-            'medium' => '⚠️',
-            default => 'ℹ️',
+            'critical' => "\xF0\x9F\x9A\xA8", // alert icon
+            'high' => "\xF0\x9F\x94\xB4", // red circle
+            'medium' => "\xE2\x9A\xA0\xEF\xB8\x8F", // warning sign
+            default => "\xE2\x84\xB9\xEF\xB8\x8F", // info sign
         };
     }
 
