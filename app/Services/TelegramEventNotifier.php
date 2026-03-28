@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Models\Device;
+use App\Models\DeviceEventPermission;
 use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -194,7 +195,7 @@ class TelegramEventNotifier
 
         $selectedDevices = $this->normalizeDeviceIds($user->telegram_devices ?? []);
         if (empty($selectedDevices)) {
-            $selectedDevices = $user->devices()->pluck('id')->map(fn ($id) => (int) $id)->all();
+            $selectedDevices = $this->resolveFallbackScopedDeviceIds($user);
         }
 
         if (!empty($selectedDevices)) {
@@ -208,7 +209,16 @@ class TelegramEventNotifier
         $hasDeviceSpecificInterfaces = $deviceId > 0 && isset($deviceInterfaceMap[$deviceId]);
         if ($hasDeviceSpecificInterfaces) {
             $allowedInterfaces = $deviceInterfaceMap[$deviceId];
-            if (!empty($allowedInterfaces) && !$this->portMatchesExpression($event['port'], implode(',', $allowedInterfaces))) {
+            $eventPort = trim((string) ($event['port'] ?? ''));
+            $requiresInterfaceFilter = $eventPort !== ''
+                && $eventPort !== '-'
+                && strcasecmp($eventPort, 'n/a') !== 0;
+
+            if (
+                $requiresInterfaceFilter
+                && !empty($allowedInterfaces)
+                && !$this->portMatchesExpression($eventPort, implode(',', $allowedInterfaces))
+            ) {
                 return false;
             }
         }
@@ -232,6 +242,29 @@ class TelegramEventNotifier
         }
 
         return true;
+    }
+
+    private function resolveFallbackScopedDeviceIds(User $user): array
+    {
+        $deviceIds = $user->devices()->pluck('id')->map(fn ($id) => (int) $id)->all();
+
+        try {
+            $permittedIds = $user->permittedDevices()->pluck('devices.id')->map(fn ($id) => (int) $id)->all();
+            $deviceIds = array_merge($deviceIds, $permittedIds);
+        } catch (\Throwable) {
+            // Ignore optional permissions table failures.
+        }
+
+        if (DeviceEventPermission::supportsScopedAccess()) {
+            try {
+                $eventScopedIds = $user->eventScopedDevices()->pluck('devices.id')->map(fn ($id) => (int) $id)->all();
+                $deviceIds = array_merge($deviceIds, $eventScopedIds);
+            } catch (\Throwable) {
+                // Ignore optional event scope table failures.
+            }
+        }
+
+        return $this->normalizeDeviceIds($deviceIds);
     }
 
     private function buildDedupeKey(User $user, array $event, string $chatId): string
