@@ -2313,7 +2313,6 @@ class ScriptController extends Controller
 
             $relativePath = str_replace('/', DIRECTORY_SEPARATOR, $relative);
             $this->ensureBackupUploadPlaceholder($root . DIRECTORY_SEPARATOR . $relativePath . DIRECTORY_SEPARATOR . $fileName);
-            $this->ensureBackupUploadPlaceholder($root . DIRECTORY_SEPARATOR . $fileName);
         }
     }
 

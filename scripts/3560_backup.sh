@@ -247,39 +247,17 @@ set primaryDestination "$LOCATION/$RENAMED_FILE"
 set primaryResult [run_tftp_copy $prompt $TFTP_SERVER $primaryDestination]
 if {[lindex $primaryResult 0] != 1} {
     set primaryError [string trim [lindex $primaryResult 1]]
-    set primaryErrorLower [string tolower $primaryError]
-
-    if {[string match "*permission denied*" $primaryErrorLower] || [string match "*no such file*" $primaryErrorLower] || [string match "*access violation*" $primaryErrorLower] || [string match "*timed out*" $primaryErrorLower] || [string match "*timeout*" $primaryErrorLower]} {
-        send_user "Primary destination failed: $primaryError\n"
-        send_user "Retrying using TFTP root destination: $RENAMED_FILE\n"
-
-        set fallbackResult [run_tftp_copy $prompt $TFTP_SERVER $RENAMED_FILE]
-        if {[lindex $fallbackResult 0] != 1} {
-            if {$LOCAL_BACKUP_TARGET ne ""} {
-                set fallbackError [string trim [lindex $fallbackResult 1]]
-                send_user "TFTP upload failed; attempting direct CLI capture to local file.\n"
-                set localResult [capture_local_backup $prompt $LOCAL_BACKUP_TARGET]
-                if {[lindex $localResult 0] != 1} {
-                    set localError [string trim [lindex $localResult 1]]
-                    fail_step "$fallbackError | Direct fallback failed: $localError" 12
-                }
-                send_user "Direct CLI capture succeeded: $LOCAL_BACKUP_TARGET\n"
-            } else {
-                fail_step [lindex $fallbackResult 1] 12
-            }
+    send_user "Primary destination failed: $primaryError\n"
+    if {$LOCAL_BACKUP_TARGET ne ""} {
+        send_user "TFTP upload failed; attempting direct CLI capture to local file.\n"
+        set localResult [capture_local_backup $prompt $LOCAL_BACKUP_TARGET]
+        if {[lindex $localResult 0] != 1} {
+            set localError [string trim [lindex $localResult 1]]
+            fail_step "$primaryError | Direct fallback failed: $localError" 12
         }
+        send_user "Direct CLI capture succeeded: $LOCAL_BACKUP_TARGET\n"
     } else {
-        if {$LOCAL_BACKUP_TARGET ne ""} {
-            send_user "TFTP upload failed; attempting direct CLI capture to local file.\n"
-            set localResult [capture_local_backup $prompt $LOCAL_BACKUP_TARGET]
-            if {[lindex $localResult 0] != 1} {
-                set localError [string trim [lindex $localResult 1]]
-                fail_step "$primaryError | Direct fallback failed: $localError" 12
-            }
-            send_user "Direct CLI capture succeeded: $LOCAL_BACKUP_TARGET\n"
-        } else {
-            fail_step $primaryError 12
-        }
+        fail_step $primaryError 12
     }
 }
 

@@ -240,24 +240,9 @@ foreach server $tftpServers {
     }
 
     set primaryError [string trim [lindex $primaryResult 1]]
-    set primaryErrorLower [string tolower $primaryError]
     set lastCopyError $primaryError
-
-    if {[string match "*permission denied*" $primaryErrorLower] || [string match "*no such file*" $primaryErrorLower] || [string match "*access violation*" $primaryErrorLower] || [string match "*timed out*" $primaryErrorLower] || [string match "*timeout*" $primaryErrorLower]} {
-        send_user "Primary destination failed: $primaryError\n"
-        send_user "Retrying using TFTP root destination: $RENAMED_FILE\n"
-
-        set rootResult [run_tftp_copy $prompt $server $RENAMED_FILE]
-        if {[lindex $rootResult 0] == 1} {
-            set copySucceeded 1
-            break
-        }
-
-        set lastCopyError [string trim [lindex $rootResult 1]]
-        continue
-    }
-
-    fail_step $primaryError 12
+    send_user "Primary destination failed: $primaryError\n"
+    continue
 }
 
 if {!$copySucceeded} {
