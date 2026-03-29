@@ -36,6 +36,7 @@ class PortalController extends Controller
         $commandTemplates = collect();
         $commandTemplatesByDevice = [];
         $devicePortScopedLookup = [];
+        $deviceAllowedPortsByDevice = [];
         if ($role === 'admin') {
             $allDevices = Device::orderByDesc('created_at')->get();
             $devices = Device::orderByDesc('created_at')->paginate(12)->withQueryString();
@@ -157,6 +158,7 @@ class PortalController extends Controller
                 $restrictedIds = $restrictedCommandMap->get($deviceId, []);
                 $allowedPorts = (string) ($permissionPortMap->get($deviceId, ''));
                 $devicePortScopedLookup[$deviceId] = $allowedPorts !== '';
+                $deviceAllowedPortsByDevice[$deviceId] = $allowedPorts;
 
                 if (empty($restrictedIds)) {
                     $commandTemplatesByDevice[$deviceId] = $commandTemplates->values();
@@ -259,6 +261,7 @@ class PortalController extends Controller
             'commandTemplates' => $commandTemplates,
             'commandTemplatesByDevice' => $commandTemplatesByDevice,
             'devicePortScopedLookup' => $devicePortScopedLookup,
+            'deviceAllowedPortsByDevice' => $deviceAllowedPortsByDevice,
             'canViewAssignedDeviceGraphs' => $canViewAssignedDeviceGraphs,
             'graphAccessibleDeviceLookup' => $graphAccessibleDeviceLookup,
             'canViewAssignedDeviceEvents' => $canViewAssignedDeviceEvents,

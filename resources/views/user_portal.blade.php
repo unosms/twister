@@ -464,8 +464,12 @@ $pulseClass = match ($status) {
     default => 'status-pulse-offline',
 };
 $lastSeenText = $device->last_seen_at ? $device->last_seen_at->diffForHumans() : 'No recent check-in';
+$assignedPortsExpression = trim((string) ($deviceAllowedPortsByDevice[(int) $device->id] ?? ''));
+$assignedPortsTokens = $assignedPortsExpression !== ''
+    ? array_values(array_filter(array_map(static fn ($token) => trim((string) $token), preg_split('/\s*,\s*/', $assignedPortsExpression) ?: []), static fn ($token) => $token !== ''))
+    : [];
 @endphp
-<article class="group overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl dark:border-slate-800 dark:bg-slate-950/40" data-device-status="{{ $status }}" data-portal-device-card data-live-search-text="{{ $device->name }} {{ $device->serial_number }} {{ $device->type }} {{ $device->location }} {{ $device->ip_address }} {{ $device->firmware_version }}">
+<article class="group overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl dark:border-slate-800 dark:bg-slate-950/40" data-device-status="{{ $status }}" data-portal-device-card data-live-search-text="{{ $device->name }} {{ $device->serial_number }} {{ $device->type }} {{ $device->location }} {{ $device->ip_address }} {{ $device->firmware_version }} {{ $assignedPortsExpression }}">
 <div class="relative border-b border-slate-100 bg-[radial-gradient(circle_at_top_left,_rgba(19,91,236,0.16),_transparent_55%),linear-gradient(135deg,_#f8fafc,_#eef4ff)] px-5 py-5 dark:border-slate-800 dark:bg-[radial-gradient(circle_at_top_left,_rgba(19,91,236,0.18),_transparent_45%),linear-gradient(135deg,_#111827,_#0f172a)]">
 <div class="flex items-start justify-between gap-4">
 <div class="min-w-0">
@@ -505,6 +509,26 @@ $lastSeenText = $device->last_seen_at ? $device->last_seen_at->diffForHumans() :
     $deviceCommandTemplates = collect($commandTemplatesByDevice[$device->id] ?? $commandTemplates ?? collect())->values();
 @endphp
 <p class="mt-2 font-semibold text-slate-800 dark:text-slate-100">{{ $deviceCommandTemplates->count() }} available</p>
+</div>
+<div class="col-span-2 rounded-2xl bg-slate-50 px-3 py-3 dark:bg-slate-900">
+<div class="flex items-start justify-between gap-3">
+<p class="text-[11px] font-bold uppercase tracking-[0.22em] text-slate-400">Assigned Ports</p>
+<span class="rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-300">
+{{ count($assignedPortsTokens) > 0 ? count($assignedPortsTokens) . ' scoped' : 'All ports' }}
+</span>
+</div>
+@if (count($assignedPortsTokens) > 0)
+<div class="mt-2 flex flex-wrap gap-1.5">
+@foreach (array_slice($assignedPortsTokens, 0, 6) as $token)
+<span class="inline-flex items-center rounded-full bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary">{{ $token }}</span>
+@endforeach
+@if (count($assignedPortsTokens) > 6)
+<span class="inline-flex items-center rounded-full bg-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-600 dark:bg-slate-700 dark:text-slate-200">+{{ count($assignedPortsTokens) - 6 }} more</span>
+@endif
+</div>
+@else
+<p class="mt-2 text-sm font-semibold text-emerald-700 dark:text-emerald-300">No per-port restriction.</p>
+@endif
 </div>
 </div>
 
