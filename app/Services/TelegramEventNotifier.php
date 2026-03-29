@@ -172,6 +172,26 @@ class TelegramEventNotifier
         $timestamp = (string) ($event['timestamp'] ?? now()->toDateTimeString());
         $port = $event['port'] ?? $event['ifName'] ?? $event['interface'] ?? null;
         $port = $port === null ? '-' : trim((string) $port);
+        $message = trim((string) ($event['message'] ?? '-')) ?: '-';
+        $description = trim((string) (
+            $event['description']
+            ?? data_get($event, 'data.description')
+            ?? data_get($event, 'data.ifAlias')
+            ?? ''
+        ));
+        if ($description === '') {
+            $description = 'empty';
+        }
+
+        $eventId = $event['event_id']
+            ?? $event['id']
+            ?? data_get($event, 'data.event_id')
+            ?? data_get($event, 'data.id')
+            ?? null;
+        $eventId = is_scalar($eventId) ? trim((string) $eventId) : '';
+        if ($eventId === '') {
+            $eventId = '-';
+        }
 
         return [
             'type' => $type,
@@ -180,8 +200,10 @@ class TelegramEventNotifier
             'device_name' => $deviceName !== '' ? $deviceName : '-',
             'device_ip' => $deviceIp !== '' ? $deviceIp : '-',
             'port' => $port !== '' ? $port : '-',
-            'message' => trim((string) ($event['message'] ?? '-')) ?: '-',
+            'message' => $message,
             'timestamp' => $timestamp,
+            'description' => $description,
+            'event_id' => $eventId,
             'data' => $event['data'] ?? [],
         ];
     }
@@ -310,16 +332,20 @@ class TelegramEventNotifier
     private function renderMessage(User $user, array $event): string
     {
         $template = $this->resolveTemplateForEvent($user, $event);
+        $severityLabel = $this->resolveSeverityLabel($event['severity'] ?? '');
+        $severityBadge = '[' . $severityLabel . ']';
+        $headline = $this->buildHeadline($event);
+        $detectedAt = $this->formatDetectedAt($event['timestamp'] ?? '');
         if ($template === '') {
             return sprintf(
-                "[%s] %s\nDevice: %s (%s)\nPort: %s\n%s\nTime: %s",
-                $event['severity'],
-                $event['type'],
+                "%s\nDescription: %s\nDetected at %s\n\nswitch_name: %s\nSeverity: %s\nSeverity: %s\nEvent ID: %s",
+                $headline,
+                $event['description'] ?? 'empty',
+                $detectedAt,
                 $event['device_name'],
-                $event['device_ip'],
-                $event['port'],
-                $event['message'],
-                $event['timestamp']
+                $severityLabel,
+                $severityBadge,
+                $event['event_id'] ?? '-'
             );
         }
 
@@ -328,10 +354,17 @@ class TelegramEventNotifier
             '{deviceIp}' => $event['device_ip'] ?: '-',
             '{port}' => $event['port'] ?: '-',
             '{severity}' => $event['severity'] ?: '-',
+            '{severityLabel}' => $severityLabel,
+            '{severityBadge}' => $severityBadge,
             '{severitySymbol}' => $this->resolveSeveritySymbol($event['severity'] ?? ''),
             '{type}' => $event['type'] ?: '-',
             '{timestamp}' => $event['timestamp'] ?: '-',
+            '{detectedAt}' => $detectedAt,
             '{message}' => $event['message'] ?: '-',
+            '{description}' => $event['description'] ?? 'empty',
+            '{switchName}' => $event['device_name'] ?: '-',
+            '{eventId}' => $event['event_id'] ?? '-',
+            '{headline}' => $headline,
         ];
 
         return strtr($template, $placeholders);
@@ -378,6 +411,60 @@ class TelegramEventNotifier
             'medium' => "\xE2\x9A\xA0\xEF\xB8\x8F", // warning sign
             default => "\xE2\x84\xB9\xEF\xB8\x8F", // info sign
         };
+    }
+
+    private function resolveSeverityLabel(string $severity): string
+    {
+        return match (strtolower(trim($severity))) {
+            'critical' => 'Critical',
+            'high' => 'High',
+            'medium' => 'Warning',
+            default => 'Info',
+        };
+    }
+
+    private function buildHeadline(array $event): string
+    {
+        $typeLabel = $this->humanizeType((string) ($event['type'] ?? 'event'));
+        $port = trim((string) ($event['port'] ?? '-'));
+        $message = trim((string) ($event['message'] ?? '-'));
+        if ($message === '') {
+            $message = '-';
+        }
+
+        if ($port !== '' && $port !== '-' && strcasecmp($port, 'n/a') !== 0) {
+            return "{$typeLabel}: Interface {$port}: {$message}";
+        }
+
+        return "{$typeLabel}: {$message}";
+    }
+
+    private function humanizeType(string $type): string
+    {
+        $normalized = strtolower(trim($type));
+        if ($normalized === '') {
+            return 'Event';
+        }
+
+        return match ($normalized) {
+            'speed_changed', 'port.speed_changed' => 'Speed change',
+            'link_down', 'port.down' => 'Link down',
+            'link_up', 'port.up' => 'Link up',
+            'device.offline' => 'Device offline',
+            'device.online' => 'Device online',
+            'device.status_changed' => 'Device status change',
+            default => ucwords(str_replace(['.', '_', '-'], ' ', $normalized)),
+        };
+    }
+
+    private function formatDetectedAt(string $timestamp): string
+    {
+        $ts = strtotime($timestamp);
+        if ($ts === false) {
+            return $timestamp !== '' ? $timestamp : '-';
+        }
+
+        return date('H:i:s \o\n Y.m.d', $ts);
     }
 
     private function sendTelegramMessage(string $chatId, string $text, ?string $botTokenOverride = null, array $context = []): bool

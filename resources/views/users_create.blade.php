@@ -756,7 +756,7 @@ Run <code>php artisan migrate --force</code> to enable Telegram per-device inter
 <div class="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-3">
 <div class="md:col-span-2 flex flex-col gap-2">
 <label class="text-sm font-semibold text-slate-700 dark:text-slate-200">Default Message Template (optional)</label>
-<textarea class="min-h-[96px] rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:border-primary focus:ring-primary" name="telegram_template" placeholder="[{severity}] {type}&#10;Device: {deviceName} ({deviceIp})&#10;Port: {port}&#10;{message}&#10;Time: {timestamp}">{{ $telegramTemplateDefault }}</textarea>
+<textarea class="min-h-[96px] rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:border-primary focus:ring-primary" name="telegram_template" placeholder="{headline}&#10;Description: {description}&#10;Detected at {detectedAt}&#10;&#10;switch_name: {switchName}&#10;Severity: {severityLabel}&#10;Severity: {severityBadge}&#10;Event ID: {eventId}">{{ $telegramTemplateDefault }}</textarea>
 <p class="text-xs text-slate-400">Used when no severity-specific template is set.</p>
 </div>
 <div class="flex flex-col gap-2">
@@ -775,7 +775,7 @@ Run <code>php artisan migrate --force</code> to enable Telegram per-device inter
 <label class="text-sm font-semibold text-slate-700 dark:text-slate-200">Critical Severity Template</label>
 <textarea class="min-h-[80px] rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:border-primary focus:ring-primary" name="telegram_template_critical" placeholder="{severitySymbol} [{severity}] {type}&#10;{message}">{{ $telegramTemplateCritical }}</textarea>
 </div>
-<p class="md:col-span-2 text-xs text-slate-400">Placeholders: {deviceName}, {deviceIp}, {port}, {severity}, {severitySymbol}, {type}, {timestamp}, {message}. Symbols and emojis are supported.</p>
+<p class="md:col-span-2 text-xs text-slate-400">Placeholders: {headline}, {description}, {detectedAt}, {switchName}, {severityLabel}, {severityBadge}, {eventId}, {deviceName}, {deviceIp}, {port}, {severity}, {severitySymbol}, {type}, {timestamp}, {message}. Symbols and emojis are supported.</p>
 </div>
 </div>
 </div>
