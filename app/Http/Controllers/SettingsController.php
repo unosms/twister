@@ -63,6 +63,7 @@ class SettingsController extends Controller
             'backupScheduleLabel' => BackupSchedule::humanLabel(),
             'backupDevices' => $backupDevices,
             'backupRootOptions' => $this->backupRoots(),
+            'backupTftpServerAddress' => $this->backupTftpServerAddress(),
             'backupScripts' => $backupScripts,
             'backupScriptsRoot' => str_replace('\\', '/', base_path('scripts')),
             'maintenanceStats' => [
@@ -1295,5 +1296,29 @@ class SettingsController extends Controller
         }
 
         return null;
+    }
+
+    private function backupTftpServerAddress(): string
+    {
+        $configured = AppSetting::supportsStorage()
+            ? AppSetting::getValue('backup_tftp_server_address')
+            : null;
+
+        $normalized = $this->normalizeOptionalString(is_scalar($configured) ? (string) $configured : null);
+        if ($normalized !== null) {
+            return $normalized;
+        }
+
+        return (string) env('BACKUP_TFTP_SERVER', '');
+    }
+
+    private function normalizeOptionalString(mixed $value): ?string
+    {
+        if (!is_string($value) && !is_numeric($value)) {
+            return null;
+        }
+
+        $normalized = trim((string) $value);
+        return $normalized !== '' ? $normalized : null;
     }
 }

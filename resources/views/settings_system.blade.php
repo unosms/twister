@@ -104,6 +104,7 @@ This page is organized around practical system tasks: change the timezone, run o
 <div class="mt-5 flex flex-wrap gap-2">
 <a class="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:border-primary dark:hover:text-primary" href="#timezone-settings">Time Zone</a>
 <a class="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:border-primary dark:hover:text-primary" href="#backup-operations">Backups</a>
+<a class="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:border-primary dark:hover:text-primary" href="#backup-folder-permissions">Backup Permissions</a>
 <a class="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:border-primary dark:hover:text-primary" href="#backup-scripts">Backup Scripts</a>
 <a class="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:border-primary dark:hover:text-primary" href="#system-cleanup">Cleanup</a>
 <a class="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:border-primary dark:hover:text-primary" href="#config-backup">Config Backup</a>
@@ -232,6 +233,51 @@ Save Backup Schedule
 </div>
 </form>
 </div>
+</div>
+
+<div class="mt-6 rounded-2xl border border-slate-200 p-5 dark:border-slate-800" id="backup-folder-permissions">
+<p class="text-sm font-bold text-slate-900 dark:text-white">Backup Folder Permissions</p>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Manually grant or revoke backup folder permissions, and save the TFTP server address used by backup scripts.</p>
+@if ($errors->has('backup_permissions'))
+<div class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
+{{ $errors->first('backup_permissions') }}
+</div>
+@endif
+<div class="mt-5 grid gap-4 md:grid-cols-2">
+<form class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/40 md:col-span-2" method="POST" action="{{ route('devices.backup-permissions.update') }}">
+@csrf
+<input type="hidden" name="operation" value="save_tftp"/>
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-200" for="settings_backup_tftp_server_address">TFTP Server Address</label>
+<input class="mt-2 h-11 w-full rounded-2xl border border-slate-300 bg-white px-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" id="settings_backup_tftp_server_address" name="tftp_server_address" type="text" value="{{ old('tftp_server_address', $backupTftpServerAddress ?? '') }}" placeholder="e.g. 192.168.88.57"/>
+<button class="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" type="submit">
+<span class="material-symbols-outlined text-[18px]">save</span>
+Save TFTP Server
+</button>
+</form>
+<form class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/40" method="POST" action="{{ route('devices.backup-permissions.update') }}" onsubmit="return confirm('Grant backup folder permissions now?');">
+@csrf
+<input type="hidden" name="operation" value="grant"/>
+<input type="hidden" name="tftp_server_address" value="{{ old('tftp_server_address', $backupTftpServerAddress ?? '') }}"/>
+<p class="text-sm font-bold text-slate-900 dark:text-white">Grant Backup Permissions</p>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Apply write permissions to backup roots and discovered device folders.</p>
+<button class="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3 text-sm font-bold text-white transition hover:bg-primary/90" type="submit">
+<span class="material-symbols-outlined text-[18px]">lock_open</span>
+Grant Backup Permissions
+</button>
+</form>
+<form class="rounded-2xl border border-red-200 bg-red-50/70 p-4 dark:border-red-900/60 dark:bg-red-950/20" method="POST" action="{{ route('devices.backup-permissions.update') }}" onsubmit="return confirm('Revoke backup folder permissions now?');">
+@csrf
+<input type="hidden" name="operation" value="revoke"/>
+<input type="hidden" name="tftp_server_address" value="{{ old('tftp_server_address', $backupTftpServerAddress ?? '') }}"/>
+<p class="text-sm font-bold text-slate-900 dark:text-white">Revoke Backup Permissions</p>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Lock backup directories when manual writes are no longer needed.</p>
+<button class="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-300 bg-red-50 px-5 py-3 text-sm font-bold text-red-700 transition hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/20 dark:text-red-300 dark:hover:bg-red-950/35" type="submit">
+<span class="material-symbols-outlined text-[18px]">lock</span>
+Revoke Backup Permissions
+</button>
+</form>
+</div>
+<p class="mt-4 text-xs text-slate-500 dark:text-slate-400">Applies to configured backup roots and per-device backup folders.</p>
 </div>
 
 <div class="mt-6 space-y-4">
