@@ -2534,9 +2534,15 @@ class ScriptController extends Controller
         }
 
         $allowedHours = [1, 3, 6, 9, 12, 24];
-        $hours = (int) $request->query('hours', 1);
-        if (!in_array($hours, $allowedHours, true)) {
-            $hours = 1;
+        $hoursRaw = strtolower(trim((string) $request->query('hours', '1')));
+        $hoursQuery = '1';
+        if ($hoursRaw === 'all') {
+            $hoursQuery = 'all';
+        } elseif (preg_match('/^\d+$/', $hoursRaw) === 1) {
+            $hoursValue = (int) $hoursRaw;
+            if (in_array($hoursValue, $allowedHours, true)) {
+                $hoursQuery = (string) $hoursValue;
+            }
         }
         $isPortalContext = strtolower(trim((string) $request->attributes->get('events_context', 'admin'))) === 'portal';
 
@@ -2558,7 +2564,7 @@ class ScriptController extends Controller
         $ifaceIndex = preg_match('/^\d+$/', $ifaceIndex) === 1 ? (string) ((int) $ifaceIndex) : '';
 
         $query = [
-            'hours' => $hours,
+            'hours' => $hoursQuery,
             'device' => $deviceName,
             'context' => $isPortalContext ? 'portal' : 'admin',
         ];

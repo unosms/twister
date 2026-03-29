@@ -141,12 +141,18 @@ function query_rows(mysqli $conn, string $sql, string $types, array $params, arr
 }
 
 $allowedHours = [1, 3, 6, 9, 12, 24];
+$hoursRaw = strtolower(safe_str('hours'));
+$allHistoryRequested = in_array($hoursRaw, ['all', 'history', 'lifetime'], true);
 $hours = safe_int('hours', 1, 1, 24);
 if (!in_array($hours, $allowedHours, true)) {
     $hours = 1;
 }
-$hoursLabel = (string) $hours . ' hour' . ($hours === 1 ? '' : 's');
-$sinceEpoch = time() - ($hours * 3600);
+$hoursLabel = $allHistoryRequested
+    ? 'all history'
+    : ((string) $hours . ' hour' . ($hours === 1 ? '' : 's'));
+$windowLabel = $allHistoryRequested ? 'full history' : 'current window';
+$titleWindowLabel = $allHistoryRequested ? $hoursLabel : ('last ' . $hoursLabel);
+$sinceEpoch = $allHistoryRequested ? null : (time() - ($hours * 3600));
 $deviceFilter = safe_str('device');
 $ifaceFilterRaw = safe_str('iface');
 $ifaceFilter = preg_match('/^\d+$/', $ifaceFilterRaw) === 1 ? (int) $ifaceFilterRaw : 0;
@@ -241,13 +247,19 @@ if ($ifaceFilter > 0) {
     }
 }
 
-$whereIface = "((ie.event_type='link_down' AND (ie.opened_at >= ? OR (ie.resolved_at IS NOT NULL AND ie.resolved_at >= ?))) OR (ie.event_type='speed_changed' AND ie.opened_at >= ?))";
+$whereIface = $allHistoryRequested
+    ? "(ie.event_type='link_down' OR ie.event_type='speed_changed')"
+    : "((ie.event_type='link_down' AND (ie.opened_at >= ? OR (ie.resolved_at IS NOT NULL AND ie.resolved_at >= ?))) OR (ie.event_type='speed_changed' AND ie.opened_at >= ?))";
 
 $ifaceRows = [];
 if ($typeFilter === '' || $typeFilter === 'iface') {
     $ifaceWhereParts = [$whereIface];
-    $ifaceTypes = 'iii';
-    $ifaceParams = [$sinceEpoch, $sinceEpoch, $sinceEpoch];
+    $ifaceTypes = '';
+    $ifaceParams = [];
+    if (!$allHistoryRequested) {
+        $ifaceTypes = 'iii';
+        $ifaceParams = [$sinceEpoch, $sinceEpoch, $sinceEpoch];
+    }
 
     if ($deviceFilter !== '') {
         $ifaceWhereParts[] = 'ie.device_name = ?';
@@ -283,7 +295,7 @@ if ($deviceFilter !== '') {
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Events (last <?= esc($hoursLabel) ?><?= $titleSuffix ?>)</title>
+    <title>Events (<?= esc($titleWindowLabel) ?><?= $titleSuffix ?>)</title>
     <meta http-equiv="refresh" content="60">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     <style>
@@ -974,12 +986,12 @@ if ($deviceFilter !== '') {
     <div class="page-header">
         <div class="page-header-top">
             <p class="kicker">Device Monitoring</p>
-            <h1>Interface Events (last <?= esc($hoursLabel) ?><?= $titleSuffix ?>)</h1>
+            <h1>Interface Events (<?= esc($titleWindowLabel) ?><?= $titleSuffix ?>)</h1>
             <p class="page-subtitle">Consistent event timeline with quick filtering and graph shortcuts.</p>
         </div>
         <div class="page-header-meta">
             <span class="pill">Auto-refresh every 1 minute</span>
-            <span class="pill"><?= count($ifaceRows) ?> event<?= count($ifaceRows) === 1 ? '' : 's' ?> in current window</span>
+            <span class="pill"><?= count($ifaceRows) ?> event<?= count($ifaceRows) === 1 ? '' : 's' ?> in <?= esc($windowLabel) ?></span>
             <?php if ($deviceFilter !== ''): ?>
                 <span class="pill">Device: <?= esc($deviceFilter) ?></span>
             <?php endif; ?>
@@ -1047,8 +1059,9 @@ if ($deviceFilter !== '') {
             <label class="field">
                 <span class="field-label">Window</span>
                 <select name="hours" data-auto-submit>
+                    <option value="all" <?= $allHistoryRequested ? 'selected' : '' ?>>All history</option>
                     <?php foreach ($allowedHours as $hourOption): ?>
-                        <option value="<?= (int) $hourOption ?>" <?= $hours === (int) $hourOption ? 'selected' : '' ?>>
+                        <option value="<?= (int) $hourOption ?>" <?= (!$allHistoryRequested && $hours === (int) $hourOption) ? 'selected' : '' ?>>
                             <?= (int) $hourOption ?> hour<?= (int) $hourOption === 1 ? '' : 's' ?>
                         </option>
                     <?php endforeach; ?>
@@ -1072,7 +1085,7 @@ if ($deviceFilter !== '') {
             </div>
             <div class="events">
                 <?php if (!$ifaceRows): ?>
-                    <div class="empty">No interface events in this window.</div>
+                    <div class="empty">No interface events in this <?= esc($windowLabel) ?>.</div>
                 <?php endif; ?>
 
                 <?php foreach ($ifaceRows as $row): ?>
