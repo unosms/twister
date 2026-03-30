@@ -145,7 +145,8 @@ class TelegramEventNotifier
 
     private function normalizeEvent(array $event): array
     {
-        $type = strtolower(trim((string) ($event['type'] ?? $event['event_type'] ?? '')));
+        $rawType = strtolower(trim((string) ($event['type'] ?? $event['event_type'] ?? '')));
+        $type = $this->canonicalizeEventType($rawType);
         $severityRaw = strtolower(trim((string) ($event['severity'] ?? 'high')));
         $severity = match ($severityRaw) {
             'critical', 'crit' => 'critical',
@@ -195,6 +196,7 @@ class TelegramEventNotifier
 
         return [
             'type' => $type,
+            'raw_type' => $rawType !== '' ? $rawType : $type,
             'severity' => $severity,
             'device_id' => $deviceId,
             'device_name' => $deviceName !== '' ? $deviceName : '-',
@@ -334,6 +336,10 @@ class TelegramEventNotifier
         $template = $this->resolveTemplateForEvent($user, $event);
         $severityLabel = $this->resolveSeverityLabel($event['severity'] ?? '');
         $severityBadge = '[' . $severityLabel . ']';
+        $eventSymbol = $this->resolveEventSymbol(
+            (string) ($event['type'] ?? ''),
+            (string) ($event['severity'] ?? '')
+        );
         $headline = $this->buildHeadline($event);
         $detectedAt = $this->formatDetectedAt($event['timestamp'] ?? '');
         if ($template === '') {
@@ -357,6 +363,7 @@ class TelegramEventNotifier
             '{severityLabel}' => $severityLabel,
             '{severityBadge}' => $severityBadge,
             '{severitySymbol}' => $this->resolveSeveritySymbol($event['severity'] ?? ''),
+            '{eventSymbol}' => $eventSymbol,
             '{type}' => $event['type'] ?: '-',
             '{timestamp}' => $event['timestamp'] ?: '-',
             '{detectedAt}' => $detectedAt,
@@ -425,6 +432,10 @@ class TelegramEventNotifier
 
     private function buildHeadline(array $event): string
     {
+        $eventSymbol = $this->resolveEventSymbol(
+            (string) ($event['type'] ?? ''),
+            (string) ($event['severity'] ?? '')
+        );
         $typeLabel = $this->humanizeType((string) ($event['type'] ?? 'event'));
         $port = trim((string) ($event['port'] ?? '-'));
         $message = trim((string) ($event['message'] ?? '-'));
@@ -433,10 +444,22 @@ class TelegramEventNotifier
         }
 
         if ($port !== '' && $port !== '-' && strcasecmp($port, 'n/a') !== 0) {
-            return "{$typeLabel}: Interface {$port}: {$message}";
+            return "{$eventSymbol} {$typeLabel}: Interface {$port}: {$message}";
         }
 
-        return "{$typeLabel}: {$message}";
+        return "{$eventSymbol} {$typeLabel}: {$message}";
+    }
+
+    private function resolveEventSymbol(string $type, string $severity): string
+    {
+        $type = $this->canonicalizeEventType($type);
+
+        return match ($type) {
+            'device.online', 'port.up' => "\xE2\x9C\x85", // check mark button
+            'device.status_changed', 'port.status_changed', 'port.speed_changed' => "\xF0\x9F\x94\x84", // anticlockwise arrows button
+            'device.offline', 'port.down', 'system.error' => "\xF0\x9F\x9A\xA8", // police cars revolving light
+            default => $this->resolveSeveritySymbol($severity),
+        };
     }
 
     private function humanizeType(string $type): string
@@ -579,11 +602,14 @@ class TelegramEventNotifier
 
     private function eventTypeMatches(string $eventType, array $patterns): bool
     {
+        $eventType = $this->canonicalizeEventType($eventType);
         foreach ($patterns as $pattern) {
             $pattern = strtolower(trim((string) $pattern));
             if ($pattern === '') {
                 continue;
             }
+
+            $pattern = $this->canonicalizeEventType($pattern);
 
             if ($pattern === '*' || $pattern === $eventType) {
                 return true;
@@ -598,6 +624,28 @@ class TelegramEventNotifier
         }
 
         return false;
+    }
+
+    private function canonicalizeEventType(string $type): string
+    {
+        $type = strtolower(trim($type));
+        if ($type === '' || $type === '*') {
+            return $type;
+        }
+
+        $isWildcard = str_ends_with($type, '.*');
+        $baseType = $isWildcard ? substr($type, 0, -2) : $type;
+
+        $canonical = match ($baseType) {
+            'link_up' => 'port.up',
+            'link_down' => 'port.down',
+            'speed_changed' => 'port.speed_changed',
+            'device_up' => 'device.online',
+            'device_down' => 'device.offline',
+            default => $baseType,
+        };
+
+        return $isWildcard ? $canonical . '.*' : $canonical;
     }
 
     private function portMatchesExpression(string $portValue, string $expression): bool

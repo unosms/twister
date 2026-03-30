@@ -352,7 +352,7 @@ $selectedTelegramSeverities = array_values(array_unique(array_map(
     $selectedTelegramSeverities
 )));
 
-$eventTypeOptions = $telegramEventTypeOptions ?? ['device.offline', 'port.down'];
+$eventTypeOptions = $telegramEventTypeOptions ?? ['device.offline', 'port.down', 'port.speed_changed'];
 $selectedTelegramEventTypes = old('telegram_event_types', $user->telegram_event_types ?? ['device.offline', 'port.down']);
 if (!is_array($selectedTelegramEventTypes) || empty($selectedTelegramEventTypes)) {
     $selectedTelegramEventTypes = ['device.offline', 'port.down'];
@@ -1185,21 +1185,21 @@ Run <code>php artisan migrate --force</code> to enable Telegram per-device inter
 </div>
 <div class="flex flex-col gap-2">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Low Severity Template</label>
-<textarea class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary min-h-[80px]" name="telegram_template_low" placeholder="{severitySymbol} [{severity}] {type}\n{message}"><?php echo e($telegramTemplateLow); ?></textarea>
+<textarea class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary min-h-[80px]" name="telegram_template_low" placeholder="{eventSymbol} {severitySymbol} [{severity}] {type}\n{message}"><?php echo e($telegramTemplateLow); ?></textarea>
 </div>
 <div class="flex flex-col gap-2">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Medium Severity Template</label>
-<textarea class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary min-h-[80px]" name="telegram_template_medium" placeholder="{severitySymbol} [{severity}] {type}\n{message}"><?php echo e($telegramTemplateMedium); ?></textarea>
+<textarea class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary min-h-[80px]" name="telegram_template_medium" placeholder="{eventSymbol} {severitySymbol} [{severity}] {type}\n{message}"><?php echo e($telegramTemplateMedium); ?></textarea>
 </div>
 <div class="flex flex-col gap-2">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">High Severity Template</label>
-<textarea class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary min-h-[80px]" name="telegram_template_high" placeholder="{severitySymbol} [{severity}] {type}\n{message}"><?php echo e($telegramTemplateHigh); ?></textarea>
+<textarea class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary min-h-[80px]" name="telegram_template_high" placeholder="{eventSymbol} {severitySymbol} [{severity}] {type}\n{message}"><?php echo e($telegramTemplateHigh); ?></textarea>
 </div>
 <div class="flex flex-col gap-2">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Critical Severity Template</label>
-<textarea class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary min-h-[80px]" name="telegram_template_critical" placeholder="{severitySymbol} [{severity}] {type}\n{message}"><?php echo e($telegramTemplateCritical); ?></textarea>
+<textarea class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary min-h-[80px]" name="telegram_template_critical" placeholder="{eventSymbol} {severitySymbol} [{severity}] {type}\n{message}"><?php echo e($telegramTemplateCritical); ?></textarea>
 </div>
-<p class="md:col-span-2 text-xs text-gray-400">Available placeholders: {headline}, {description}, {detectedAt}, {switchName}, {severityLabel}, {severityBadge}, {eventId}, {deviceName}, {deviceIp}, {port}, {severity}, {severitySymbol}, {type}, {timestamp}, {message}. Symbols and emojis are supported.</p>
+<p class="md:col-span-2 text-xs text-gray-400">Available placeholders: {headline}, {description}, {detectedAt}, {switchName}, {severityLabel}, {severityBadge}, {eventId}, {deviceName}, {deviceIp}, {port}, {severity}, {severitySymbol}, {eventSymbol}, {type}, {timestamp}, {message}. Symbols and emojis are supported.</p>
 </div>
 </div>
 </details>

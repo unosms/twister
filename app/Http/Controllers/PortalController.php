@@ -302,6 +302,7 @@ class PortalController extends Controller
         $user->fill([
             'telegram_chat_id' => $currentTelegramChatId,
             'telegram_bot_token' => $currentTelegramBotToken,
+            'telegram_enabled' => $currentTelegramChatId !== null,
         ]);
         $user->save();
 

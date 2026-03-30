@@ -33,6 +33,7 @@ class UserController extends Controller
         'device.status_changed',
         'port.up',
         'port.down',
+        'port.speed_changed',
         'port.status_changed',
         'snmp.timeout',
         'snmp.auth_fail',
