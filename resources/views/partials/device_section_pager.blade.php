@@ -14,8 +14,15 @@ $currentPage = $isPaginator ? (int) $paginator->currentPage() : 1;
 $lastPage = $isPaginator ? max(1, (int) $paginator->lastPage()) : 1;
 $hasPrevious = $currentPage > 1;
 $hasNext = $currentPage < $lastPage;
-$previousUrl = $hasPrevious ? request()->fullUrlWithQuery([$pageKey => $currentPage - 1]) : '#';
-$nextUrl = $hasNext ? request()->fullUrlWithQuery([$pageKey => $currentPage + 1]) : '#';
+$openGroupKey = trim((string) ($openGroupKey ?? ''));
+$previousQuery = [$pageKey => $currentPage - 1];
+$nextQuery = [$pageKey => $currentPage + 1];
+if ($openGroupKey !== '') {
+    $previousQuery['open_group'] = $openGroupKey;
+    $nextQuery['open_group'] = $openGroupKey;
+}
+$previousUrl = $hasPrevious ? request()->fullUrlWithQuery($previousQuery) : '#';
+$nextUrl = $hasNext ? request()->fullUrlWithQuery($nextQuery) : '#';
 @endphp
 
 @if ($isPaginator && $total > $paginator->perPage())

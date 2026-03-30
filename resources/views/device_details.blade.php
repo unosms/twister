@@ -166,9 +166,27 @@ foreach ($sectionPageKeys as $sectionKey => $pageKey) {
         ]
     );
 }
+
+$validOpenGroups = array_keys($sectionPageKeys);
+$activeOpenGroup = trim((string) request()->query('open_group', ''));
+if (!in_array($activeOpenGroup, $validOpenGroups, true)) {
+    $activeOpenGroup = '';
+}
+if ($activeOpenGroup === '') {
+    foreach ($sectionPageKeys as $sectionKey => $pageKey) {
+        if ((int) request()->query($pageKey, 1) > 1) {
+            $activeOpenGroup = $sectionKey;
+            break;
+        }
+    }
+}
+$openAttr = static function (bool $isOpen): string {
+    return $isOpen ? ' open' : '';
+};
+$serversOpen = in_array($activeOpenGroup, ['servers_standalone', 'servers_virtual'], true);
 ?>
 
-<details class="group border border-[#d9e2f2] dark:border-gray-800 rounded-lg overflow-hidden">
+<details class="group border border-[#d9e2f2] dark:border-gray-800 rounded-lg overflow-hidden"<?php echo $openAttr($activeOpenGroup === 'router_board'); ?>>
 <summary class="flex items-center justify-between px-4 py-3 cursor-pointer bg-slate-50/80 dark:bg-gray-800/60">
 <div class="flex items-center gap-2">
 <span class="material-symbols-outlined text-[18px] text-primary">router</span>
@@ -179,11 +197,11 @@ foreach ($sectionPageKeys as $sectionKey => $pageKey) {
 </summary>
 <div class="p-3 border-t border-[#e7ebf3] dark:border-gray-800">
 <?php echo $__env->make('partials.device_details_table', ['groupDevices' => collect($sectionPaginators['router_board']->items()), 'emptyMessage' => 'No Router Board devices.', 'credentialMode' => 'username_password', 'rowStart' => max(1, (int) ($sectionPaginators['router_board']->firstItem() ?? 1))], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
-<?php echo $__env->make('partials.device_section_pager', ['paginator' => $sectionPaginators['router_board'], 'pageKey' => 'router_page'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<?php echo $__env->make('partials.device_section_pager', ['paginator' => $sectionPaginators['router_board'], 'pageKey' => 'router_page', 'openGroupKey' => 'router_board'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 </div>
 </details>
 
-<details class="group border border-[#d9e2f2] dark:border-gray-800 rounded-lg overflow-hidden">
+<details class="group border border-[#d9e2f2] dark:border-gray-800 rounded-lg overflow-hidden"<?php echo $openAttr($activeOpenGroup === 'switches'); ?>>
 <summary class="flex items-center justify-between px-4 py-3 cursor-pointer bg-slate-50/80 dark:bg-gray-800/60">
 <div class="flex items-center gap-2">
 <span class="material-symbols-outlined text-[18px] text-primary">hub</span>
@@ -194,11 +212,11 @@ foreach ($sectionPageKeys as $sectionKey => $pageKey) {
 </summary>
 <div class="p-3 border-t border-[#e7ebf3] dark:border-gray-800">
 <?php echo $__env->make('partials.device_details_table', ['groupDevices' => collect($sectionPaginators['switches']->items()), 'emptyMessage' => 'No switch devices.', 'credentialMode' => 'password_enable', 'rowStart' => max(1, (int) ($sectionPaginators['switches']->firstItem() ?? 1))], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
-<?php echo $__env->make('partials.device_section_pager', ['paginator' => $sectionPaginators['switches'], 'pageKey' => 'switches_page'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<?php echo $__env->make('partials.device_section_pager', ['paginator' => $sectionPaginators['switches'], 'pageKey' => 'switches_page', 'openGroupKey' => 'switches'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 </div>
 </details>
 
-<details class="group border border-[#d9e2f2] dark:border-gray-800 rounded-lg overflow-hidden">
+<details class="group border border-[#d9e2f2] dark:border-gray-800 rounded-lg overflow-hidden"<?php echo $openAttr($activeOpenGroup === 'fiber_optic'); ?>>
 <summary class="flex items-center justify-between px-4 py-3 cursor-pointer bg-slate-50/80 dark:bg-gray-800/60">
 <div class="flex items-center gap-2">
 <span class="material-symbols-outlined text-[18px] text-primary">settings_input_hdmi</span>
@@ -209,11 +227,11 @@ foreach ($sectionPageKeys as $sectionKey => $pageKey) {
 </summary>
 <div class="p-3 border-t border-[#e7ebf3] dark:border-gray-800">
 <?php echo $__env->make('partials.device_details_table', ['groupDevices' => collect($sectionPaginators['fiber_optic']->items()), 'emptyMessage' => 'No fiber optic devices.', 'credentialMode' => 'username_password', 'rowStart' => max(1, (int) ($sectionPaginators['fiber_optic']->firstItem() ?? 1))], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
-<?php echo $__env->make('partials.device_section_pager', ['paginator' => $sectionPaginators['fiber_optic'], 'pageKey' => 'fiber_page'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<?php echo $__env->make('partials.device_section_pager', ['paginator' => $sectionPaginators['fiber_optic'], 'pageKey' => 'fiber_page', 'openGroupKey' => 'fiber_optic'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 </div>
 </details>
 
-<details class="group border border-[#d9e2f2] dark:border-gray-800 rounded-lg overflow-hidden">
+<details class="group border border-[#d9e2f2] dark:border-gray-800 rounded-lg overflow-hidden"<?php echo $openAttr($activeOpenGroup === 'wireless'); ?>>
 <summary class="flex items-center justify-between px-4 py-3 cursor-pointer bg-slate-50/80 dark:bg-gray-800/60">
 <div class="flex items-center gap-2">
 <span class="material-symbols-outlined text-[18px] text-primary">wifi</span>
@@ -224,11 +242,11 @@ foreach ($sectionPageKeys as $sectionKey => $pageKey) {
 </summary>
 <div class="p-3 border-t border-[#e7ebf3] dark:border-gray-800">
 <?php echo $__env->make('partials.device_details_table', ['groupDevices' => collect($sectionPaginators['wireless']->items()), 'emptyMessage' => 'No wireless devices.', 'credentialMode' => 'username_password', 'rowStart' => max(1, (int) ($sectionPaginators['wireless']->firstItem() ?? 1))], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
-<?php echo $__env->make('partials.device_section_pager', ['paginator' => $sectionPaginators['wireless'], 'pageKey' => 'wireless_page'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<?php echo $__env->make('partials.device_section_pager', ['paginator' => $sectionPaginators['wireless'], 'pageKey' => 'wireless_page', 'openGroupKey' => 'wireless'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 </div>
 </details>
 
-<details class="group border border-[#d9e2f2] dark:border-gray-800 rounded-lg overflow-hidden">
+<details class="group border border-[#d9e2f2] dark:border-gray-800 rounded-lg overflow-hidden"<?php echo $openAttr($serversOpen); ?>>
 <summary class="flex items-center justify-between px-4 py-3 cursor-pointer bg-slate-50/80 dark:bg-gray-800/60">
 <div class="flex items-center gap-2">
 <span class="material-symbols-outlined text-[18px] text-primary">dns</span>
@@ -238,7 +256,7 @@ foreach ($sectionPageKeys as $sectionKey => $pageKey) {
 <span class="material-symbols-outlined text-[16px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
 </summary>
 <div class="p-3 border-t border-[#e7ebf3] dark:border-gray-800 space-y-3">
-<details class="group border border-[#e3e9f6] dark:border-gray-800 rounded-lg overflow-hidden">
+<details class="group border border-[#e3e9f6] dark:border-gray-800 rounded-lg overflow-hidden"<?php echo $openAttr($activeOpenGroup === 'servers_standalone'); ?>>
 <summary class="flex items-center justify-between px-3 py-2.5 cursor-pointer bg-white dark:bg-gray-900">
 <div class="flex items-center gap-2">
 <span class="text-xs font-semibold text-slate-700 dark:text-gray-200">Stand Alone Server</span>
@@ -248,11 +266,11 @@ foreach ($sectionPageKeys as $sectionKey => $pageKey) {
 </summary>
 <div class="p-3 border-t border-[#e7ebf3] dark:border-gray-800">
 <?php echo $__env->make('partials.device_details_table', ['groupDevices' => collect($sectionPaginators['servers_standalone']->items()), 'emptyMessage' => 'No stand alone servers.', 'credentialMode' => 'username_password', 'rowStart' => max(1, (int) ($sectionPaginators['servers_standalone']->firstItem() ?? 1))], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
-<?php echo $__env->make('partials.device_section_pager', ['paginator' => $sectionPaginators['servers_standalone'], 'pageKey' => 'server_standalone_page'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<?php echo $__env->make('partials.device_section_pager', ['paginator' => $sectionPaginators['servers_standalone'], 'pageKey' => 'server_standalone_page', 'openGroupKey' => 'servers_standalone'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 </div>
 </details>
 
-<details class="group border border-[#e3e9f6] dark:border-gray-800 rounded-lg overflow-hidden">
+<details class="group border border-[#e3e9f6] dark:border-gray-800 rounded-lg overflow-hidden"<?php echo $openAttr($activeOpenGroup === 'servers_virtual'); ?>>
 <summary class="flex items-center justify-between px-3 py-2.5 cursor-pointer bg-white dark:bg-gray-900">
 <div class="flex items-center gap-2">
 <span class="text-xs font-semibold text-slate-700 dark:text-gray-200">Virtual Server</span>
@@ -262,14 +280,14 @@ foreach ($sectionPageKeys as $sectionKey => $pageKey) {
 </summary>
 <div class="p-3 border-t border-[#e7ebf3] dark:border-gray-800">
 <?php echo $__env->make('partials.device_details_table', ['groupDevices' => collect($sectionPaginators['servers_virtual']->items()), 'emptyMessage' => 'No virtual servers.', 'credentialMode' => 'username_password', 'rowStart' => max(1, (int) ($sectionPaginators['servers_virtual']->firstItem() ?? 1))], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
-<?php echo $__env->make('partials.device_section_pager', ['paginator' => $sectionPaginators['servers_virtual'], 'pageKey' => 'server_virtual_page'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<?php echo $__env->make('partials.device_section_pager', ['paginator' => $sectionPaginators['servers_virtual'], 'pageKey' => 'server_virtual_page', 'openGroupKey' => 'servers_virtual'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 </div>
 </details>
 </div>
 </details>
 
 <?php if($deviceGroups['other']->count() > 0): ?>
-<details class="group border border-[#d9e2f2] dark:border-gray-800 rounded-lg overflow-hidden">
+<details class="group border border-[#d9e2f2] dark:border-gray-800 rounded-lg overflow-hidden"<?php echo $openAttr($activeOpenGroup === 'other'); ?>>
 <summary class="flex items-center justify-between px-4 py-3 cursor-pointer bg-slate-50/80 dark:bg-gray-800/60">
 <div class="flex items-center gap-2">
 <span class="material-symbols-outlined text-[18px] text-primary">inventory_2</span>
@@ -280,7 +298,7 @@ foreach ($sectionPageKeys as $sectionKey => $pageKey) {
 </summary>
 <div class="p-3 border-t border-[#e7ebf3] dark:border-gray-800">
 <?php echo $__env->make('partials.device_details_table', ['groupDevices' => collect($sectionPaginators['other']->items()), 'emptyMessage' => 'No uncategorized devices.', 'credentialMode' => 'password_enable', 'rowStart' => max(1, (int) ($sectionPaginators['other']->firstItem() ?? 1))], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
-<?php echo $__env->make('partials.device_section_pager', ['paginator' => $sectionPaginators['other'], 'pageKey' => 'other_page'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
+<?php echo $__env->make('partials.device_section_pager', ['paginator' => $sectionPaginators['other'], 'pageKey' => 'other_page', 'openGroupKey' => 'other'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
 </div>
 </details>
 <?php endif; ?>
