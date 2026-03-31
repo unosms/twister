@@ -2,7 +2,7 @@
 
 $identifiers = array_values(array_filter(array_map(
     static fn ($value): string => trim((string) $value),
-    explode(',', (string) env('SUPER_ADMIN_IDENTIFIERS', 'Walid'))
+    explode(',', (string) env('SUPER_ADMIN_IDENTIFIERS', 'admin')),
 ), static fn (string $value): bool => $value !== ''));
 
 return [
