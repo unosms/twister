@@ -299,6 +299,21 @@ class PollDeviceEvents extends Command
         };
 
         if ($normalizedSeverity !== '') {
+            // Keep source severity when it is explicit, but enforce minimum alert
+            // levels for key interface transitions so user default filters don't
+            // silently drop important events.
+            if (in_array($type, ['link_down', 'port.down'], true)) {
+                return in_array($normalizedSeverity, ['critical', 'high'], true) ? $normalizedSeverity : 'high';
+            }
+
+            if (in_array($type, ['speed_changed', 'port.speed_changed', 'port.status_changed'], true)) {
+                return in_array($normalizedSeverity, ['critical', 'high', 'medium'], true) ? $normalizedSeverity : 'medium';
+            }
+
+            if (in_array($type, ['link_up', 'port.up'], true)) {
+                return in_array($normalizedSeverity, ['critical', 'high', 'medium', 'low'], true) ? $normalizedSeverity : 'low';
+            }
+
             return $normalizedSeverity;
         }
 

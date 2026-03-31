@@ -759,20 +759,32 @@ class UserController extends Controller
         $telegramBotToken = trim((string) ($data['telegram_bot_token'] ?? ''));
         $telegramBotToken = $telegramBotToken !== '' ? $telegramBotToken : null;
 
-        $telegramSeverities = array_values(array_unique(array_map(
-            static fn (string $value): string => strtolower(trim($value)),
-            $data['telegram_severities'] ?? []
-        )));
+        $existingTelegramSeverities = $this->normalizeLowercaseList($user->telegram_severities ?? []);
+        $submittedTelegramSeverities = $request->has('telegram_severities')
+            ? ($data['telegram_severities'] ?? [])
+            : ($isNew ? [] : $existingTelegramSeverities);
+        $telegramSeverities = $this->normalizeLowercaseList($submittedTelegramSeverities);
         if (empty($telegramSeverities)) {
-            $telegramSeverities = ['high', 'critical'];
+            $telegramSeverities = !empty($existingTelegramSeverities) && !$isNew
+                ? $existingTelegramSeverities
+                : ['high', 'critical'];
         }
 
+        $existingTelegramEventTypes = $this->normalizeTelegramEventTypes($user->telegram_event_types ?? [], '');
+        $submittedTelegramEventTypesBase = $request->has('telegram_event_types')
+            ? ($data['telegram_event_types'] ?? [])
+            : ($isNew ? [] : $existingTelegramEventTypes);
+        $submittedTelegramEventTypesCustom = $request->has('telegram_event_types_custom')
+            ? (string) ($data['telegram_event_types_custom'] ?? '')
+            : '';
         $telegramEventTypes = $this->normalizeTelegramEventTypes(
-            $data['telegram_event_types'] ?? [],
-            $data['telegram_event_types_custom'] ?? ''
+            is_array($submittedTelegramEventTypesBase) ? $submittedTelegramEventTypesBase : [],
+            $submittedTelegramEventTypesCustom
         );
         if (empty($telegramEventTypes)) {
-            $telegramEventTypes = ['device.offline', 'port.down'];
+            $telegramEventTypes = !empty($existingTelegramEventTypes) && !$isNew
+                ? $existingTelegramEventTypes
+                : ['device.offline', 'port.down'];
         }
 
         $templateConfig = $this->decodeTelegramTemplateConfig((string) ($user->telegram_template ?? ''));
@@ -1159,29 +1171,35 @@ class UserController extends Controller
 
     public function telegramTest(Request $request, User $user)
     {
-        $targetUser = clone $user;
-        $targetUser->telegram_enabled = $request->boolean('telegram_enabled', (bool) ($user->telegram_enabled ?? false));
-
-        $chatId = trim((string) $request->input('telegram_chat_id', $user->telegram_chat_id));
-        $targetUser->telegram_chat_id = $chatId !== '' ? $chatId : null;
-
-        $botToken = trim((string) $request->input('telegram_bot_token', $user->telegram_bot_token));
-        $targetUser->telegram_bot_token = $botToken !== '' ? $botToken : null;
-
-        $templateConfig = $this->decodeTelegramTemplateConfig((string) ($user->telegram_template ?? ''));
-        $templateDefault = trim((string) $request->input('telegram_template', $templateConfig['default']));
-        $severityTemplates = [];
-        foreach (self::TELEGRAM_TEMPLATE_INPUTS as $severity => $fieldName) {
-            $value = trim((string) $request->input($fieldName, $templateConfig['severity_templates'][$severity] ?? ''));
-            if ($value !== '') {
-                $severityTemplates[$severity] = $value;
-            }
+        if ($user->isSuperAdmin() && !$this->currentUserCanEditProtectedSuperAdmin($request, $user)) {
+            return back()->withErrors([
+                'user_update' => 'Super admin accounts are locked and cannot be modified.',
+            ]);
         }
-        $targetUser->telegram_template = $this->encodeTelegramTemplateConfig($templateDefault, $severityTemplates);
+
+        $canManageIdentity = $this->currentUserIsSuperAdmin($request);
+        if (!$canManageIdentity && $this->hasProtectedIdentityChanges($request, $user)) {
+            return back()->withErrors([
+                'user_update' => 'Only super admin can change username, role, or password.',
+            ]);
+        }
+
+        $data = $this->validateUserPayload($request, $user);
+        if (!$canManageIdentity) {
+            $data['username'] = $user->name;
+            $data['role'] = $user->role ?? 'user';
+            $data['password'] = null;
+        }
+
+        DB::transaction(function () use ($request, $user, $data) {
+            $this->persistUser($request, $user, $data);
+        });
+
+        $targetUser = $user->fresh() ?? $user;
 
         $notifier = $this->resolveTelegramNotifier();
         if ($notifier === null) {
-            return back()->with('status', 'Telegram notifier service is unavailable on this server.');
+            return back()->with('status', "User {$user->name} updated. Telegram notifier service is unavailable on this server.");
         }
 
         $sent = $notifier->sendTestMessage($targetUser);
@@ -1199,10 +1217,10 @@ class UserController extends Controller
                 $detail = ' Check chat ID, enabled toggle, and bot token.';
             }
 
-            return back()->with('status', "Could not send Telegram test for {$user->name}.{$detail}");
+            return back()->with('status', "User {$user->name} updated. Could not send Telegram test for {$user->name}.{$detail}");
         }
 
-        return back()->with('status', "Telegram test sent to {$user->name}.");
+        return back()->with('status', "User {$user->name} updated. Telegram test sent to {$user->name}.");
     }
     private function resolveTelegramNotifier(): ?object
     {
@@ -1356,6 +1374,32 @@ class UserController extends Controller
         $customTokens = preg_split('/\s*,\s*/', trim($custom)) ?: [];
         foreach ($customTokens as $token) {
             $normalized = strtolower(trim($token));
+            if ($normalized !== '') {
+                $items[] = $normalized;
+            }
+        }
+
+        return array_values(array_unique($items));
+    }
+
+    private function normalizeLowercaseList(array|string|null $values): array
+    {
+        if (is_string($values)) {
+            $decoded = json_decode($values, true);
+            if (is_array($decoded)) {
+                $values = $decoded;
+            } else {
+                $values = preg_split('/\s*,\s*/', $values) ?: [];
+            }
+        }
+
+        if (!is_array($values)) {
+            return [];
+        }
+
+        $items = [];
+        foreach ($values as $value) {
+            $normalized = strtolower(trim((string) $value));
             if ($normalized !== '') {
                 $items[] = $normalized;
             }
