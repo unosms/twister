@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\AppSetting;
 use App\Models\CommandTemplate;
 use App\Models\Device;
 use App\Models\DeviceAssignment;
@@ -20,12 +21,6 @@ use Illuminate\Validation\Rule;
 class UserController extends Controller
 {
     private const TELEGRAM_SEVERITIES = ['low', 'medium', 'high', 'critical'];
-    private const TELEGRAM_TEMPLATE_INPUTS = [
-        'low' => 'telegram_template_low',
-        'medium' => 'telegram_template_medium',
-        'high' => 'telegram_template_high',
-        'critical' => 'telegram_template_critical',
-    ];
 
     private const TELEGRAM_EVENT_TYPES = [
         'device.online',
@@ -328,6 +323,7 @@ class UserController extends Controller
         $this->ensureExecCommandTemplates();
         $commandTemplates = CommandTemplate::where('active', true)->orderBy('name')->get();
         $graphInterfaceOptionsByDevice = $this->buildGraphInterfaceOptionsByDevice($devices);
+        $telegramEventTypeOptions = $this->telegramEventTypeOptions();
 
         return [
             'devices' => $devices,
@@ -343,12 +339,14 @@ class UserController extends Controller
             'telegramDeviceInterfaceScopeReady' => User::supportsTelegramDeviceInterfaceScope(),
             'deviceCommandRestrictionsReady' => DevicePermission::supportsAllowedCommandTemplateIds(),
             'telegramSeverityOptions' => self::TELEGRAM_SEVERITIES,
-            'telegramEventTypeOptions' => self::TELEGRAM_EVENT_TYPES,
+            'telegramEventTypeOptions' => $telegramEventTypeOptions,
         ];
     }
 
     private function emptyUserFormViewData(): array
     {
+        $telegramEventTypeOptions = $this->telegramEventTypeOptions();
+
         return [
             'devices' => collect(),
             'commandTemplates' => collect(),
@@ -363,7 +361,7 @@ class UserController extends Controller
             'telegramDeviceInterfaceScopeReady' => User::supportsTelegramDeviceInterfaceScope(),
             'deviceCommandRestrictionsReady' => DevicePermission::supportsAllowedCommandTemplateIds(),
             'telegramSeverityOptions' => self::TELEGRAM_SEVERITIES,
-            'telegramEventTypeOptions' => self::TELEGRAM_EVENT_TYPES,
+            'telegramEventTypeOptions' => $telegramEventTypeOptions,
         ];
     }
 
@@ -701,12 +699,6 @@ class UserController extends Controller
             'telegram_severities.*' => ['string', Rule::in(self::TELEGRAM_SEVERITIES)],
             'telegram_event_types' => ['nullable', 'array'],
             'telegram_event_types.*' => ['string', 'max:64'],
-            'telegram_event_types_custom' => ['nullable', 'string', 'max:500'],
-            'telegram_template' => ['nullable', 'string', 'max:4000'],
-            'telegram_template_low' => ['nullable', 'string', 'max:4000'],
-            'telegram_template_medium' => ['nullable', 'string', 'max:4000'],
-            'telegram_template_high' => ['nullable', 'string', 'max:4000'],
-            'telegram_template_critical' => ['nullable', 'string', 'max:4000'],
         ]);
     }
 
@@ -781,39 +773,23 @@ class UserController extends Controller
                 : ['high', 'critical']);
         }
 
-        $existingTelegramEventTypes = $this->normalizeTelegramEventTypes($user->telegram_event_types ?? [], '');
+        $existingTelegramEventTypes = $this->normalizeTelegramEventTypes($user->telegram_event_types ?? []);
         $telegramEventTypesExplicit = $request->boolean('telegram_event_types_present')
             || $request->exists('telegram_event_types');
-        $telegramEventTypesCustomExplicit = $request->boolean('telegram_event_types_custom_present')
-            || $request->exists('telegram_event_types_custom');
         $submittedTelegramEventTypesBase = $telegramEventTypesExplicit
             ? ($request->input('telegram_event_types', []))
             : ($isNew ? [] : $existingTelegramEventTypes);
-        $submittedTelegramEventTypesCustom = $telegramEventTypesCustomExplicit
-            ? (string) ($request->input('telegram_event_types_custom', ''))
-            : '';
         $telegramEventTypes = $this->normalizeTelegramEventTypes(
-            is_array($submittedTelegramEventTypesBase) ? $submittedTelegramEventTypesBase : [],
-            $submittedTelegramEventTypesCustom
+            is_array($submittedTelegramEventTypesBase) ? $submittedTelegramEventTypesBase : []
         );
         if (empty($telegramEventTypes)) {
-            $telegramEventTypes = ($telegramEventTypesExplicit || $telegramEventTypesCustomExplicit)
+            $telegramEventTypes = $telegramEventTypesExplicit
                 ? []
                 : (!empty($existingTelegramEventTypes) && !$isNew
                 ? $existingTelegramEventTypes
                 : ['device.offline', 'port.down']);
         }
 
-        $templateConfig = $this->decodeTelegramTemplateConfig((string) ($user->telegram_template ?? ''));
-        $telegramTemplateDefault = trim((string) ($data['telegram_template'] ?? $templateConfig['default']));
-        $telegramSeverityTemplates = [];
-        foreach (self::TELEGRAM_TEMPLATE_INPUTS as $severity => $fieldName) {
-            $value = trim((string) ($data[$fieldName] ?? ($templateConfig['severity_templates'][$severity] ?? '')));
-            if ($value !== '') {
-                $telegramSeverityTemplates[$severity] = $value;
-            }
-        }
-        $telegramTemplate = $this->encodeTelegramTemplateConfig($telegramTemplateDefault, $telegramSeverityTemplates);
         $avatarStorageReady = User::supportsAvatarStorage();
         $avatarPath = $avatarStorageReady ? ($user->avatar_path ?? null) : null;
 
@@ -835,7 +811,6 @@ class UserController extends Controller
             'telegram_bot_token' => $telegramBotToken,
             'telegram_severities' => $telegramSeverities,
             'telegram_event_types' => $telegramEventTypes,
-            'telegram_template' => $telegramTemplate,
         ];
 
         if ($assignedDeviceGraphAccessReady) {
@@ -1384,20 +1359,20 @@ class UserController extends Controller
         return empty($items) ? null : implode(',', $items);
     }
 
-    private function normalizeTelegramEventTypes(array $base, string $custom): array
+    private function normalizeTelegramEventTypes(array|string|null $values): array
     {
-        $items = [];
-
-        foreach ($base as $type) {
-            $normalized = strtolower(trim((string) $type));
-            if ($normalized !== '') {
-                $items[] = $normalized;
-            }
+        if (is_string($values)) {
+            $values = preg_split('/\s*,\s*/', trim($values)) ?: [];
         }
 
-        $customTokens = preg_split('/\s*,\s*/', trim($custom)) ?: [];
-        foreach ($customTokens as $token) {
-            $normalized = strtolower(trim($token));
+        if (!is_array($values)) {
+            return [];
+        }
+
+        $items = [];
+
+        foreach ($values as $type) {
+            $normalized = strtolower(trim((string) $type));
             if ($normalized !== '') {
                 $items[] = $normalized;
             }
@@ -1432,73 +1407,22 @@ class UserController extends Controller
         return array_values(array_unique($items));
     }
 
-    /**
-     * @return array{default:string,severity_templates:array<string,string>}
-     */
-    private function decodeTelegramTemplateConfig(string $stored): array
+    private function telegramEventTypeOptions(): array
     {
-        $stored = trim($stored);
-        if ($stored === '') {
-            return [
-                'default' => '',
-                'severity_templates' => [],
-            ];
-        }
+        $options = self::TELEGRAM_EVENT_TYPES;
 
-        $decoded = json_decode($stored, true);
-        if (!is_array($decoded)) {
-            return [
-                'default' => $stored,
-                'severity_templates' => [],
-            ];
-        }
-
-        $default = trim((string) ($decoded['default'] ?? ''));
-        $rawSeverityTemplates = $decoded['severity_templates'] ?? ($decoded['templates_by_severity'] ?? []);
-        $severityTemplates = [];
-        if (is_array($rawSeverityTemplates)) {
-            foreach (self::TELEGRAM_TEMPLATE_INPUTS as $severity => $fieldName) {
-                $value = trim((string) ($rawSeverityTemplates[$severity] ?? ''));
-                if ($value !== '') {
-                    $severityTemplates[$severity] = $value;
-                }
+        if (AppSetting::supportsStorage()) {
+            $customEventTypes = $this->normalizeTelegramEventTypes(
+                AppSetting::getValue('telegram_event_types_custom', '')
+            );
+            if (!empty($customEventTypes)) {
+                $options = array_merge($options, $customEventTypes);
             }
         }
 
-        return [
-            'default' => $default,
-            'severity_templates' => $severityTemplates,
-        ];
+        return array_values(array_unique($options));
     }
 
-    /**
-     * @param array<string,string> $severityTemplates
-     */
-    private function encodeTelegramTemplateConfig(string $defaultTemplate, array $severityTemplates): ?string
-    {
-        $defaultTemplate = trim($defaultTemplate);
-
-        $normalizedSeverityTemplates = [];
-        foreach (self::TELEGRAM_TEMPLATE_INPUTS as $severity => $fieldName) {
-            $value = trim((string) ($severityTemplates[$severity] ?? ''));
-            if ($value !== '') {
-                $normalizedSeverityTemplates[$severity] = $value;
-            }
-        }
-
-        if ($defaultTemplate === '' && empty($normalizedSeverityTemplates)) {
-            return null;
-        }
-
-        if (empty($normalizedSeverityTemplates)) {
-            return $defaultTemplate !== '' ? $defaultTemplate : null;
-        }
-
-        return json_encode([
-            'default' => $defaultTemplate,
-            'severity_templates' => $normalizedSeverityTemplates,
-        ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: ($defaultTemplate !== '' ? $defaultTemplate : null);
-    }
     private function ensureExecCommandTemplates(): void
     {
         foreach (self::EXEC_COMMAND_TEMPLATES as $template) {

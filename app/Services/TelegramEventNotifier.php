@@ -16,7 +16,15 @@ class TelegramEventNotifier
     private const DEFAULT_SEVERITIES = ['high', 'critical'];
     private const DEFAULT_EVENT_TYPES = ['device.offline', 'port.down'];
     private const TIMEZONE_CACHE_KEY = 'system_settings.timezone';
+    private const TELEGRAM_TEMPLATE_DEFAULT_SETTING = 'telegram_template_default';
+    private const TELEGRAM_TEMPLATE_SEVERITY_SETTINGS = [
+        'low' => 'telegram_template_low',
+        'medium' => 'telegram_template_medium',
+        'high' => 'telegram_template_high',
+        'critical' => 'telegram_template_critical',
+    ];
     private ?string $lastError = null;
+    private ?array $globalTemplateConfig = null;
 
     public function notifyUsersForEvent(array $event): void
     {
@@ -397,14 +405,83 @@ class TelegramEventNotifier
 
     private function resolveTemplateForEvent(User $user, array $event): string
     {
-        $stored = trim((string) ($user->telegram_template ?? ''));
+        $globalConfig = $this->resolveGlobalTemplateConfig();
+        if (($globalConfig['enabled'] ?? false) === true) {
+            return $this->resolveTemplateBySeverity(
+                (string) ($globalConfig['default'] ?? ''),
+                (array) ($globalConfig['severity_templates'] ?? []),
+                (string) ($event['severity'] ?? '')
+            );
+        }
+
+        $legacyConfig = $this->decodeLegacyUserTemplate((string) ($user->telegram_template ?? ''));
+        return $this->resolveTemplateBySeverity(
+            $legacyConfig['default'],
+            $legacyConfig['severity_templates'],
+            (string) ($event['severity'] ?? '')
+        );
+    }
+
+    private function resolveTemplateBySeverity(string $defaultTemplate, array $severityTemplates, string $severity): string
+    {
+        $severity = strtolower(trim($severity));
+        if ($severity !== '' && isset($severityTemplates[$severity])) {
+            return (string) $severityTemplates[$severity];
+        }
+
+        return trim($defaultTemplate);
+    }
+
+    /**
+     * @return array{enabled:bool,default:string,severity_templates:array<string,string>}
+     */
+    private function resolveGlobalTemplateConfig(): array
+    {
+        if ($this->globalTemplateConfig !== null) {
+            return $this->globalTemplateConfig;
+        }
+
+        $defaultTemplate = '';
+        $severityTemplates = [];
+
+        if (AppSetting::supportsStorage()) {
+            $defaultTemplate = trim((string) AppSetting::getValue(self::TELEGRAM_TEMPLATE_DEFAULT_SETTING, ''));
+            foreach (self::TELEGRAM_TEMPLATE_SEVERITY_SETTINGS as $severity => $settingKey) {
+                $value = trim((string) AppSetting::getValue($settingKey, ''));
+                if ($value !== '') {
+                    $severityTemplates[$severity] = $value;
+                }
+            }
+        }
+
+        $this->globalTemplateConfig = [
+            'enabled' => $defaultTemplate !== '' || !empty($severityTemplates),
+            'default' => $defaultTemplate,
+            'severity_templates' => $severityTemplates,
+        ];
+
+        return $this->globalTemplateConfig;
+    }
+
+    /**
+     * @return array{default:string,severity_templates:array<string,string>}
+     */
+    private function decodeLegacyUserTemplate(string $stored): array
+    {
+        $stored = trim($stored);
         if ($stored === '') {
-            return '';
+            return [
+                'default' => '',
+                'severity_templates' => [],
+            ];
         }
 
         $decoded = json_decode($stored, true);
         if (!is_array($decoded)) {
-            return $stored;
+            return [
+                'default' => $stored,
+                'severity_templates' => [],
+            ];
         }
 
         $defaultTemplate = trim((string) ($decoded['default'] ?? ''));
@@ -420,12 +497,10 @@ class TelegramEventNotifier
             }
         }
 
-        $severity = strtolower(trim((string) ($event['severity'] ?? '')));
-        if ($severity !== '' && isset($severityTemplates[$severity])) {
-            return $severityTemplates[$severity];
-        }
-
-        return $defaultTemplate;
+        return [
+            'default' => $defaultTemplate,
+            'severity_templates' => $severityTemplates,
+        ];
     }
 
     private function resolveSeveritySymbol(string $severity): string

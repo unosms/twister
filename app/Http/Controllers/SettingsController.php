@@ -24,6 +24,16 @@ use Symfony\Component\Process\Process;
 
 class SettingsController extends Controller
 {
+    private const TELEGRAM_TEMPLATE_SETTINGS = [
+        'default' => 'telegram_template_default',
+        'low' => 'telegram_template_low',
+        'medium' => 'telegram_template_medium',
+        'high' => 'telegram_template_high',
+        'critical' => 'telegram_template_critical',
+    ];
+
+    private const TELEGRAM_EVENT_TYPES_CUSTOM_SETTING = 'telegram_event_types_custom';
+
     public function index(Request $request)
     {
         $settingsReady = AppSetting::supportsStorage();
@@ -52,6 +62,7 @@ class SettingsController extends Controller
             ->values()
             ->all();
         $backupScripts = $this->backupScriptInventory();
+        $telegramSettings = $this->telegramTemplateSettings();
 
         return view('settings_system', [
             'currentTimezone' => $currentTimezone,
@@ -74,6 +85,12 @@ class SettingsController extends Controller
                 'notification_count' => $this->tableCount('notifications'),
                 'telemetry_count' => $this->tableCount('telemetry_logs'),
             ],
+            'telegramEventTypesCustom' => $telegramSettings['event_types_custom'],
+            'telegramTemplateDefault' => $telegramSettings['default'],
+            'telegramTemplateLow' => $telegramSettings['low'],
+            'telegramTemplateMedium' => $telegramSettings['medium'],
+            'telegramTemplateHigh' => $telegramSettings['high'],
+            'telegramTemplateCritical' => $telegramSettings['critical'],
             'configBackupTableLabels' => $this->configurationBackupTableLabels(),
             'selectedBackupDeviceId' => old('device_id'),
             'importRequiresConfirmation' => true,
@@ -103,6 +120,38 @@ class SettingsController extends Controller
         return redirect()
             ->route('settings.index')
             ->with('status', "System timezone updated to {$data['timezone']}.");
+    }
+
+    public function updateTelegramTemplates(Request $request)
+    {
+        if (!AppSetting::supportsStorage()) {
+            return back()->withErrors([
+                'telegram_settings' => 'The settings table is missing the required key/value columns. Run php artisan migrate first.',
+            ]);
+        }
+
+        $data = $request->validate([
+            'telegram_event_types_custom' => ['nullable', 'string', 'max:500'],
+            'telegram_template_default' => ['nullable', 'string', 'max:4000'],
+            'telegram_template_low' => ['nullable', 'string', 'max:4000'],
+            'telegram_template_medium' => ['nullable', 'string', 'max:4000'],
+            'telegram_template_high' => ['nullable', 'string', 'max:4000'],
+            'telegram_template_critical' => ['nullable', 'string', 'max:4000'],
+        ]);
+
+        $customTypes = $this->normalizeTelegramEventTypesCustom(
+            (string) ($data['telegram_event_types_custom'] ?? '')
+        );
+        AppSetting::putValue(self::TELEGRAM_EVENT_TYPES_CUSTOM_SETTING, $customTypes !== '' ? $customTypes : null);
+
+        foreach (self::TELEGRAM_TEMPLATE_SETTINGS as $fieldName => $settingKey) {
+            $value = trim((string) ($data[$settingKey] ?? ''));
+            AppSetting::putValue($settingKey, $value !== '' ? $value : null);
+        }
+
+        return redirect()
+            ->route('settings.index')
+            ->with('status', 'Telegram template settings updated.');
     }
 
     public function manageBackups(Request $request)
@@ -1296,6 +1345,55 @@ class SettingsController extends Controller
         }
 
         return null;
+    }
+
+    /**
+     * @return array{
+     *     event_types_custom:string,
+     *     default:string,
+     *     low:string,
+     *     medium:string,
+     *     high:string,
+     *     critical:string
+     * }
+     */
+    private function telegramTemplateSettings(): array
+    {
+        $defaults = [
+            'event_types_custom' => '',
+            'default' => '',
+            'low' => '',
+            'medium' => '',
+            'high' => '',
+            'critical' => '',
+        ];
+
+        if (!AppSetting::supportsStorage()) {
+            return $defaults;
+        }
+
+        $defaults['event_types_custom'] = trim((string) AppSetting::getValue(self::TELEGRAM_EVENT_TYPES_CUSTOM_SETTING, ''));
+
+        foreach (self::TELEGRAM_TEMPLATE_SETTINGS as $fieldName => $settingKey) {
+            $defaults[$fieldName] = trim((string) AppSetting::getValue($settingKey, ''));
+        }
+
+        return $defaults;
+    }
+
+    private function normalizeTelegramEventTypesCustom(string $value): string
+    {
+        $tokens = preg_split('/\s*,\s*/', trim($value)) ?: [];
+        $items = [];
+        foreach ($tokens as $token) {
+            $normalized = strtolower(trim((string) $token));
+            if ($normalized !== '') {
+                $items[] = $normalized;
+            }
+        }
+
+        $items = array_values(array_unique($items));
+        return implode(',', $items);
     }
 
     private function backupTftpServerAddress(): string

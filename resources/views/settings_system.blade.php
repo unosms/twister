@@ -51,6 +51,12 @@ $localNow = now()->copy()->timezone($currentTimezone);
 $selectedTimezone = old('timezone', $currentTimezone);
 $backupRootPrimary = $backupRootOptions[0] ?? '/srv/tftp';
 $selectedBackupDeviceId = old('device_id', $selectedBackupDeviceId ?? '');
+$telegramEventTypesCustomValue = old('telegram_event_types_custom', $telegramEventTypesCustom ?? '');
+$telegramTemplateDefaultValue = old('telegram_template_default', $telegramTemplateDefault ?? '');
+$telegramTemplateLowValue = old('telegram_template_low', $telegramTemplateLow ?? '');
+$telegramTemplateMediumValue = old('telegram_template_medium', $telegramTemplateMedium ?? '');
+$telegramTemplateHighValue = old('telegram_template_high', $telegramTemplateHigh ?? '');
+$telegramTemplateCriticalValue = old('telegram_template_critical', $telegramTemplateCritical ?? '');
 @endphp
 
 <div class="flex h-screen overflow-hidden">
@@ -99,10 +105,11 @@ Refresh
 <p class="text-xs font-bold uppercase tracking-[0.24em] text-primary">System Settings</p>
 <h1 class="mt-3 text-3xl font-black tracking-tight text-slate-900 dark:text-white">Operations and Configuration</h1>
 <p class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
-This page is organized around practical system tasks: change the timezone, run or clear backups, reset runtime data, and export or import the full configuration.
+This page is organized around practical system tasks: change the timezone, manage Telegram templates, run or clear backups, reset runtime data, and export or import the full configuration.
 </p>
 <div class="mt-5 flex flex-wrap gap-2">
 <a class="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:border-primary dark:hover:text-primary" href="#timezone-settings">Time Zone</a>
+<a class="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:border-primary dark:hover:text-primary" href="#telegram-templates">Telegram Templates</a>
 <a class="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:border-primary dark:hover:text-primary" href="#backup-operations">Backups</a>
 <a class="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:border-primary dark:hover:text-primary" href="#backup-folder-permissions">Backup Permissions</a>
 <a class="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:border-primary dark:hover:text-primary" href="#backup-scripts">Backup Scripts</a>
@@ -132,7 +139,7 @@ This page is organized around practical system tasks: change the timezone, run o
 </section>
 
 <div class="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
-<section class="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 sm:p-8" id="timezone-settings">
+<section class="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 sm:p-8 xl:order-1" id="timezone-settings">
 <form class="space-y-6" method="POST" action="{{ route('settings.update') }}">
 @csrf
 <div class="flex flex-col gap-2">
@@ -191,7 +198,53 @@ Save Time Zone
 </form>
 </section>
 
-<section class="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 sm:p-8" id="backup-operations">
+<section class="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 sm:p-8 xl:col-span-2 xl:order-3" id="telegram-templates">
+<div class="flex flex-col gap-2">
+<p class="text-xs font-bold uppercase tracking-[0.24em] text-primary">Telegram</p>
+<h2 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Global Event Types and Message Templates</h2>
+<p class="text-sm leading-6 text-slate-600 dark:text-slate-300">These values apply system-wide. User forms now only choose devices, severities, and event types from this shared configuration.</p>
+</div>
+<form class="mt-6 space-y-5" method="POST" action="{{ route('settings.telegram-templates.update') }}">
+@csrf
+<div>
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-200" for="telegram_event_types_custom">Custom Event Types</label>
+<input class="mt-2 h-11 w-full rounded-2xl border border-slate-300 bg-white px-4 text-sm text-slate-900 placeholder:text-slate-400 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" id="telegram_event_types_custom" name="telegram_event_types_custom" type="text" value="{{ $telegramEventTypesCustomValue }}" placeholder="device.*, custom.tag"/>
+<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">Comma-separated custom tags, supports wildcard like <code>device.*</code>.</p>
+</div>
+<div>
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-200" for="telegram_template_default">Default Message Template (optional)</label>
+<textarea class="mt-2 min-h-[110px] w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" id="telegram_template_default" name="telegram_template_default" placeholder="{headline}&#10;Description: {description}&#10;Detected at {detectedAt}&#10;&#10;switch_name: {switchName}&#10;Severity: {severityLabel}&#10;Severity: {severityBadge}&#10;Event ID: {eventId}">{{ $telegramTemplateDefaultValue }}</textarea>
+<p class="mt-2 text-xs text-slate-500 dark:text-slate-400">Used when no severity-specific template is set.</p>
+</div>
+<div class="grid gap-4 md:grid-cols-2">
+<div>
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-200" for="telegram_template_low">Low Severity Template</label>
+<textarea class="mt-2 min-h-[96px] w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" id="telegram_template_low" name="telegram_template_low" placeholder="{eventSymbol} {severitySymbol} [{severity}]&#10;{type}&#10;{message}">{{ $telegramTemplateLowValue }}</textarea>
+</div>
+<div>
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-200" for="telegram_template_medium">Medium Severity Template</label>
+<textarea class="mt-2 min-h-[96px] w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" id="telegram_template_medium" name="telegram_template_medium" placeholder="{eventSymbol} {severitySymbol} [{severity}]&#10;{type}&#10;{message}">{{ $telegramTemplateMediumValue }}</textarea>
+</div>
+<div>
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-200" for="telegram_template_high">High Severity Template</label>
+<textarea class="mt-2 min-h-[96px] w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" id="telegram_template_high" name="telegram_template_high" placeholder="{eventSymbol} {severitySymbol} [{severity}]&#10;{type}&#10;{message}">{{ $telegramTemplateHighValue }}</textarea>
+</div>
+<div>
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-200" for="telegram_template_critical">Critical Severity Template</label>
+<textarea class="mt-2 min-h-[96px] w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" id="telegram_template_critical" name="telegram_template_critical" placeholder="{eventSymbol} {severitySymbol} [{severity}]&#10;{type}&#10;{message}">{{ $telegramTemplateCriticalValue }}</textarea>
+</div>
+</div>
+<p class="text-xs text-slate-500 dark:text-slate-400">Available placeholders: {headline}, {description}, {detectedAt}, {switchName}, {severityLabel}, {severityBadge}, {eventId}, {deviceName}, {deviceIp}, {port}, {severity}, {severitySymbol}, {eventSymbol}, {type}, {timestamp}, {message}. Symbols and emojis are supported.</p>
+<div class="flex items-center justify-end border-t border-slate-200 pt-5 dark:border-slate-800">
+<button class="inline-flex items-center gap-2 rounded-xl bg-primary px-5 py-2.5 text-sm font-bold text-white transition hover:bg-primary/90" type="submit">
+<span class="material-symbols-outlined text-[18px]">save</span>
+Save Telegram Templates
+</button>
+</div>
+</form>
+</section>
+
+<section class="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 sm:p-8 xl:order-2" id="backup-operations">
 <div class="flex flex-col gap-2">
 <p class="text-xs font-bold uppercase tracking-[0.24em] text-primary">Backups</p>
 <h2 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Backup Operations</h2>

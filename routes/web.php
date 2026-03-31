@@ -84,6 +84,7 @@ Route::middleware(['admin.auth', 'audit.log'])->group(function () {
     Route::post('/notifications/investigate', [NotificationController::class, 'investigate'])->name('notifications.investigate');
     Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
     Route::post('/settings', [SettingsController::class, 'update'])->name('settings.update');
+    Route::post('/settings/telegram-templates', [SettingsController::class, 'updateTelegramTemplates'])->name('settings.telegram-templates.update');
     Route::post('/settings/backup-schedule', [SettingsController::class, 'updateBackupSchedule'])->name('settings.backup-schedule.update');
     Route::post('/settings/backups', [SettingsController::class, 'manageBackups'])->name('settings.backups.manage');
     Route::get('/settings/scripts/export', [SettingsController::class, 'exportScriptsBackup'])->name('settings.scripts.export');
