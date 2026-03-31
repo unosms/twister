@@ -2,9 +2,11 @@
 
 namespace App\Services;
 
+use App\Models\AppSetting;
 use App\Models\Device;
 use App\Models\DeviceEventPermission;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
@@ -13,6 +15,7 @@ class TelegramEventNotifier
 {
     private const DEFAULT_SEVERITIES = ['high', 'critical'];
     private const DEFAULT_EVENT_TYPES = ['device.offline', 'port.down'];
+    private const TIMEZONE_CACHE_KEY = 'system_settings.timezone';
     private ?string $lastError = null;
 
     public function notifyUsersForEvent(array $event): void
@@ -82,7 +85,7 @@ class TelegramEventNotifier
             'device_ip' => '0.0.0.0',
             'port' => '80',
             'message' => 'This is a Telegram notification test message.',
-            'timestamp' => now()->toDateTimeString(),
+            'timestamp' => now($this->resolveSystemTimezone())->toDateTimeString(),
         ]);
 
         $botTokenOverride = trim((string) ($user->telegram_bot_token ?? ''));
@@ -170,7 +173,7 @@ class TelegramEventNotifier
             }
         }
 
-        $timestamp = (string) ($event['timestamp'] ?? now()->toDateTimeString());
+        $timestamp = $this->normalizeEventTimestamp($event['timestamp'] ?? null);
         $port = $event['port'] ?? $event['ifName'] ?? $event['interface'] ?? null;
         $port = $port === null ? '-' : trim((string) $port);
         $message = trim((string) ($event['message'] ?? '-')) ?: '-';
@@ -208,6 +211,21 @@ class TelegramEventNotifier
             'event_id' => $eventId,
             'data' => $event['data'] ?? [],
         ];
+    }
+
+    private function normalizeEventTimestamp(mixed $value): string
+    {
+        $parsed = $this->parseEventTimestamp($value);
+        if ($parsed !== null) {
+            return $parsed->format('Y-m-d H:i:s');
+        }
+
+        $fallback = trim((string) $value);
+        if ($fallback !== '') {
+            return $fallback;
+        }
+
+        return now($this->resolveSystemTimezone())->format('Y-m-d H:i:s');
     }
 
     private function shouldNotify(User $user, array $event): bool
@@ -482,12 +500,76 @@ class TelegramEventNotifier
 
     private function formatDetectedAt(string $timestamp): string
     {
-        $ts = strtotime($timestamp);
-        if ($ts === false) {
+        $parsed = $this->parseEventTimestamp($timestamp);
+        if ($parsed === null) {
             return $timestamp !== '' ? $timestamp : '-';
         }
 
-        return date('H:i:s \o\n Y.m.d', $ts);
+        return $parsed->format('H:i:s \o\n Y.m.d');
+    }
+
+    private function parseEventTimestamp(mixed $value): ?CarbonImmutable
+    {
+        $timezone = $this->resolveSystemTimezone();
+
+        try {
+            if ($value instanceof \DateTimeInterface) {
+                return CarbonImmutable::instance(\DateTimeImmutable::createFromInterface($value))
+                    ->setTimezone($timezone);
+            }
+
+            if (is_numeric($value)) {
+                $timestamp = (int) $value;
+                if ($timestamp > 9_999_999_999) {
+                    $timestamp = (int) floor($timestamp / 1000);
+                }
+
+                return CarbonImmutable::createFromTimestampUTC($timestamp)
+                    ->setTimezone($timezone);
+            }
+
+            $raw = trim((string) $value);
+            if ($raw === '') {
+                return null;
+            }
+
+            $hasExplicitTimezone = (bool) preg_match('/([zZ]|[+\-]\d{2}:?\d{2})$/', $raw);
+            $parsed = $hasExplicitTimezone
+                ? CarbonImmutable::parse($raw)
+                : CarbonImmutable::parse($raw, $timezone);
+
+            return $parsed->setTimezone($timezone);
+        } catch (\Throwable) {
+            return null;
+        }
+    }
+
+    private function resolveSystemTimezone(): string
+    {
+        $defaultTimezone = (string) config('app.timezone', 'UTC');
+        if (!in_array($defaultTimezone, timezone_identifiers_list(), true)) {
+            $defaultTimezone = 'UTC';
+        }
+
+        try {
+            if (!AppSetting::supportsStorage()) {
+                return $defaultTimezone;
+            }
+
+            $timezone = Cache::rememberForever(self::TIMEZONE_CACHE_KEY, function () use ($defaultTimezone): string {
+                $storedTimezone = AppSetting::getValue('timezone', $defaultTimezone);
+
+                return is_string($storedTimezone) && in_array($storedTimezone, timezone_identifiers_list(), true)
+                    ? $storedTimezone
+                    : $defaultTimezone;
+            });
+
+            return is_string($timezone) && in_array($timezone, timezone_identifiers_list(), true)
+                ? $timezone
+                : $defaultTimezone;
+        } catch (\Throwable) {
+            return $defaultTimezone;
+        }
     }
 
     private function sendTelegramMessage(string $chatId, string $text, ?string $botTokenOverride = null, array $context = []): bool
