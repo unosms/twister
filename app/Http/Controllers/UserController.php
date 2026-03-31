@@ -760,31 +760,41 @@ class UserController extends Controller
         $telegramBotToken = $telegramBotToken !== '' ? $telegramBotToken : null;
 
         $existingTelegramSeverities = $this->normalizeLowercaseList($user->telegram_severities ?? []);
-        $submittedTelegramSeverities = $request->has('telegram_severities')
-            ? ($data['telegram_severities'] ?? [])
+        $telegramSeveritiesExplicit = $request->boolean('telegram_severities_present')
+            || $request->exists('telegram_severities');
+        $submittedTelegramSeverities = $telegramSeveritiesExplicit
+            ? ($request->input('telegram_severities', []))
             : ($isNew ? [] : $existingTelegramSeverities);
         $telegramSeverities = $this->normalizeLowercaseList($submittedTelegramSeverities);
         if (empty($telegramSeverities)) {
-            $telegramSeverities = !empty($existingTelegramSeverities) && !$isNew
+            $telegramSeverities = $telegramSeveritiesExplicit
+                ? []
+                : (!empty($existingTelegramSeverities) && !$isNew
                 ? $existingTelegramSeverities
-                : ['high', 'critical'];
+                : ['high', 'critical']);
         }
 
         $existingTelegramEventTypes = $this->normalizeTelegramEventTypes($user->telegram_event_types ?? [], '');
-        $submittedTelegramEventTypesBase = $request->has('telegram_event_types')
-            ? ($data['telegram_event_types'] ?? [])
+        $telegramEventTypesExplicit = $request->boolean('telegram_event_types_present')
+            || $request->exists('telegram_event_types');
+        $telegramEventTypesCustomExplicit = $request->boolean('telegram_event_types_custom_present')
+            || $request->exists('telegram_event_types_custom');
+        $submittedTelegramEventTypesBase = $telegramEventTypesExplicit
+            ? ($request->input('telegram_event_types', []))
             : ($isNew ? [] : $existingTelegramEventTypes);
-        $submittedTelegramEventTypesCustom = $request->has('telegram_event_types_custom')
-            ? (string) ($data['telegram_event_types_custom'] ?? '')
+        $submittedTelegramEventTypesCustom = $telegramEventTypesCustomExplicit
+            ? (string) ($request->input('telegram_event_types_custom', ''))
             : '';
         $telegramEventTypes = $this->normalizeTelegramEventTypes(
             is_array($submittedTelegramEventTypesBase) ? $submittedTelegramEventTypesBase : [],
             $submittedTelegramEventTypesCustom
         );
         if (empty($telegramEventTypes)) {
-            $telegramEventTypes = !empty($existingTelegramEventTypes) && !$isNew
+            $telegramEventTypes = ($telegramEventTypesExplicit || $telegramEventTypesCustomExplicit)
+                ? []
+                : (!empty($existingTelegramEventTypes) && !$isNew
                 ? $existingTelegramEventTypes
-                : ['device.offline', 'port.down'];
+                : ['device.offline', 'port.down']);
         }
 
         $templateConfig = $this->decodeTelegramTemplateConfig((string) ($user->telegram_template ?? ''));

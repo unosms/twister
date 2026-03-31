@@ -617,6 +617,9 @@ Run <code>php artisan migrate --force</code> to enable per-device command restri
 </label>
 </div>
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+<input type="hidden" name="telegram_severities_present" value="1" />
+<input type="hidden" name="telegram_event_types_present" value="1" />
+<input type="hidden" name="telegram_event_types_custom_present" value="1" />
 <div class="flex flex-col gap-2">
 <label class="text-sm font-semibold text-slate-700 dark:text-slate-200">Telegram Chat ID</label>
 <input class="h-11 rounded-lg border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:text-white focus:border-primary focus:ring-primary" name="telegram_chat_id" type="text" value="{{ old('telegram_chat_id') }}" placeholder="123456789 or -1001234567890"/>

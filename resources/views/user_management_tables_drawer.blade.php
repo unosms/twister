@@ -1025,6 +1025,9 @@ Run <code>php artisan migrate --force</code> to enable per-device command restri
 <span class="material-symbols-outlined text-gray-400 transition-transform duration-200 group-open:rotate-180">expand_more</span>
 </summary>
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4" data-user-edit-section-body>
+<input type="hidden" name="telegram_severities_present" value="1"/>
+<input type="hidden" name="telegram_event_types_present" value="1"/>
+<input type="hidden" name="telegram_event_types_custom_present" value="1"/>
 <div class="md:col-span-2">
 <label class="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
 <input class="rounded border-gray-300 text-primary focus:ring-primary" type="checkbox" name="telegram_enabled" value="1" <?php if($telegramEnabled): echo 'checked'; endif; ?> />
