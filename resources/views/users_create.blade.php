@@ -658,26 +658,39 @@ $telegramInterfaceOptions = $graphInterfaceOptionsByDevice[$deviceId] ?? [];
 $telegramInterfaceValuesRaw = $telegramDeviceInterfacesMap[$deviceId] ?? null;
 $explicitTelegramInterfaceScope = false;
 $selectedTelegramInterfaceLookup = [];
+$selectedTelegramInterfaceValues = [];
+$telegramInterfaceValueTokens = [];
 if (is_array($telegramInterfaceValuesRaw)) {
-    foreach ($telegramInterfaceValuesRaw as $interfaceValueRaw) {
-        $interfaceValue = strtolower(trim((string) $interfaceValueRaw));
-        if ($interfaceValue === '') { continue; }
-        $selectedTelegramInterfaceLookup[$interfaceValue] = true;
-    }
-    $explicitTelegramInterfaceScope = !empty($selectedTelegramInterfaceLookup);
+    $telegramInterfaceValueTokens = $telegramInterfaceValuesRaw;
+} elseif (is_string($telegramInterfaceValuesRaw)) {
+    $telegramInterfaceValueTokens = preg_split('/\s*,\s*/', $telegramInterfaceValuesRaw) ?: [];
 }
+foreach ($telegramInterfaceValueTokens as $interfaceValueRaw) {
+    $interfaceValue = trim((string) $interfaceValueRaw);
+    $interfaceKey = strtolower($interfaceValue);
+    if ($interfaceKey === '') { continue; }
+    if (!isset($selectedTelegramInterfaceLookup[$interfaceKey])) {
+        $selectedTelegramInterfaceLookup[$interfaceKey] = true;
+        $selectedTelegramInterfaceValues[] = $interfaceValue;
+    }
+}
+ $explicitTelegramInterfaceScope = !empty($selectedTelegramInterfaceLookup);
 if (!$explicitTelegramInterfaceScope && $hasTelegramDevice) {
     foreach ($telegramInterfaceOptions as $telegramInterfaceOption) {
-        $interfaceValue = strtolower(trim((string) ($telegramInterfaceOption['value'] ?? '')));
-        if ($interfaceValue !== '') {
-            $selectedTelegramInterfaceLookup[$interfaceValue] = true;
+        $interfaceValue = trim((string) ($telegramInterfaceOption['value'] ?? ''));
+        $interfaceKey = strtolower($interfaceValue);
+        if ($interfaceKey !== '' && !isset($selectedTelegramInterfaceLookup[$interfaceKey])) {
+            $selectedTelegramInterfaceLookup[$interfaceKey] = true;
+            $selectedTelegramInterfaceValues[] = $interfaceValue;
         }
     }
 }
+ $telegramInterfaceHiddenValue = implode(',', $selectedTelegramInterfaceValues);
 @endphp
 <div class="{{ $hasTelegramDevice ? '' : 'hidden' }} rounded-lg border border-slate-200 dark:border-slate-700 p-3 bg-white dark:bg-slate-900" data-telegram-device-interface-item data-device-id="{{ $deviceId }}" data-default-select-all="{{ $explicitTelegramInterfaceScope ? '0' : '1' }}">
 <div class="text-xs font-semibold text-slate-500 mb-2">{{ $device->name }}@if ($device->serial_number) ({{ $device->serial_number }})@endif</div>
 @if (!empty($telegramInterfaceOptions))
+<input type="hidden" name="telegram_device_interfaces[{{ $deviceId }}]" value="{{ $telegramInterfaceHiddenValue }}" data-telegram-device-interface-hidden />
 <div class="space-y-2">
 <div class="flex flex-wrap items-center justify-between gap-2">
 <span class="text-[11px] font-semibold text-slate-500"><span data-telegram-device-interface-count>0</span> selected</span>
@@ -695,7 +708,7 @@ $telegramInterfaceChecked = $telegramInterfaceValue !== '' && isset($selectedTel
 @endphp
 @if ($telegramInterfaceValue !== '')
 <label class="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-200">
-<input class="rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" name="telegram_device_interfaces[{{ $deviceId }}][]" value="{{ $telegramInterfaceValue }}" data-telegram-device-interface-option @checked($telegramInterfaceChecked)/>
+<input class="rounded border-slate-300 text-primary focus:ring-primary" type="checkbox" value="{{ $telegramInterfaceValue }}" data-telegram-device-interface-option @checked($telegramInterfaceChecked)/>
 <span>{{ $telegramInterfaceLabel }}</span>
 </label>
 @endif

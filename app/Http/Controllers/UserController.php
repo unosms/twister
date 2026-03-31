@@ -674,17 +674,24 @@ class UserController extends Controller
             'telegram_devices' => ['nullable', 'array'],
             'telegram_devices.*' => ['integer', 'exists:devices,id'],
             'telegram_device_interfaces' => ['nullable', 'array'],
-            'telegram_device_interfaces.*' => ['nullable', 'array'],
-            'telegram_device_interfaces.*.*' => [
+            'telegram_device_interfaces.*' => [
                 'nullable',
-                'string',
-                'max:255',
                 function (string $attribute, mixed $value, \Closure $fail) use ($selectedTelegramDeviceLookup): void {
                     if (!$this->attributeTargetsSelectedDevice($attribute, 'telegram_device_interfaces', $selectedTelegramDeviceLookup)) {
                         return;
                     }
 
-                    $error = $this->validateInterfaceExpression(is_string($value) ? $value : '');
+                    if (is_array($value)) {
+                        $value = implode(',', array_map(
+                            static fn ($token): string => trim((string) $token),
+                            $value
+                        ));
+                    } elseif (!is_string($value) && $value !== null) {
+                        $fail('Interface access values must be comma-separated entries (for example Gi1/0/1,Gi1/0/2 or Gi1/0/*).');
+                        return;
+                    }
+
+                    $error = $this->validateInterfaceExpression((string) ($value ?? ''));
                     if ($error !== null) {
                         $fail($error);
                     }
@@ -879,7 +886,14 @@ class UserController extends Controller
                 }
 
                 $deviceId = (int) $deviceIdRaw;
-                if (!in_array($deviceId, $telegramDevices, true) || !is_array($interfacesRaw)) {
+                if (!in_array($deviceId, $telegramDevices, true)) {
+                    continue;
+                }
+
+                if (is_string($interfacesRaw)) {
+                    $interfacesRaw = preg_split('/\s*,\s*/', trim($interfacesRaw)) ?: [];
+                }
+                if (!is_array($interfacesRaw)) {
                     continue;
                 }
 

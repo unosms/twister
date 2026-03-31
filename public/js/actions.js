@@ -2090,21 +2090,35 @@
         return;
       }
 
+      const hiddenInput = item.querySelector('input[data-telegram-device-interface-hidden]');
       const options = Array.from(
         item.querySelectorAll('input[type="checkbox"][data-telegram-device-interface-option]')
       );
-      if (!options.length) {
+      if (!hiddenInput || !options.length) {
         item.dataset.telegramDeviceInterfaceOptionsBound = 'true';
         return;
       }
 
       const countTarget = item.querySelector('[data-telegram-device-interface-count]');
+      const selectedValues = () =>
+        options
+          .filter((option) => option.checked)
+          .map((option) => String(option.value || '').trim())
+          .filter((value) => value !== '');
+
       const updateCount = () => {
         if (!countTarget) {
           return;
         }
-        const checkedCount = options.filter((option) => option.checked).length;
-        countTarget.textContent = String(checkedCount);
+        countTarget.textContent = String(selectedValues().length);
+      };
+
+      const syncHiddenValue = (force = false) => {
+        const values = selectedValues();
+        if (force || values.length > 0 || String(hiddenInput.value || '').trim() === '') {
+          hiddenInput.value = values.join(',');
+        }
+        updateCount();
       };
 
       item.querySelectorAll('[data-telegram-device-interface-action]').forEach((button) => {
@@ -2125,15 +2139,17 @@
             });
           }
 
-          updateCount();
+          syncHiddenValue(true);
         });
       });
 
       options.forEach((option) => {
-        option.addEventListener('change', updateCount);
+        option.addEventListener('change', () => {
+          syncHiddenValue(true);
+        });
       });
 
-      updateCount();
+      syncHiddenValue(false);
       item.dataset.telegramDeviceInterfaceOptionsBound = 'true';
     });
   };
@@ -2206,6 +2222,10 @@
           const deviceId = String(item.dataset.deviceId || '');
           const visible = selectedIds.has(deviceId);
           item.classList.toggle('hidden', !visible);
+          const hiddenInput = item.querySelector('input[data-telegram-device-interface-hidden]');
+          if (hiddenInput) {
+            hiddenInput.disabled = !visible;
+          }
           item
             .querySelectorAll('input[type="checkbox"][data-telegram-device-interface-option]')
             .forEach((option) => {
