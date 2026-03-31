@@ -116,15 +116,6 @@ Export
 <span class="material-symbols-outlined text-lg absolute right-2 top-1/2 -translate-y-1/2 text-gray-400">expand_more</span>
 </div>
 <div class="relative">
-<select class="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-800 border border-[#cfd7e7] dark:border-gray-700 rounded-lg text-sm font-medium appearance-none pr-8" name="firmware" onchange="this.form.submit()">
-<option value="all" @selected(($filters['firmware'] ?? 'all') === 'all')>Firmware: All</option>
-@foreach (($firmwareOptions ?? []) as $firmwareOption)
-<option value="{{ $firmwareOption }}" @selected(($filters['firmware'] ?? '') === $firmwareOption)>Firmware {{ $firmwareOption }}</option>
-@endforeach
-</select>
-<span class="material-symbols-outlined text-lg absolute right-2 top-1/2 -translate-y-1/2 text-gray-400">expand_more</span>
-</div>
-<div class="relative">
 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
 <input class="pl-10 pr-4 py-2 bg-white dark:bg-gray-800 border border-[#cfd7e7] dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/50" name="search" placeholder="Search devices" type="text" value="{{ $filters['search'] ?? '' }}"/>
 </div>
@@ -719,6 +710,10 @@ $oldServerServices = array_values(array_filter(array_map(
 @php
 $meta = $device->metadata ?? [];
 $monitoringDisabled = (bool) data_get($meta, 'monitoring_disabled', false);
+$mimosaModel = strtoupper((string) (data_get($meta, 'mimosa_model') ?? $device->model ?? 'C5C'));
+if (!in_array($mimosaModel, ['C5C', 'C5X', 'B11'], true)) {
+    $mimosaModel = 'C5C';
+}
 $status = strtolower($device->status ?? 'offline');
 $statusClass = match ($status) {
     'online' => 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400',
@@ -812,6 +807,14 @@ $isSelected = isset($selectedDevice) && $selectedDevice && $selectedDevice->id =
 <option value="OLT" @selected(($device->type ?? '') === 'OLT')>OLT</option>
 <option value="SERVER" @selected(($device->type ?? '') === 'SERVER')>SERVER</option>
 <option value="MIKROTIK" @selected(($device->type ?? '') === 'MIKROTIK')>MIKROTIK</option>
+</select>
+</div>
+<div class="flex flex-col gap-2 hidden" data-device-edit-mimosa-fields>
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Device Model</label>
+<select class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="mimosa_model" data-device-edit-mimosa-required>
+<option value="C5C" @selected($mimosaModel === 'C5C')>C5C</option>
+<option value="C5X" @selected($mimosaModel === 'C5X')>C5X</option>
+<option value="B11" @selected($mimosaModel === 'B11')>B11</option>
 </select>
 </div>
 <div class="flex flex-col gap-2" data-device-edit-generic-ip-field>

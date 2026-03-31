@@ -296,7 +296,7 @@ if ($deviceFilter !== '') {
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Events (<?= esc($titleWindowLabel) ?><?= $titleSuffix ?>)</title>
-    <meta http-equiv="refresh" content="60">
+    <meta http-equiv="refresh" content="5">
     <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
     <style>
         :root {
@@ -990,7 +990,7 @@ if ($deviceFilter !== '') {
             <p class="page-subtitle">Consistent event timeline with quick filtering and graph shortcuts.</p>
         </div>
         <div class="page-header-meta">
-            <span class="pill">Auto-refresh every 1 minute</span>
+            <span class="pill">Auto-refresh every 5 seconds</span>
             <span class="pill"><?= count($ifaceRows) ?> event<?= count($ifaceRows) === 1 ? '' : 's' ?> in <?= esc($windowLabel) ?></span>
             <?php if ($deviceFilter !== ''): ?>
                 <span class="pill">Device: <?= esc($deviceFilter) ?></span>

@@ -145,15 +145,9 @@ class DeviceController extends Controller
             $typeFilter = 'ALL';
         }
 
-        $firmwareFilter = trim((string) $request->query('firmware', 'all'));
-        if ($firmwareFilter === '') {
-            $firmwareFilter = 'all';
-        }
-
         $filters = [
             'status' => $statusFilter,
             'type' => $typeFilter === 'ALL' ? 'all' : $typeFilter,
-            'firmware' => $firmwareFilter,
             'search' => trim((string) $request->query('search', '')),
         ];
 
@@ -165,10 +159,6 @@ class DeviceController extends Controller
 
         if ($filters['type'] !== '' && $filters['type'] !== 'all') {
             $query->where('type', $filters['type']);
-        }
-
-        if ($filters['firmware'] !== '' && $filters['firmware'] !== 'all') {
-            $query->where('firmware_version', $filters['firmware']);
         }
 
         if ($filters['search'] !== '') {
@@ -206,20 +196,6 @@ class DeviceController extends Controller
         $totalDevices = Device::count();
         $activeDevices = Device::where('status', 'online')->count();
         $users = User::orderBy('name')->get();
-        $firmwareOptions = Device::query()
-            ->whereNotNull('firmware_version')
-            ->pluck('firmware_version')
-            ->map(static fn ($version) => trim((string) $version))
-            ->filter(static fn ($version) => $version !== '')
-            ->unique()
-            ->values()
-            ->all();
-
-        usort($firmwareOptions, static fn ($a, $b) => version_compare($b, $a));
-
-        if ($filters['firmware'] !== 'all' && !in_array($filters['firmware'], $firmwareOptions, true)) {
-            $firmwareOptions[] = $filters['firmware'];
-        }
 
         return view('device_management', [
             'devices' => $devices,
@@ -230,7 +206,6 @@ class DeviceController extends Controller
             'filters' => $filters,
             'totalDevices' => $totalDevices,
             'activeDevices' => $activeDevices,
-            'firmwareOptions' => $firmwareOptions,
             'backupTftpServerAddress' => $this->backupTftpServerAddress(),
         ]);
     }
@@ -895,6 +870,7 @@ class DeviceController extends Controller
             'serial_number' => ['nullable', 'string', 'max:255'],
             'type' => ['required', 'string', 'max:50'],
             'ip_address' => ['nullable', 'string', 'max:255', 'required_if:type,SERVER'],
+            'mimosa_model' => ['nullable', 'string', 'required_if:type,MIMOSA', Rule::in(self::MIMOSA_MODEL_OPTIONS)],
             'cisco_username' => ['nullable', 'string', 'max:255'],
             'cisco_password' => ['nullable', 'string', 'max:255'],
             'enable_password' => ['nullable', 'string', 'max:255'],
@@ -1012,6 +988,33 @@ class DeviceController extends Controller
             $updatedModel = $this->normalizeOptionalString($cisco['switch_model'] ?? null) ?? $updatedModel;
         } else {
             unset($meta['cisco']);
+        }
+
+        if ($type === 'MIMOSA') {
+            $mimosa = data_get($meta, 'mimosa', []);
+            if (!is_array($mimosa)) {
+                $mimosa = [];
+            }
+
+            $mimosaKey = $this->resolveMimosaFormKey(
+                $data['mimosa_model'] ?? data_get($meta, 'mimosa_model') ?? $updatedModel
+            );
+            $mimosaModel = strtoupper($mimosaKey);
+            $meta['mimosa_model'] = $mimosaModel;
+            $updatedModel = $mimosaModel;
+
+            if ($ipAddress !== null) {
+                $mimosa['ip'] = $ipAddress;
+            } else {
+                $existingMimosaIp = $this->normalizeOptionalString($mimosa['ip'] ?? null);
+                if ($existingMimosaIp !== null) {
+                    $ipAddress = $existingMimosaIp;
+                }
+            }
+
+            $meta['mimosa'] = array_filter($mimosa, static fn ($value) => $value !== null && $value !== '');
+        } else {
+            unset($meta['mimosa'], $meta['mimosa_model']);
         }
 
         if ($type === 'SERVER') {

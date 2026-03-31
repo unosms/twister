@@ -145,7 +145,7 @@ if (!is_array($oldServerServiceAccess)) {
       <p class="text-xs text-gray-500">Select a model, then fill only the model-specific fields below.</p>
     </div>
     <div class="flex items-center gap-2">
-      <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Model</label>
+      <label class="text-xs font-semibold text-gray-500 uppercase tracking-wide">Device Model</label>
       <select class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-10 text-sm" name="mimosa_model" data-mimosa-model>
         <option value="C5C">C5C</option>
         <option value="C5X">C5X</option>

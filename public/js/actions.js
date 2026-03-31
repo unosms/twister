@@ -2483,6 +2483,7 @@
         return;
       }
       const ciscoFields = form.querySelector('[data-device-edit-cisco-fields]');
+      const mimosaFields = form.querySelector('[data-device-edit-mimosa-fields]');
       const serverFields = form.querySelector('[data-device-edit-server-fields]');
       const oltFields = form.querySelector('[data-device-edit-olt-fields]');
       const mikrotikFields = form.querySelector('[data-device-edit-mikrotik-fields]');
@@ -2587,6 +2588,7 @@
         const showCommonName = isOlt || isMikrotik;
 
         toggleGroup(ciscoFields, isCisco);
+        toggleGroup(mimosaFields, isMimosa, 'data-device-edit-mimosa-required');
         toggleGroup(serverFields, isServer, 'data-device-edit-server-required');
         toggleGroup(oltFields, isOlt, 'data-device-edit-olt-required');
         toggleGroup(mikrotikFields, isMikrotik, 'data-device-edit-mikrotik-required');
