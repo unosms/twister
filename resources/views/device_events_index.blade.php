@@ -184,7 +184,7 @@
             @endif
 
             <form method="get" action="{{ route('devices.events.index') }}" class="rounded-xl border border-[#cfd7e7] bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900" data-events-filter-form>
-                <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
+                <div class="grid items-start gap-3 md:grid-cols-2 xl:grid-cols-7">
                     <details class="rounded-lg border border-slate-200 bg-slate-50/70 p-2 dark:border-gray-700 dark:bg-gray-800/60" data-filter-collapsible>
                         <summary class="flex cursor-pointer list-none items-center justify-between gap-2 rounded-md px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
                             <span>Device</span>
