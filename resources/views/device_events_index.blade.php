@@ -209,90 +209,100 @@
                 </div>
 
                 <div class="grid items-start gap-3 md:grid-cols-2 xl:grid-cols-7">
-                    <details class="relative flex flex-col gap-1" data-filter-collapsible>
+                    <div class="flex flex-col gap-1">
                         <span class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Device</span>
-                        <summary class="flex h-11 cursor-pointer list-none items-center justify-between rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-400 focus-visible:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-slate-100 dark:hover:border-gray-500">
-                            <span>{{ count($selectedDeviceIds) > 0 ? count($selectedDeviceIds) . ' selected' : 'All' }}</span>
-                            <span class="material-symbols-outlined text-[18px] text-slate-500">expand_more</span>
-                        </summary>
-                        <div class="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 space-y-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-gray-700 dark:bg-gray-900">
-                            @foreach ($devices as $deviceOption)
-                                @php
-                                    $deviceId = (int) $deviceOption->id;
-                                    $deviceLabel = ($deviceOption->name ?: ('Device #' . $deviceId))
-                                        . ($deviceOption->type ? ' (' . $deviceOption->type . ')' : '');
-                                @endphp
-                                <label class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-gray-800">
-                                    <input class="rounded border-slate-300 text-primary focus:ring-primary dark:border-gray-600" type="checkbox" name="device_id[]" value="{{ $deviceId }}" @checked(isset($selectedDeviceLookup[$deviceId])) />
-                                    <span>{{ $deviceLabel }}</span>
-                                </label>
-                            @endforeach
-                        </div>
-                    </details>
+                        <details class="relative" data-filter-collapsible>
+                            <summary class="flex h-11 cursor-pointer list-none items-center justify-between rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-400 focus-visible:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-slate-100 dark:hover:border-gray-500">
+                                <span>{{ count($selectedDeviceIds) > 0 ? count($selectedDeviceIds) . ' selected' : 'All' }}</span>
+                                <span class="material-symbols-outlined text-[18px] text-slate-500">expand_more</span>
+                            </summary>
+                            <div class="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 space-y-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-gray-700 dark:bg-gray-900">
+                                @foreach ($devices as $deviceOption)
+                                    @php
+                                        $deviceId = (int) $deviceOption->id;
+                                        $deviceLabel = ($deviceOption->name ?: ('Device #' . $deviceId))
+                                            . ($deviceOption->type ? ' (' . $deviceOption->type . ')' : '');
+                                    @endphp
+                                    <label class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-gray-800">
+                                        <input class="rounded border-slate-300 text-primary focus:ring-primary dark:border-gray-600" type="checkbox" name="device_id[]" value="{{ $deviceId }}" @checked(isset($selectedDeviceLookup[$deviceId])) />
+                                        <span>{{ $deviceLabel }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </details>
+                    </div>
 
-                    <details class="relative flex flex-col gap-1" data-filter-collapsible>
+                    <div class="flex flex-col gap-1">
                         <span class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Source</span>
-                        <summary class="flex h-11 cursor-pointer list-none items-center justify-between rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-400 focus-visible:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-slate-100 dark:hover:border-gray-500">
-                            <span>{{ count($selectedSourceValues) > 0 ? count($selectedSourceValues) . ' selected' : 'All' }}</span>
-                            <span class="material-symbols-outlined text-[18px] text-slate-500">expand_more</span>
-                        </summary>
-                        <div class="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 space-y-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-gray-700 dark:bg-gray-900">
-                            @foreach ($sourceOptions as $sourceKey => $sourceLabel)
-                                <label class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-gray-800">
-                                    <input class="rounded border-slate-300 text-primary focus:ring-primary dark:border-gray-600" type="checkbox" name="source[]" value="{{ $sourceKey }}" @checked(isset($selectedSourceLookup[$sourceKey])) />
-                                    <span>{{ $sourceLabel }}</span>
-                                </label>
-                            @endforeach
-                        </div>
-                    </details>
+                        <details class="relative" data-filter-collapsible>
+                            <summary class="flex h-11 cursor-pointer list-none items-center justify-between rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-400 focus-visible:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-slate-100 dark:hover:border-gray-500">
+                                <span>{{ count($selectedSourceValues) > 0 ? count($selectedSourceValues) . ' selected' : 'All' }}</span>
+                                <span class="material-symbols-outlined text-[18px] text-slate-500">expand_more</span>
+                            </summary>
+                            <div class="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 space-y-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-gray-700 dark:bg-gray-900">
+                                @foreach ($sourceOptions as $sourceKey => $sourceLabel)
+                                    <label class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-gray-800">
+                                        <input class="rounded border-slate-300 text-primary focus:ring-primary dark:border-gray-600" type="checkbox" name="source[]" value="{{ $sourceKey }}" @checked(isset($selectedSourceLookup[$sourceKey])) />
+                                        <span>{{ $sourceLabel }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </details>
+                    </div>
 
-                    <details class="relative flex flex-col gap-1" data-filter-collapsible>
+                    <div class="flex flex-col gap-1">
                         <span class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Status</span>
-                        <summary class="flex h-11 cursor-pointer list-none items-center justify-between rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-400 focus-visible:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-slate-100 dark:hover:border-gray-500">
-                            <span>{{ count($selectedStatusValues) > 0 ? count($selectedStatusValues) . ' selected' : 'All' }}</span>
-                            <span class="material-symbols-outlined text-[18px] text-slate-500">expand_more</span>
-                        </summary>
-                        <div class="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 space-y-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-gray-700 dark:bg-gray-900">
-                            @foreach ($statusOptions as $statusKey => $statusLabel)
-                                <label class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-gray-800">
-                                    <input class="rounded border-slate-300 text-primary focus:ring-primary dark:border-gray-600" type="checkbox" name="status[]" value="{{ $statusKey }}" @checked(isset($selectedStatusLookup[$statusKey])) />
-                                    <span>{{ $statusLabel }}</span>
-                                </label>
-                            @endforeach
-                        </div>
-                    </details>
+                        <details class="relative" data-filter-collapsible>
+                            <summary class="flex h-11 cursor-pointer list-none items-center justify-between rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-400 focus-visible:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-slate-100 dark:hover:border-gray-500">
+                                <span>{{ count($selectedStatusValues) > 0 ? count($selectedStatusValues) . ' selected' : 'All' }}</span>
+                                <span class="material-symbols-outlined text-[18px] text-slate-500">expand_more</span>
+                            </summary>
+                            <div class="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 space-y-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-gray-700 dark:bg-gray-900">
+                                @foreach ($statusOptions as $statusKey => $statusLabel)
+                                    <label class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-gray-800">
+                                        <input class="rounded border-slate-300 text-primary focus:ring-primary dark:border-gray-600" type="checkbox" name="status[]" value="{{ $statusKey }}" @checked(isset($selectedStatusLookup[$statusKey])) />
+                                        <span>{{ $statusLabel }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </details>
+                    </div>
 
-                    <details class="relative flex flex-col gap-1" data-filter-collapsible>
+                    <div class="flex flex-col gap-1">
                         <span class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Severity</span>
-                        <summary class="flex h-11 cursor-pointer list-none items-center justify-between rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-400 focus-visible:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-slate-100 dark:hover:border-gray-500">
-                            <span>{{ count($selectedSeverityValues) > 0 ? count($selectedSeverityValues) . ' selected' : 'All' }}</span>
-                            <span class="material-symbols-outlined text-[18px] text-slate-500">expand_more</span>
-                        </summary>
-                        <div class="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 space-y-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-gray-700 dark:bg-gray-900">
-                            @foreach ($severityOptions as $severityOption)
-                                <label class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-gray-800">
-                                    <input class="rounded border-slate-300 text-primary focus:ring-primary dark:border-gray-600" type="checkbox" name="severity[]" value="{{ $severityOption }}" @checked(isset($selectedSeverityLookup[(string) $severityOption])) />
-                                    <span>{{ ucfirst((string) $severityOption) }}</span>
-                                </label>
-                            @endforeach
-                        </div>
-                    </details>
+                        <details class="relative" data-filter-collapsible>
+                            <summary class="flex h-11 cursor-pointer list-none items-center justify-between rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-400 focus-visible:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-slate-100 dark:hover:border-gray-500">
+                                <span>{{ count($selectedSeverityValues) > 0 ? count($selectedSeverityValues) . ' selected' : 'All' }}</span>
+                                <span class="material-symbols-outlined text-[18px] text-slate-500">expand_more</span>
+                            </summary>
+                            <div class="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 space-y-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-gray-700 dark:bg-gray-900">
+                                @foreach ($severityOptions as $severityOption)
+                                    <label class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-gray-800">
+                                        <input class="rounded border-slate-300 text-primary focus:ring-primary dark:border-gray-600" type="checkbox" name="severity[]" value="{{ $severityOption }}" @checked(isset($selectedSeverityLookup[(string) $severityOption])) />
+                                        <span>{{ ucfirst((string) $severityOption) }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </details>
+                    </div>
 
-                    <details class="relative flex flex-col gap-1" data-filter-collapsible>
+                    <div class="flex flex-col gap-1">
                         <span class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Event Type</span>
-                        <summary class="flex h-11 cursor-pointer list-none items-center justify-between rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-400 focus-visible:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-slate-100 dark:hover:border-gray-500">
-                            <span>{{ count($selectedEventTypeValues) > 0 ? count($selectedEventTypeValues) . ' selected' : 'All' }}</span>
-                            <span class="material-symbols-outlined text-[18px] text-slate-500">expand_more</span>
-                        </summary>
-                        <div class="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 space-y-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-gray-700 dark:bg-gray-900">
-                            @foreach ($eventTypeOptions as $eventTypeOption)
-                                <label class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-gray-800">
-                                    <input class="rounded border-slate-300 text-primary focus:ring-primary dark:border-gray-600" type="checkbox" name="event_type[]" value="{{ $eventTypeOption }}" @checked(isset($selectedEventTypeLookup[(string) $eventTypeOption])) />
-                                    <span>{{ $eventTypeOption }}</span>
-                                </label>
-                            @endforeach
-                        </div>
-                    </details>
+                        <details class="relative" data-filter-collapsible>
+                            <summary class="flex h-11 cursor-pointer list-none items-center justify-between rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition hover:border-slate-400 focus-visible:outline-none dark:border-gray-700 dark:bg-gray-800 dark:text-slate-100 dark:hover:border-gray-500">
+                                <span>{{ count($selectedEventTypeValues) > 0 ? count($selectedEventTypeValues) . ' selected' : 'All' }}</span>
+                                <span class="material-symbols-outlined text-[18px] text-slate-500">expand_more</span>
+                            </summary>
+                            <div class="absolute left-0 right-0 top-full z-30 mt-1 max-h-56 space-y-1 overflow-y-auto rounded-lg border border-slate-200 bg-white p-2 shadow-xl dark:border-gray-700 dark:bg-gray-900">
+                                @foreach ($eventTypeOptions as $eventTypeOption)
+                                    <label class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm text-slate-700 transition hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-gray-800">
+                                        <input class="rounded border-slate-300 text-primary focus:ring-primary dark:border-gray-600" type="checkbox" name="event_type[]" value="{{ $eventTypeOption }}" @checked(isset($selectedEventTypeLookup[(string) $eventTypeOption])) />
+                                        <span>{{ $eventTypeOption }}</span>
+                                    </label>
+                                @endforeach
+                            </div>
+                        </details>
+                    </div>
 
                     <label class="flex flex-col gap-1">
                         <span class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Time Window</span>
