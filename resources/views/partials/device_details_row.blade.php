@@ -266,7 +266,7 @@ Open exec cmd
 </div>
 </details>
 <?php endif; ?>
-<a class="px-2 py-1 text-[11px] font-semibold border border-slate-200 rounded hover:bg-slate-50" href="<?php echo e(route('devices.events.show', ['device' => $device->id])); ?>">Events</a>
+<a class="px-2 py-1 text-[11px] font-semibold border border-slate-200 rounded hover:bg-slate-50" href="<?php echo e(route('devices.events.index', ['device_id' => $device->id])); ?>">Events</a>
 </div>
 </td>
 <td class="px-4 py-3">

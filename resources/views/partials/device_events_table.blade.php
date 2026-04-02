@@ -66,7 +66,7 @@
                     </td>
                     <td class="px-4 py-3">
                         <div class="flex justify-end gap-2">
-                            <a class="px-2 py-1 text-[11px] font-semibold border border-slate-200 rounded hover:bg-slate-50" href="{{ route('devices.events.show', ['device' => $device->id]) }}">Events</a>
+                            <a class="px-2 py-1 text-[11px] font-semibold border border-slate-200 rounded hover:bg-slate-50" href="{{ route('devices.events.index', ['device_id' => $device->id]) }}">Events</a>
                             <a class="px-2 py-1 text-[11px] font-semibold border border-slate-200 rounded hover:bg-slate-50" href="{{ route('devices.graphs', ['device' => $device->id]) }}">Graphs</a>
                         </div>
                     </td>

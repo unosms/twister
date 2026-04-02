@@ -8,11 +8,14 @@ use App\Models\DeviceAssignment;
 use App\Models\TelemetryLog;
 use App\Models\User;
 use App\Support\ProvisioningTrace;
+use Illuminate\Pagination\LengthAwarePaginator;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
@@ -300,61 +303,265 @@ class DeviceController extends Controller
     {
         $authUser = User::find($request->session()->get('auth.user_id'));
         $devices = Device::query()
-            ->orderByRaw('LOWER(COALESCE(type, \'\')) ASC')
+            ->select(['id', 'name', 'type'])
             ->orderByRaw('LOWER(COALESCE(name, \'\')) ASC')
             ->orderBy('id')
             ->get();
 
-        $deviceGroups = [
-            'router_board' => collect(),
-            'switches' => collect(),
-            'fiber_optic' => collect(),
-            'wireless' => collect(),
-            'servers_standalone' => collect(),
-            'servers_virtual' => collect(),
-            'other' => collect(),
+        $filters = [
+            'device_id' => (int) $request->query('device_id', 0),
+            'source' => strtolower(trim((string) $request->query('source', 'all'))),
+            'status' => strtolower(trim((string) $request->query('status', 'all'))),
+            'severity' => strtolower(trim((string) $request->query('severity', 'all'))),
+            'event_type' => strtolower(trim((string) $request->query('event_type', 'all'))),
+            'window' => strtolower(trim((string) $request->query('window', 'all'))),
+            'search' => trim((string) $request->query('search', '')),
         ];
 
-        foreach ($devices as $device) {
-            $type = strtoupper((string) ($device->type ?? ''));
+        if (!$devices->contains('id', $filters['device_id'])) {
+            $filters['device_id'] = 0;
+        }
 
-            if ($type === 'MIKROTIK') {
-                $deviceGroups['router_board']->push($device);
-                continue;
+        if (!in_array($filters['source'], ['all', 'interface', 'device'], true)) {
+            $filters['source'] = 'all';
+        }
+
+        if (!in_array($filters['status'], ['all', 'open', 'resolved'], true)) {
+            $filters['status'] = 'all';
+        }
+
+        $windowHourMap = [
+            '1h' => 1,
+            '3h' => 3,
+            '6h' => 6,
+            '12h' => 12,
+            '24h' => 24,
+            '72h' => 72,
+        ];
+        if (!isset($windowHourMap[$filters['window']]) && $filters['window'] !== 'all') {
+            $filters['window'] = 'all';
+        }
+        $windowStartTimestamp = isset($windowHourMap[$filters['window']])
+            ? now()->subHours($windowHourMap[$filters['window']])->timestamp
+            : null;
+
+        $hasInterfaceEvents = Schema::hasTable('interface_events');
+        $hasDeviceEvents = Schema::hasTable('device_events');
+
+        $severityOptions = collect();
+        $eventTypeOptions = collect();
+
+        if ($hasInterfaceEvents) {
+            $severityOptions = $severityOptions->merge(
+                DB::table('interface_events')
+                    ->selectRaw('DISTINCT LOWER(TRIM(severity)) AS value')
+                    ->whereNotNull('severity')
+                    ->pluck('value')
+                    ->all()
+            );
+            $eventTypeOptions = $eventTypeOptions->merge(
+                DB::table('interface_events')
+                    ->selectRaw('DISTINCT LOWER(TRIM(event_type)) AS value')
+                    ->whereNotNull('event_type')
+                    ->pluck('value')
+                    ->all()
+            );
+        }
+
+        if ($hasDeviceEvents) {
+            $severityOptions = $severityOptions->merge(
+                DB::table('device_events')
+                    ->selectRaw('DISTINCT LOWER(TRIM(severity)) AS value')
+                    ->whereNotNull('severity')
+                    ->pluck('value')
+                    ->all()
+            );
+            $eventTypeOptions = $eventTypeOptions->merge(
+                DB::table('device_events')
+                    ->selectRaw('DISTINCT LOWER(TRIM(event_type)) AS value')
+                    ->whereNotNull('event_type')
+                    ->pluck('value')
+                    ->all()
+            );
+        }
+
+        $severityOptions = $severityOptions
+            ->map(static fn ($value): string => strtolower(trim((string) $value)))
+            ->filter(static fn ($value): bool => $value !== '')
+            ->unique()
+            ->sort()
+            ->values();
+
+        $eventTypeOptions = $eventTypeOptions
+            ->map(static fn ($value): string => strtolower(trim((string) $value)))
+            ->filter(static fn ($value): bool => $value !== '')
+            ->unique()
+            ->sort()
+            ->values();
+
+        if ($filters['severity'] !== 'all' && !$severityOptions->contains($filters['severity'])) {
+            $filters['severity'] = 'all';
+        }
+
+        if ($filters['event_type'] !== 'all' && !$eventTypeOptions->contains($filters['event_type'])) {
+            $filters['event_type'] = 'all';
+        }
+
+        $escapeLike = static function (string $value): string {
+            return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
+        };
+        $searchLike = $filters['search'] !== '' ? '%' . $escapeLike($filters['search']) . '%' : '';
+        $searchEventId = ctype_digit($filters['search']) ? (int) $filters['search'] : null;
+
+        $applyFilters = function ($query, string $alias, bool $isInterface) use (
+            $filters,
+            $windowStartTimestamp,
+            $searchLike,
+            $searchEventId
+        ): void {
+            if ($filters['device_id'] > 0) {
+                $query->where("{$alias}.device_id", $filters['device_id']);
             }
 
-            if ($type === 'CISCO') {
-                $deviceGroups['switches']->push($device);
-                continue;
+            if ($filters['severity'] !== 'all') {
+                $query->whereRaw('LOWER(TRIM(COALESCE(' . $alias . '.severity, \'\'))) = ?', [$filters['severity']]);
             }
 
-            if ($type === 'OLT') {
-                $deviceGroups['fiber_optic']->push($device);
-                continue;
+            if ($filters['event_type'] !== 'all') {
+                $query->whereRaw('LOWER(TRIM(COALESCE(' . $alias . '.event_type, \'\'))) = ?', [$filters['event_type']]);
             }
 
-            if ($type === 'MIMOSA') {
-                $deviceGroups['wireless']->push($device);
-                continue;
+            if ($filters['status'] === 'open') {
+                $query->whereNull("{$alias}.resolved_at");
+            } elseif ($filters['status'] === 'resolved') {
+                $query->whereNotNull("{$alias}.resolved_at");
             }
 
-            if ($type === 'SERVER') {
-                $serverType = strtolower((string) data_get($device->metadata, 'server.server_type', 'virtual_server'));
-                if ($serverType === 'stand_alone_server') {
-                    $deviceGroups['servers_standalone']->push($device);
+            if ($windowStartTimestamp !== null) {
+                $query->where(function ($windowQuery) use ($alias, $windowStartTimestamp): void {
+                    $windowQuery
+                        ->where("{$alias}.opened_at", '>=', $windowStartTimestamp)
+                        ->orWhere("{$alias}.resolved_at", '>=', $windowStartTimestamp);
+                });
+            }
+
+            if ($searchLike !== '') {
+                $query->where(function ($searchQuery) use ($alias, $isInterface, $searchLike, $searchEventId): void {
+                    $searchQuery
+                        ->where("{$alias}.device_name", 'like', $searchLike)
+                        ->orWhere("{$alias}.event_type", 'like', $searchLike)
+                        ->orWhere("{$alias}.severity", 'like', $searchLike);
+
+                    if ($isInterface) {
+                        $searchQuery
+                            ->orWhere("{$alias}.ifName", 'like', $searchLike)
+                            ->orWhere("{$alias}.ifAlias", 'like', $searchLike)
+                            ->orWhere("{$alias}.ifDescr", 'like', $searchLike);
+                    } else {
+                        $searchQuery->orWhere("{$alias}.ip", 'like', $searchLike);
+                    }
+
+                    if ($searchEventId !== null) {
+                        $searchQuery->orWhere("{$alias}.id", $searchEventId);
+                    }
+                });
+            }
+        };
+
+        $eventsPaginator = null;
+        $eventsPerPage = 50;
+        $includeInterfaceEvents = $hasInterfaceEvents && $filters['source'] !== 'device';
+        $includeDeviceEvents = $hasDeviceEvents && $filters['source'] !== 'interface';
+
+        if ($includeInterfaceEvents || $includeDeviceEvents) {
+            $unionBaseQuery = null;
+
+            if ($includeInterfaceEvents) {
+                $interfaceQuery = DB::table('interface_events as ie')
+                    ->selectRaw("
+                        ie.id AS event_id,
+                        'interface' AS source,
+                        ie.device_id,
+                        ie.device_name,
+                        NULL AS device_ip,
+                        ie.ifIndex AS interface_index,
+                        ie.ifName AS interface_name,
+                        ie.ifAlias AS interface_alias,
+                        ie.ifDescr AS interface_description,
+                        ie.event_type,
+                        ie.severity,
+                        ie.old_status,
+                        ie.new_status,
+                        ie.old_speed_mbps,
+                        ie.new_speed_mbps,
+                        ie.opened_at,
+                        ie.resolved_at
+                    ");
+                $applyFilters($interfaceQuery, 'ie', true);
+                $unionBaseQuery = $interfaceQuery;
+            }
+
+            if ($includeDeviceEvents) {
+                $deviceQuery = DB::table('device_events as de')
+                    ->selectRaw("
+                        de.id AS event_id,
+                        'device' AS source,
+                        de.device_id,
+                        de.device_name,
+                        de.ip AS device_ip,
+                        NULL AS interface_index,
+                        NULL AS interface_name,
+                        NULL AS interface_alias,
+                        NULL AS interface_description,
+                        de.event_type,
+                        de.severity,
+                        NULL AS old_status,
+                        NULL AS new_status,
+                        NULL AS old_speed_mbps,
+                        NULL AS new_speed_mbps,
+                        de.opened_at,
+                        de.resolved_at
+                    ");
+                $applyFilters($deviceQuery, 'de', false);
+
+                if ($unionBaseQuery) {
+                    $unionBaseQuery->unionAll($deviceQuery);
                 } else {
-                    $deviceGroups['servers_virtual']->push($device);
+                    $unionBaseQuery = $deviceQuery;
                 }
-                continue;
             }
 
-            $deviceGroups['other']->push($device);
+            if ($unionBaseQuery) {
+                $eventsPaginator = DB::query()
+                    ->fromSub($unionBaseQuery, 'events')
+                    ->orderByDesc('opened_at')
+                    ->orderByDesc('event_id')
+                    ->paginate($eventsPerPage)
+                    ->withQueryString();
+            }
+        }
+
+        if (!$eventsPaginator instanceof LengthAwarePaginator) {
+            $eventsPaginator = new LengthAwarePaginator(
+                [],
+                0,
+                $eventsPerPage,
+                max(1, (int) $request->query('page', 1)),
+                [
+                    'path' => $request->url(),
+                    'query' => $request->query(),
+                ]
+            );
         }
 
         return view('device_events_index', [
-            'deviceGroups' => $deviceGroups,
-            'totalDevices' => $devices->count(),
             'authUser' => $authUser,
+            'devices' => $devices,
+            'events' => $eventsPaginator,
+            'filters' => $filters,
+            'severityOptions' => $severityOptions,
+            'eventTypeOptions' => $eventTypeOptions,
+            'hasEventTables' => $hasInterfaceEvents || $hasDeviceEvents,
         ]);
     }
 

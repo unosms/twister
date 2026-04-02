@@ -212,6 +212,16 @@ class ScriptController extends Controller
         $eventScopeRestricted = false;
         $eventScopeInterfaceMap = [];
 
+        if (!$isPortalContext) {
+            if ($role !== 'admin') {
+                return $this->plainError('Unauthorized.', 401);
+            }
+
+            return redirect()->route('devices.events.index', [
+                'device_id' => (int) $device->id,
+            ]);
+        }
+
         if ($isPortalContext) {
             if ($role !== 'admin') {
                 if ($userId <= 0) {
@@ -272,8 +282,6 @@ class ScriptController extends Controller
                     return $this->plainError('Forbidden: device is not enabled for event access.', 403);
                 }
             }
-        } elseif ($role !== 'admin') {
-            return $this->plainError('Unauthorized.', 401);
         }
 
         // Render quickly from stored DB events by default.
