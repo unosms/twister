@@ -1078,19 +1078,27 @@ if (!$explicitTelegramInterfaceScope && $hasTelegramDevice) {
 }
 $telegramInterfaceHiddenValue = implode(',', $selectedTelegramInterfaceValues);
 ?>
-<div class="<?php if(!$hasTelegramDevice): echo 'hidden'; endif; ?> rounded-lg border border-slate-200 dark:border-gray-700 p-3" data-telegram-device-interface-item data-device-id="<?php echo e($deviceId); ?>" data-default-select-all="<?php echo e($explicitTelegramInterfaceScope ? '0' : '1'); ?>">
-<div class="text-xs font-semibold text-slate-500 mb-2"><?php echo e($device->name); ?> <?php if($device->serial_number): ?>(<?php echo e($device->serial_number); ?>)<?php endif; ?></div>
+<div class="<?php if(!$hasTelegramDevice): echo 'hidden'; endif; ?> rounded-lg border border-slate-200 dark:border-gray-700" data-telegram-device-interface-item data-device-id="<?php echo e($deviceId); ?>" data-default-select-all="<?php echo e($explicitTelegramInterfaceScope ? '0' : '1'); ?>">
+<details class="group" data-telegram-device-interface-panel>
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3 px-3 py-2">
+<div class="min-w-0">
+<p class="truncate text-xs font-semibold text-slate-500"><?php echo e($device->name); ?> <?php if($device->serial_number): ?>(<?php echo e($device->serial_number); ?>)<?php endif; ?></p>
 <?php if(!empty($telegramInterfaceOptions)): ?>
+<p class="mt-1 text-[11px] font-semibold text-gray-500"><span data-telegram-device-interface-count>0</span> selected</p>
+<?php else: ?>
+<p class="mt-1 text-[11px] text-gray-400">No discovered interfaces yet for this device.</p>
+<?php endif; ?>
+</div>
+<span class="material-symbols-outlined text-[18px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+<?php if(!empty($telegramInterfaceOptions)): ?>
+<div class="space-y-2 border-t border-[#cfd7e7] dark:border-gray-700 px-3 pb-3 pt-2">
 <input type="hidden" name="telegram_device_interfaces[<?php echo e($deviceId); ?>]" value="<?php echo e($telegramInterfaceHiddenValue); ?>" data-telegram-device-interface-hidden/>
-<div class="space-y-2">
-<div class="flex flex-wrap items-center justify-between gap-2">
-<span class="text-[11px] font-semibold text-gray-500"><span data-telegram-device-interface-count>0</span> selected</span>
-<div class="flex flex-wrap gap-2">
+<div class="flex flex-wrap items-center justify-end gap-2">
 <button class="px-2 py-1 text-[11px] font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-telegram-device-interface-action="all">Select all</button>
 <button class="px-2 py-1 text-[11px] font-semibold text-slate-600 border border-slate-300 rounded-lg hover:bg-slate-50 dark:text-slate-200 dark:border-slate-600 dark:hover:bg-slate-700/30" type="button" data-no-dispatch="true" data-telegram-device-interface-action="none">Clear</button>
 </div>
-</div>
-<div class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-40 overflow-y-auto rounded-lg border border-[#cfd7e7] dark:border-gray-700 p-2">
+<div class="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto rounded-lg border border-[#cfd7e7] dark:border-gray-700 p-2 md:grid-cols-2">
 <?php $__currentLoopData = $telegramInterfaceOptions; $__env->addLoop($__currentLoopData); foreach($__currentLoopData as $telegramInterfaceOption): $__env->incrementLoopIndices(); $loop = $__env->getLastLoop(); ?>
 <?php
 $telegramInterfaceValue = trim((string) ($telegramInterfaceOption['value'] ?? ''));
@@ -1106,9 +1114,8 @@ $telegramInterfaceChecked = $telegramInterfaceValue !== '' && isset($selectedTel
 <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
 </div>
 </div>
-<?php else: ?>
-<p class="text-xs text-gray-400">No discovered interfaces yet for this device.</p>
 <?php endif; ?>
+</details>
 </div>
 <?php endforeach; $__env->popLoop(); $loop = $__env->getLastLoop(); ?>
 <p class="text-xs text-gray-400 <?php if(!empty($selectedTelegramDevices)): echo 'hidden'; endif; ?>" data-telegram-device-interface-empty>Select one or more Telegram devices to scope interfaces.</p>

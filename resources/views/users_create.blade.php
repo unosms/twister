@@ -665,19 +665,27 @@ if (!$explicitTelegramInterfaceScope && $hasTelegramDevice) {
 }
  $telegramInterfaceHiddenValue = implode(',', $selectedTelegramInterfaceValues);
 @endphp
-<div class="{{ $hasTelegramDevice ? '' : 'hidden' }} rounded-lg border border-slate-200 dark:border-slate-700 p-3 bg-white dark:bg-slate-900" data-telegram-device-interface-item data-device-id="{{ $deviceId }}" data-default-select-all="{{ $explicitTelegramInterfaceScope ? '0' : '1' }}">
-<div class="text-xs font-semibold text-slate-500 mb-2">{{ $device->name }}@if ($device->serial_number) ({{ $device->serial_number }})@endif</div>
+<div class="{{ $hasTelegramDevice ? '' : 'hidden' }} rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900" data-telegram-device-interface-item data-device-id="{{ $deviceId }}" data-default-select-all="{{ $explicitTelegramInterfaceScope ? '0' : '1' }}">
+<details class="group" data-telegram-device-interface-panel>
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3 px-3 py-2">
+<div class="min-w-0">
+<p class="truncate text-xs font-semibold text-slate-500">{{ $device->name }}@if ($device->serial_number) ({{ $device->serial_number }})@endif</p>
 @if (!empty($telegramInterfaceOptions))
+<p class="mt-1 text-[11px] font-semibold text-slate-500"><span data-telegram-device-interface-count>0</span> selected</p>
+@else
+<p class="mt-1 text-[11px] text-slate-400">No discovered interfaces yet for this device.</p>
+@endif
+</div>
+<span class="material-symbols-outlined text-[18px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+@if (!empty($telegramInterfaceOptions))
+<div class="space-y-2 border-t border-slate-200 px-3 pb-3 pt-2 dark:border-slate-700">
 <input type="hidden" name="telegram_device_interfaces[{{ $deviceId }}]" value="{{ $telegramInterfaceHiddenValue }}" data-telegram-device-interface-hidden />
-<div class="space-y-2">
-<div class="flex flex-wrap items-center justify-between gap-2">
-<span class="text-[11px] font-semibold text-slate-500"><span data-telegram-device-interface-count>0</span> selected</span>
-<div class="flex flex-wrap gap-2">
+<div class="flex flex-wrap items-center justify-end gap-2">
 <button class="px-2 py-1 text-[11px] font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-telegram-device-interface-action="all">Select all</button>
 <button class="px-2 py-1 text-[11px] font-semibold border border-slate-300 rounded-lg hover:bg-slate-50 dark:border-slate-600 dark:hover:bg-slate-800" type="button" data-no-dispatch="true" data-telegram-device-interface-action="none">Clear</button>
 </div>
-</div>
-<div class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-40 overflow-y-auto rounded-lg border border-slate-200 p-2 dark:border-slate-700">
+<div class="grid grid-cols-1 gap-2 max-h-40 overflow-y-auto rounded-lg border border-slate-200 p-2 dark:border-slate-700 md:grid-cols-2">
 @foreach ($telegramInterfaceOptions as $telegramInterfaceOption)
 @php
 $telegramInterfaceValue = trim((string) ($telegramInterfaceOption['value'] ?? ''));
@@ -693,9 +701,8 @@ $telegramInterfaceChecked = $telegramInterfaceValue !== '' && isset($selectedTel
 @endforeach
 </div>
 </div>
-@else
-<p class="text-xs text-slate-400">No discovered interfaces yet for this device.</p>
 @endif
+</details>
 </div>
 @endforeach
 <p class="text-xs text-slate-400 {{ !empty($selectedTelegramDevices) ? 'hidden' : '' }}" data-telegram-device-interface-empty>Select one or more Telegram devices to scope interfaces.</p>
