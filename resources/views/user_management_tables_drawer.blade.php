@@ -549,6 +549,24 @@ foreach ($graphInterfaceMap as $deviceId => $expression) {
 <span class="material-symbols-outlined text-gray-400 transition-transform duration-200 group-open:rotate-180">expand_more</span>
 </summary>
 <div class="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4" data-user-edit-section-body>
+<div class="lg:col-span-12">
+<details class="group rounded-lg border border-[#cfd7e7] bg-gray-50/80 dark:border-gray-700 dark:bg-gray-800/40">
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3 px-3 py-2">
+<span class="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
+<span class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-gray-400 text-[11px] font-bold leading-none text-gray-600 dark:border-gray-500 dark:text-gray-200">i</span>
+Account Section Help
+</span>
+<span class="material-symbols-outlined text-[18px] text-gray-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="border-t border-[#cfd7e7] px-3 pb-3 pt-2 text-xs text-gray-600 dark:border-gray-700 dark:text-gray-300">
+<ol class="list-decimal space-y-1 pl-5">
+<li><span class="font-semibold">Username</span> is the login identifier and should remain unique.</li>
+<li><span class="font-semibold">Role</span>: <code>admin</code> has full access, <code>user</code> follows assigned scopes and permissions.</li>
+<li><span class="font-semibold">Set New Password</span> updates credentials; leaving it blank keeps the current password.</li>
+</ol>
+</div>
+</details>
+</div>
 <?php if($isSuperAdmin): ?>
 <input type="hidden" name="username" value="<?php echo e($user->name); ?>"/>
 <input type="hidden" name="role" value="<?php echo e($role); ?>"/>
@@ -623,6 +641,25 @@ $passwordRevealStorageReady = (bool) ($passwordRevealStorageReady ?? false);
 <span class="material-symbols-outlined text-gray-400 transition-transform duration-200 group-open:rotate-180">expand_more</span>
 </summary>
 <div class="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4" data-user-edit-section-body>
+<div class="lg:col-span-12">
+<details class="group rounded-lg border border-[#cfd7e7] bg-gray-50/80 dark:border-gray-700 dark:bg-gray-800/40">
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3 px-3 py-2">
+<span class="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
+<span class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-gray-400 text-[11px] font-bold leading-none text-gray-600 dark:border-gray-500 dark:text-gray-200">i</span>
+Device Scope Help
+</span>
+<span class="material-symbols-outlined text-[18px] text-gray-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="border-t border-[#cfd7e7] px-3 pb-3 pt-2 text-xs text-gray-600 dark:border-gray-700 dark:text-gray-300">
+<ol class="list-decimal space-y-1 pl-5">
+<li><span class="font-semibold">Assigned Devices</span> define user-owned device visibility.</li>
+<li><span class="font-semibold">Command Device Access</span> grants command execution even when the device is not assigned.</li>
+<li>Event and graph visibility can be enabled separately, with optional per-device and per-interface scope.</li>
+<li>If event or graph device lists are empty, access falls back to assigned/permitted devices (based on enabled toggles).</li>
+</ol>
+</div>
+</details>
+</div>
 <div class="flex flex-col gap-2 lg:col-span-6" data-checkbox-group>
 <div class="flex items-center justify-between gap-2">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Assigned Devices</label>
@@ -960,6 +997,25 @@ Run <code>php artisan migrate --force</code> to enable per-device command restri
 <span class="material-symbols-outlined text-gray-400 transition-transform duration-200 group-open:rotate-180">expand_more</span>
 </summary>
 <div class="mt-4 grid grid-cols-1 lg:grid-cols-12 gap-4" data-user-edit-section-body>
+<div class="lg:col-span-12">
+<details class="group rounded-lg border border-[#cfd7e7] bg-gray-50/80 dark:border-gray-700 dark:bg-gray-800/40">
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3 px-3 py-2">
+<span class="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
+<span class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-gray-400 text-[11px] font-bold leading-none text-gray-600 dark:border-gray-500 dark:text-gray-200">i</span>
+Command Permissions Help
+</span>
+<span class="material-symbols-outlined text-[18px] text-gray-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="border-t border-[#cfd7e7] px-3 pb-3 pt-2 text-xs text-gray-600 dark:border-gray-700 dark:text-gray-300">
+<ol class="list-decimal space-y-1 pl-5">
+<li>Select only the command templates this user can execute globally.</li>
+<li>Use <span class="font-semibold">Select all</span> and <span class="font-semibold">Clear</span> for bulk updates.</li>
+<li>Select <code>Custom Command</code> to create a new permission from script details.</li>
+<li>Per-device command scope in Device Scope can further restrict this global command list.</li>
+</ol>
+</div>
+</details>
+</div>
 <div class="flex flex-col gap-2 lg:col-span-12" data-checkbox-group>
 <div class="flex flex-wrap items-center justify-between gap-2">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Command Permissions</label>

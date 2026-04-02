@@ -197,6 +197,22 @@ Back to Users
 <p class="text-xs font-bold uppercase tracking-wider text-slate-500">1) Account</p>
 <p class="mt-1 text-xs text-slate-400">Identity, role, and first-login password.</p>
 </div>
+<details class="group mb-4 rounded-lg border border-slate-200 bg-slate-50/80 p-0 dark:border-slate-700 dark:bg-slate-800/40">
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3 px-3 py-2">
+<span class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+<span class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-400 text-[11px] font-bold leading-none text-slate-600 dark:border-slate-500 dark:text-slate-200">i</span>
+Account Section Help
+</span>
+<span class="material-symbols-outlined text-[18px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="border-t border-slate-200 px-3 pb-3 pt-2 text-xs text-slate-600 dark:border-slate-700 dark:text-slate-300">
+<ol class="list-decimal space-y-1 pl-5">
+<li><span class="font-semibold">Username</span> is the login identifier and should be unique.</li>
+<li><span class="font-semibold">Role</span>: <code>admin</code> has full access, <code>user</code> follows assigned scopes and permissions below.</li>
+<li><span class="font-semibold">Password</span> is required on create; in edit mode, leaving new password empty keeps the current one.</li>
+</ol>
+</div>
+</details>
 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
 <div class="md:col-span-2 flex flex-col gap-2">
 <label class="text-sm font-semibold text-slate-700 dark:text-slate-200" for="username">Username</label>
@@ -222,6 +238,23 @@ Back to Users
 <p class="text-xs font-bold uppercase tracking-wider text-slate-500">2) Device Scope</p>
 <p class="mt-1 text-xs text-slate-400">Assign owned devices first, then grant command-only device access.</p>
 </div>
+<details class="group mb-4 rounded-lg border border-slate-200 bg-slate-50/80 p-0 dark:border-slate-700 dark:bg-slate-800/40">
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3 px-3 py-2">
+<span class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+<span class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-400 text-[11px] font-bold leading-none text-slate-600 dark:border-slate-500 dark:text-slate-200">i</span>
+Device Scope Help
+</span>
+<span class="material-symbols-outlined text-[18px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="border-t border-slate-200 px-3 pb-3 pt-2 text-xs text-slate-600 dark:border-slate-700 dark:text-slate-300">
+<ol class="list-decimal space-y-1 pl-5">
+<li><span class="font-semibold">Assigned Devices</span> are the user-owned devices shown in their main access scope.</li>
+<li><span class="font-semibold">Command Device Access</span> grants command execution on selected devices even if not assigned.</li>
+<li>Event and graph controls can be enabled separately, with optional per-device and per-interface scope.</li>
+<li>When event or graph device lists are empty, access falls back to assigned/permitted devices (based on enabled toggles).</li>
+</ol>
+</div>
+</details>
 <div class="grid grid-cols-1 xl:grid-cols-2 gap-4">
 <div class="flex flex-col gap-2" data-checkbox-group>
 <div class="flex items-center justify-between gap-2">
@@ -559,6 +592,23 @@ Run <code>php artisan migrate --force</code> to enable per-device command restri
 <p class="text-xs font-bold uppercase tracking-wider text-slate-500">3) Command Permissions</p>
 <p class="mt-1 text-xs text-slate-400">Keep only the commands this user should be allowed to execute.</p>
 </div>
+<details class="group mb-4 rounded-lg border border-slate-200 bg-slate-50/80 p-0 dark:border-slate-700 dark:bg-slate-800/40">
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3 px-3 py-2">
+<span class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+<span class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-400 text-[11px] font-bold leading-none text-slate-600 dark:border-slate-500 dark:text-slate-200">i</span>
+Command Permissions Help
+</span>
+<span class="material-symbols-outlined text-[18px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="border-t border-slate-200 px-3 pb-3 pt-2 text-xs text-slate-600 dark:border-slate-700 dark:text-slate-300">
+<ol class="list-decimal space-y-1 pl-5">
+<li>Select only the command templates this user is allowed to run.</li>
+<li>Use <span class="font-semibold">Select all</span> and <span class="font-semibold">Clear</span> for quick bulk changes.</li>
+<li>Choose <code>Custom Command</code> to create a new permission from script name and script code.</li>
+<li>Per-device command scope (in Device Scope section) can further narrow this global command list.</li>
+</ol>
+</div>
+</details>
 <div class="space-y-3" data-checkbox-group>
 <div class="flex flex-wrap items-center justify-between gap-2">
 <label class="text-sm font-semibold text-slate-700 dark:text-slate-200">Command Permissions</label>
