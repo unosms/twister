@@ -75,14 +75,16 @@ $selectedTelegramDevices = array_values(array_unique(array_map('intval', array_f
 $telegramDeviceInterfaceScopeReady = (bool) ($telegramDeviceInterfaceScopeReady ?? false);
 $telegramDeviceInterfacesMap = old('telegram_device_interfaces', []);
 if (!is_array($telegramDeviceInterfacesMap)) { $telegramDeviceInterfacesMap = []; }
-$severityOptions = $telegramSeverityOptions ?? ['low', 'medium', 'high', 'critical'];
-$selectedTelegramSeverities = old('telegram_severities', ['high', 'critical']);
-if (!is_array($selectedTelegramSeverities) || empty($selectedTelegramSeverities)) { $selectedTelegramSeverities = ['high', 'critical']; }
+$severityOptions = $telegramSeverityOptions ?? ['info', 'average', 'high', 'disaster'];
+$severityOptions = array_values(array_unique(array_map(static fn ($value): string => strtolower(trim((string) $value)), (array) $severityOptions)));
+$selectedTelegramSeverities = old('telegram_severities', ['high', 'disaster']);
+if (!is_array($selectedTelegramSeverities) || empty($selectedTelegramSeverities)) { $selectedTelegramSeverities = ['high', 'disaster']; }
 $selectedTelegramSeverities = array_values(array_unique(array_map(static fn ($value): string => strtolower(trim((string) $value)), $selectedTelegramSeverities)));
-$eventTypeOptions = $telegramEventTypeOptions ?? ['device.offline', 'port.down'];
+$severityOptions = array_values(array_unique(array_merge($severityOptions, $selectedTelegramSeverities)));
+$eventTypeOptions = $telegramEventTypeOptions ?? ['device_down', 'link_down', 'link_up', 'speed_changed', 'device_up'];
 $eventTypeOptions = array_values(array_unique(array_map(static fn ($value): string => strtolower(trim((string) $value)), (array) $eventTypeOptions)));
-$selectedTelegramEventTypes = old('telegram_event_types', ['device.offline', 'port.down']);
-if (!is_array($selectedTelegramEventTypes) || empty($selectedTelegramEventTypes)) { $selectedTelegramEventTypes = ['device.offline', 'port.down']; }
+$selectedTelegramEventTypes = old('telegram_event_types', ['device_down', 'link_down']);
+if (!is_array($selectedTelegramEventTypes) || empty($selectedTelegramEventTypes)) { $selectedTelegramEventTypes = ['device_down', 'link_down']; }
 $selectedTelegramEventTypes = array_values(array_unique(array_map(static fn ($value): string => strtolower(trim((string) $value)), $selectedTelegramEventTypes)));
 $eventTypeOptions = array_values(array_unique(array_merge($eventTypeOptions, $selectedTelegramEventTypes)));
 $selectedCommandTemplateIds = old('command_template_ids', []);

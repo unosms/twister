@@ -15,27 +15,33 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 class UserController extends Controller
 {
-    private const TELEGRAM_SEVERITIES = ['low', 'medium', 'high', 'critical'];
+    private const TELEGRAM_SEVERITY_OPTIONS_FALLBACK = ['info', 'average', 'high', 'disaster'];
 
-    private const TELEGRAM_EVENT_TYPES = [
-        'device.online',
-        'device.offline',
-        'device.status_changed',
-        'port.up',
-        'port.down',
-        'port.speed_changed',
-        'port.status_changed',
-        'snmp.timeout',
-        'snmp.auth_fail',
-        'snmp.response_slow',
-        'ping.high_latency',
-        'auth.admin_login',
-        'system.error',
+    private const TELEGRAM_SEVERITY_VALIDATION_OPTIONS = [
+        'info',
+        'average',
+        'high',
+        'disaster',
+        'low',
+        'medium',
+        'critical',
+        'warn',
+        'warning',
+        'crit',
+    ];
+
+    private const TELEGRAM_EVENT_TYPES_FALLBACK = [
+        'device_down',
+        'device_up',
+        'link_down',
+        'link_up',
+        'speed_changed',
     ];
     private const EXEC_COMMAND_TEMPLATES = [
         [
@@ -323,6 +329,7 @@ class UserController extends Controller
         $this->ensureExecCommandTemplates();
         $commandTemplates = CommandTemplate::where('active', true)->orderBy('name')->get();
         $graphInterfaceOptionsByDevice = $this->buildGraphInterfaceOptionsByDevice($devices);
+        $telegramSeverityOptions = $this->telegramSeverityOptions();
         $telegramEventTypeOptions = $this->telegramEventTypeOptions();
 
         return [
@@ -338,13 +345,14 @@ class UserController extends Controller
             'deviceEventInterfaceScopeReady' => DeviceEventPermission::supportsInterfaceScope(),
             'telegramDeviceInterfaceScopeReady' => User::supportsTelegramDeviceInterfaceScope(),
             'deviceCommandRestrictionsReady' => DevicePermission::supportsAllowedCommandTemplateIds(),
-            'telegramSeverityOptions' => self::TELEGRAM_SEVERITIES,
+            'telegramSeverityOptions' => $telegramSeverityOptions,
             'telegramEventTypeOptions' => $telegramEventTypeOptions,
         ];
     }
 
     private function emptyUserFormViewData(): array
     {
+        $telegramSeverityOptions = $this->telegramSeverityOptions();
         $telegramEventTypeOptions = $this->telegramEventTypeOptions();
 
         return [
@@ -360,7 +368,7 @@ class UserController extends Controller
             'deviceEventInterfaceScopeReady' => DeviceEventPermission::supportsInterfaceScope(),
             'telegramDeviceInterfaceScopeReady' => User::supportsTelegramDeviceInterfaceScope(),
             'deviceCommandRestrictionsReady' => DevicePermission::supportsAllowedCommandTemplateIds(),
-            'telegramSeverityOptions' => self::TELEGRAM_SEVERITIES,
+            'telegramSeverityOptions' => $telegramSeverityOptions,
             'telegramEventTypeOptions' => $telegramEventTypeOptions,
         ];
     }
@@ -590,6 +598,7 @@ class UserController extends Controller
         $selectedGraphDeviceLookup = $this->normalizeDeviceIdLookup($request->input('graph_device_ids', []));
         $selectedEventDeviceLookup = $this->normalizeDeviceIdLookup($request->input('event_device_ids', []));
         $selectedTelegramDeviceLookup = $this->normalizeDeviceIdLookup($request->input('telegram_devices', []));
+        $allowedTelegramSeverities = $this->telegramSeverityValidationOptions();
 
         return $request->validate([
             'username' => $usernameRules,
@@ -696,7 +705,7 @@ class UserController extends Controller
                 },
             ],
             'telegram_severities' => ['nullable', 'array'],
-            'telegram_severities.*' => ['string', Rule::in(self::TELEGRAM_SEVERITIES)],
+            'telegram_severities.*' => ['string', Rule::in($allowedTelegramSeverities)],
             'telegram_event_types' => ['nullable', 'array'],
             'telegram_event_types.*' => ['string', 'max:64'],
         ]);
@@ -770,7 +779,7 @@ class UserController extends Controller
                 ? []
                 : (!empty($existingTelegramSeverities) && !$isNew
                 ? $existingTelegramSeverities
-                : ['high', 'critical']);
+                : $this->defaultTelegramSeveritySelection());
         }
 
         $existingTelegramEventTypes = $this->normalizeTelegramEventTypes($user->telegram_event_types ?? []);
@@ -787,7 +796,7 @@ class UserController extends Controller
                 ? []
                 : (!empty($existingTelegramEventTypes) && !$isNew
                 ? $existingTelegramEventTypes
-                : ['device.offline', 'port.down']);
+                : $this->defaultTelegramEventTypeSelection());
         }
 
         $avatarStorageReady = User::supportsAvatarStorage();
@@ -1407,9 +1416,57 @@ class UserController extends Controller
         return array_values(array_unique($items));
     }
 
+    private function defaultTelegramSeveritySelection(): array
+    {
+        return ['high', 'disaster'];
+    }
+
+    private function defaultTelegramEventTypeSelection(): array
+    {
+        return ['device_down', 'link_down'];
+    }
+
+    private function telegramSeverityValidationOptions(): array
+    {
+        return array_values(array_unique(array_map(
+            static fn ($value): string => strtolower(trim((string) $value)),
+            array_merge(
+                $this->telegramSeverityOptions(),
+                self::TELEGRAM_SEVERITY_VALIDATION_OPTIONS
+            )
+        )));
+    }
+
+    private function telegramSeverityOptions(): array
+    {
+        $options = $this->distinctEventFieldValues('severity');
+        if (empty($options)) {
+            $options = self::TELEGRAM_SEVERITY_OPTIONS_FALLBACK;
+        }
+
+        $preferredOrder = [
+            'info' => 1,
+            'average' => 2,
+            'high' => 3,
+            'disaster' => 4,
+        ];
+
+        usort($options, static function (string $left, string $right) use ($preferredOrder): int {
+            $leftRank = $preferredOrder[$left] ?? 99;
+            $rightRank = $preferredOrder[$right] ?? 99;
+            if ($leftRank !== $rightRank) {
+                return $leftRank <=> $rightRank;
+            }
+
+            return strcmp($left, $right);
+        });
+
+        return array_values(array_unique($options));
+    }
+
     private function telegramEventTypeOptions(): array
     {
-        $options = self::TELEGRAM_EVENT_TYPES;
+        $options = $this->distinctEventFieldValues('event_type');
 
         if (AppSetting::supportsStorage()) {
             $customEventTypes = $this->normalizeTelegramEventTypes(
@@ -1420,7 +1477,51 @@ class UserController extends Controller
             }
         }
 
-        return array_values(array_unique($options));
+        if (empty($options)) {
+            $options = self::TELEGRAM_EVENT_TYPES_FALLBACK;
+        }
+
+        $options = array_values(array_unique(array_map(
+            static fn ($value): string => strtolower(trim((string) $value)),
+            $options
+        )));
+        sort($options, SORT_STRING);
+
+        return $options;
+    }
+
+    private function distinctEventFieldValues(string $field): array
+    {
+        if (!in_array($field, ['severity', 'event_type'], true)) {
+            return [];
+        }
+
+        $tables = ['interface_events', 'device_events'];
+        $options = [];
+
+        foreach ($tables as $table) {
+            if (!Schema::hasTable($table)) {
+                continue;
+            }
+
+            try {
+                $options = array_merge(
+                    $options,
+                    DB::table($table)
+                        ->selectRaw('DISTINCT LOWER(TRIM(' . $field . ')) AS value')
+                        ->whereNotNull($field)
+                        ->pluck('value')
+                        ->all()
+                );
+            } catch (\Throwable) {
+                // Keep defaults when event tables are unavailable or incompatible.
+            }
+        }
+
+        return array_values(array_unique(array_filter(array_map(
+            static fn ($value): string => strtolower(trim((string) $value)),
+            $options
+        ), static fn (string $value): bool => $value !== '')));
     }
 
     private function ensureExecCommandTemplates(): void

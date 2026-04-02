@@ -158,13 +158,8 @@ class TelegramEventNotifier
     {
         $rawType = strtolower(trim((string) ($event['type'] ?? $event['event_type'] ?? '')));
         $type = $this->canonicalizeEventType($rawType);
-        $severityRaw = strtolower(trim((string) ($event['severity'] ?? 'high')));
-        $severity = match ($severityRaw) {
-            'critical', 'crit' => 'critical',
-            'high' => 'high',
-            'medium', 'average', 'warn', 'warning' => 'medium',
-            default => 'low',
-        };
+        $severityRaw = strtolower(trim((string) ($event['severity'] ?? '')));
+        $severity = $this->canonicalizeSeverity($severityRaw !== '' ? $severityRaw : 'high');
 
         $deviceId = $event['device_id'] ?? $event['deviceId'] ?? null;
         $deviceId = is_numeric($deviceId) ? (int) $deviceId : null;
@@ -273,9 +268,9 @@ class TelegramEventNotifier
             }
         }
 
-        $severities = $this->normalizeSimpleList($user->telegram_severities ?? self::DEFAULT_SEVERITIES);
+        $severities = $this->normalizeSeverityList($user->telegram_severities ?? self::DEFAULT_SEVERITIES);
         if (empty($severities)) {
-            $severities = self::DEFAULT_SEVERITIES;
+            $severities = $this->normalizeSeverityList(self::DEFAULT_SEVERITIES);
         }
 
         if (!in_array($event['severity'], $severities, true)) {
@@ -755,6 +750,40 @@ class TelegramEventNotifier
         }
 
         return array_values(array_unique($items));
+    }
+
+    private function normalizeSeverityList(array|string|null $values): array
+    {
+        $items = $this->normalizeSimpleList($values);
+        if (empty($items)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($items as $value) {
+            $canonical = $this->canonicalizeSeverity($value, '');
+            if ($canonical !== '') {
+                $normalized[] = $canonical;
+            }
+        }
+
+        return array_values(array_unique($normalized));
+    }
+
+    private function canonicalizeSeverity(string $severity, string $default = 'low'): string
+    {
+        $normalized = strtolower(trim($severity));
+        if ($normalized === '') {
+            return $default;
+        }
+
+        return match ($normalized) {
+            'critical', 'crit', 'disaster' => 'critical',
+            'high' => 'high',
+            'medium', 'average', 'warn', 'warning' => 'medium',
+            'low', 'info' => 'low',
+            default => $default,
+        };
     }
 
     private function eventTypeMatches(string $eventType, array $patterns): bool

@@ -342,24 +342,29 @@ if (!is_array($telegramDeviceInterfacesMap)) {
     $telegramDeviceInterfacesMap = [];
 }
 
-$severityOptions = $telegramSeverityOptions ?? ['low', 'medium', 'high', 'critical'];
-$selectedTelegramSeverities = old('telegram_severities', $user->telegram_severities ?? ['high', 'critical']);
+$severityOptions = $telegramSeverityOptions ?? ['info', 'average', 'high', 'disaster'];
+$severityOptions = array_values(array_unique(array_map(
+    static fn ($value): string => strtolower(trim((string) $value)),
+    (array) $severityOptions
+)));
+$selectedTelegramSeverities = old('telegram_severities', $user->telegram_severities ?? ['high', 'disaster']);
 if (!is_array($selectedTelegramSeverities) || empty($selectedTelegramSeverities)) {
-    $selectedTelegramSeverities = ['high', 'critical'];
+    $selectedTelegramSeverities = ['high', 'disaster'];
 }
 $selectedTelegramSeverities = array_values(array_unique(array_map(
     static fn ($value): string => strtolower(trim((string) $value)),
     $selectedTelegramSeverities
 )));
+$severityOptions = array_values(array_unique(array_merge($severityOptions, $selectedTelegramSeverities)));
 
-$eventTypeOptions = $telegramEventTypeOptions ?? ['device.offline', 'port.down', 'port.speed_changed'];
+$eventTypeOptions = $telegramEventTypeOptions ?? ['device_down', 'link_down', 'link_up', 'speed_changed', 'device_up'];
 $eventTypeOptions = array_values(array_unique(array_map(
     static fn ($value): string => strtolower(trim((string) $value)),
     (array) $eventTypeOptions
 )));
-$selectedTelegramEventTypes = old('telegram_event_types', $user->telegram_event_types ?? ['device.offline', 'port.down']);
+$selectedTelegramEventTypes = old('telegram_event_types', $user->telegram_event_types ?? ['device_down', 'link_down']);
 if (!is_array($selectedTelegramEventTypes) || empty($selectedTelegramEventTypes)) {
-    $selectedTelegramEventTypes = ['device.offline', 'port.down'];
+    $selectedTelegramEventTypes = ['device_down', 'link_down'];
 }
 $selectedTelegramEventTypes = array_values(array_unique(array_map(
     static fn ($value): string => strtolower(trim((string) $value)),
