@@ -184,6 +184,20 @@
             @endif
 
             <form method="get" action="{{ route('devices.events.index') }}" class="rounded-xl border border-[#cfd7e7] bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900" data-events-filter-form>
+                <div class="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 dark:border-gray-700 dark:bg-gray-800/60">
+                    <div class="flex flex-wrap items-center justify-between gap-2">
+                        <span class="text-[11px] text-slate-500 dark:text-slate-300">Click any filter title to open its checkbox menu.</span>
+                        <div class="flex flex-wrap items-center gap-2">
+                            <button class="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700" type="submit">
+                                Apply Filters
+                            </button>
+                            <a class="inline-flex items-center rounded-lg border border-[#cfd7e7] bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700" href="{{ route('devices.events.index') }}">
+                                Clear All
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="grid items-start gap-3 md:grid-cols-2 xl:grid-cols-7">
                     <details class="rounded-lg border border-slate-200 bg-slate-50/70 p-2 dark:border-gray-700 dark:bg-gray-800/60" data-filter-collapsible>
                         <summary class="flex cursor-pointer list-none items-center justify-between gap-2 rounded-md px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-slate-600 dark:text-slate-300">
@@ -300,15 +314,6 @@
                     </label>
                 </div>
 
-                <div class="mt-3 flex flex-wrap items-center gap-2">
-                    <span class="w-full text-[10px] text-slate-400">Click any filter title to open its checkbox menu.</span>
-                    <button class="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700" type="submit">
-                        Apply Filters
-                    </button>
-                    <a class="inline-flex items-center rounded-lg border border-[#cfd7e7] bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700" href="{{ route('devices.events.index') }}">
-                        Clear All
-                    </a>
-                </div>
             </form>
 
             <div class="bg-white dark:bg-gray-900 border border-[#cfd7e7] dark:border-gray-800 rounded-xl overflow-hidden shadow-sm">
