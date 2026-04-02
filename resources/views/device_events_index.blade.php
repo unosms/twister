@@ -344,8 +344,33 @@
                                     $openedAt = $openedAtTs ? \Carbon\Carbon::createFromTimestamp($openedAtTs) : null;
                                     $resolvedAt = $resolvedAtTs ? \Carbon\Carbon::createFromTimestamp($resolvedAtTs) : null;
                                     $sourceValue = strtolower(trim((string) ($event->source ?? 'device')));
+                                    $eventTypeValue = strtolower(trim((string) ($event->event_type ?? '')));
+                                    $isSpeedChanged = $eventTypeValue === 'speed_changed';
                                     $severityValue = trim((string) ($event->severity ?? ''));
                                     $isResolved = $resolvedAtTs !== null;
+                                    $oldSpeedValue = is_numeric($event->old_speed_mbps ?? null) ? (int) $event->old_speed_mbps : null;
+                                    $newSpeedValue = is_numeric($event->new_speed_mbps ?? null) ? (int) $event->new_speed_mbps : null;
+
+                                    if ($isSpeedChanged) {
+                                        if ($oldSpeedValue !== null && $newSpeedValue !== null) {
+                                            if ($newSpeedValue > $oldSpeedValue) {
+                                                $statusLabel = 'Speed Up';
+                                                $statusBadgeClass = 'bg-emerald-100 text-emerald-700';
+                                            } elseif ($newSpeedValue < $oldSpeedValue) {
+                                                $statusLabel = 'Speed Down';
+                                                $statusBadgeClass = 'bg-rose-100 text-rose-700';
+                                            } else {
+                                                $statusLabel = 'No Change';
+                                                $statusBadgeClass = 'bg-slate-100 text-slate-700';
+                                            }
+                                        } else {
+                                            $statusLabel = 'Speed Changed';
+                                            $statusBadgeClass = 'bg-blue-100 text-blue-700';
+                                        }
+                                    } else {
+                                        $statusLabel = $isResolved ? 'Resolved' : 'Open';
+                                        $statusBadgeClass = $isResolved ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700';
+                                    }
 
                                     $ifIndex = is_numeric($event->interface_index ?? null) ? (int) $event->interface_index : 0;
                                     $ifName = trim((string) ($event->interface_name ?? ''));
@@ -368,12 +393,9 @@
                                         }
                                     }
 
-                                    if (
-                                        strtolower(trim((string) ($event->event_type ?? ''))) === 'speed_changed'
-                                        && (is_numeric($event->old_speed_mbps ?? null) || is_numeric($event->new_speed_mbps ?? null))
-                                    ) {
-                                        $oldSpeed = is_numeric($event->old_speed_mbps ?? null) ? (string) ((int) $event->old_speed_mbps) : '-';
-                                        $newSpeed = is_numeric($event->new_speed_mbps ?? null) ? (string) ((int) $event->new_speed_mbps) : '-';
+                                    if ($isSpeedChanged && ($oldSpeedValue !== null || $newSpeedValue !== null)) {
+                                        $oldSpeed = $oldSpeedValue !== null ? (string) $oldSpeedValue : '-';
+                                        $newSpeed = $newSpeedValue !== null ? (string) $newSpeedValue : '-';
                                         $details[] = 'Speed ' . $oldSpeed . ' -> ' . $newSpeed . ' Mbps';
                                     }
 
@@ -414,8 +436,8 @@
                                         </span>
                                     </td>
                                     <td class="px-4 py-3 text-sm">
-                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $isResolved ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700' }}">
-                                            {{ $isResolved ? 'Resolved' : 'Open' }}
+                                        <span class="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold {{ $statusBadgeClass }}">
+                                            {{ $statusLabel }}
                                         </span>
                                     </td>
                                     <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200">
