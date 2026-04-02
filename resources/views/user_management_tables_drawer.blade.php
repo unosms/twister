@@ -1020,6 +1020,28 @@ Run <code>php artisan migrate --force</code> to enable per-device command restri
 <span>Enabled</span>
 </label>
 </div>
+<div class="md:col-span-2">
+<details class="group rounded-lg border border-[#cfd7e7] bg-gray-50/80 dark:border-gray-700 dark:bg-gray-800/40">
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3 px-3 py-2">
+<span class="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
+<span class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-gray-400 text-[11px] font-bold leading-none text-gray-600 dark:border-gray-500 dark:text-gray-200">i</span>
+Telegram Setup Help
+</span>
+<span class="material-symbols-outlined text-[18px] text-gray-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="border-t border-[#cfd7e7] px-3 pb-3 pt-2 text-xs text-gray-600 dark:border-gray-700 dark:text-gray-300">
+<p class="font-semibold text-gray-700 dark:text-gray-200">How to get your Telegram bot token and chat ID</p>
+<ol class="mt-2 list-decimal space-y-1 pl-5">
+<li>Open Telegram and start a chat with <code>@BotFather</code>.</li>
+<li>Send <code>/newbot</code>, complete bot name and username, then copy the token BotFather returns.</li>
+<li>Open your bot chat and send any message (for groups/channels, add the bot and send a message there).</li>
+<li>Open <code>https://api.telegram.org/bot&lt;YOUR_BOT_TOKEN&gt;/getUpdates</code>.</li>
+<li>Find <code>chat.id</code> in the response: private chats use positive IDs, groups/channels use negative IDs (usually <code>-100...</code>).</li>
+</ol>
+<p class="mt-2">Paste <span class="font-semibold">chat ID</span> below. You can leave bot token empty to use the global <code>TELEGRAM_BOT_TOKEN</code>.</p>
+</div>
+</details>
+</div>
 <div class="flex flex-col gap-2">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Telegram Chat ID</label>
 <input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="telegram_chat_id" type="text" value="<?php echo e(old('telegram_chat_id', $user->telegram_chat_id)); ?>" placeholder="e.g. 123456789, -1001234567890"/>

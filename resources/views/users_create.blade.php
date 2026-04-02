@@ -605,6 +605,26 @@ Run <code>php artisan migrate --force</code> to enable per-device command restri
 <span>Enabled</span>
 </label>
 </div>
+<details class="group rounded-lg border border-slate-200 bg-slate-50/80 p-0 dark:border-slate-700 dark:bg-slate-800/40">
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3 px-3 py-2">
+<span class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+<span class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-400 text-[11px] font-bold leading-none text-slate-600 dark:border-slate-500 dark:text-slate-200">i</span>
+Telegram Setup Help
+</span>
+<span class="material-symbols-outlined text-[18px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="border-t border-slate-200 px-3 pb-3 pt-2 text-xs text-slate-600 dark:border-slate-700 dark:text-slate-300">
+<p class="font-semibold text-slate-700 dark:text-slate-200">How to get your Telegram bot token and chat ID</p>
+<ol class="mt-2 list-decimal space-y-1 pl-5">
+<li>Open Telegram and start a chat with <code>@BotFather</code>.</li>
+<li>Send <code>/newbot</code>, complete bot name and username, then copy the token BotFather returns.</li>
+<li>Open your bot chat and send any message (for groups/channels, add the bot and send a message there).</li>
+<li>Open <code>https://api.telegram.org/bot&lt;YOUR_BOT_TOKEN&gt;/getUpdates</code>.</li>
+<li>Find <code>chat.id</code> in the response: private chats use positive IDs, groups/channels use negative IDs (usually <code>-100...</code>).</li>
+</ol>
+<p class="mt-2">Paste <span class="font-semibold">chat ID</span> below. You can leave bot token empty to use the global <code>TELEGRAM_BOT_TOKEN</code>.</p>
+</div>
+</details>
 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
 <input type="hidden" name="telegram_severities_present" value="1" />
 <input type="hidden" name="telegram_event_types_present" value="1" />
