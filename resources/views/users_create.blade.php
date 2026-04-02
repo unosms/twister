@@ -33,7 +33,7 @@ body { font-family: 'Inter', sans-serif; }
 @include('partials.admin_sidebar_styles')
 <script src="{{ asset('js/actions.js') . '?v=' . filemtime(public_path('js/actions.js')) }}" defer></script>
 </head>
-<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 h-screen overflow-hidden">
+<body class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 h-screen overflow-hidden" data-user-form-checkbox-filters="1">
 @php
 $assignedDeviceIds = old('device_ids', []);
 if (!is_array($assignedDeviceIds)) { $assignedDeviceIds = []; }

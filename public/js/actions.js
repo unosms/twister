@@ -2376,6 +2376,197 @@
     });
   };
 
+  const setupUserFormCheckboxMenus = () => {
+    const body = document.body;
+    if (!body || body.dataset.userFormCheckboxFilters !== '1') {
+      return;
+    }
+
+    const groups = Array.from(document.querySelectorAll('[data-checkbox-group]'));
+    if (!groups.length) {
+      return;
+    }
+
+    const entries = [];
+
+    const closeEntry = (entry) => {
+      if (!entry || entry.menu.classList.contains('hidden')) {
+        return;
+      }
+
+      entry.menu.classList.add('hidden');
+      entry.button.setAttribute('aria-expanded', 'false');
+      entry.button.classList.remove('border-primary', 'ring-2', 'ring-primary/20');
+      entry.icon.classList.remove('rotate-180');
+    };
+
+    const openEntry = (entry) => {
+      if (!entry) {
+        return;
+      }
+
+      entries.forEach((candidate) => {
+        if (candidate !== entry) {
+          closeEntry(candidate);
+        }
+      });
+
+      entry.menu.classList.remove('hidden');
+      entry.button.setAttribute('aria-expanded', 'true');
+      entry.button.classList.add('border-primary', 'ring-2', 'ring-primary/20');
+      entry.icon.classList.add('rotate-180');
+    };
+
+    groups.forEach((group) => {
+      if (group.dataset.checkboxMenuBound === 'true') {
+        return;
+      }
+
+      const items = Array.from(group.querySelectorAll('input[type="checkbox"][data-checkbox-item]'));
+      if (!items.length) {
+        return;
+      }
+
+      const countTarget = group.querySelector('[data-checkbox-count]');
+      if (!countTarget) {
+        return;
+      }
+
+      const directChildren = Array.from(group.children || []);
+      const optionPanel = directChildren.find(
+        (child) =>
+          child instanceof HTMLElement
+          && child.querySelector('input[type="checkbox"][data-checkbox-item]')
+      );
+      if (!optionPanel) {
+        return;
+      }
+
+      const actionRow = directChildren.find(
+        (child) => child instanceof HTMLElement && child.querySelector('[data-checkbox-action]')
+      );
+
+      let legacyHeader = countTarget;
+      while (legacyHeader && legacyHeader.parentElement !== group) {
+        legacyHeader = legacyHeader.parentElement;
+      }
+      if (!(legacyHeader instanceof HTMLElement)) {
+        return;
+      }
+
+      const titleLabel = legacyHeader.querySelector('label');
+      const titleText = String(titleLabel ? titleLabel.textContent || '' : '').trim();
+      if (titleText === '') {
+        return;
+      }
+
+      const controlWrap = document.createElement('div');
+      controlWrap.className = 'flex flex-col gap-1';
+
+      const title = document.createElement('span');
+      title.className = 'text-[11px] font-semibold uppercase tracking-wide text-slate-500';
+      title.textContent = titleText;
+
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'flex h-11 w-full items-center justify-between gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-700 transition dark:border-gray-700 dark:bg-gray-800 dark:text-slate-100';
+      button.setAttribute('aria-expanded', 'false');
+      button.setAttribute('aria-label', `${titleText} selection`);
+      button.dataset.noDispatch = 'true';
+
+      const summary = document.createElement('span');
+      summary.className = 'truncate text-left';
+
+      const icon = document.createElement('span');
+      icon.className = 'material-symbols-outlined text-[18px] text-slate-500 transition-transform duration-200';
+      icon.textContent = 'expand_more';
+
+      button.append(summary, icon);
+      controlWrap.append(title, button);
+
+      const menu = document.createElement('div');
+      menu.className = 'absolute left-0 right-0 top-full z-40 mt-1 hidden space-y-2';
+      menu.dataset.checkboxMenu = '';
+
+      group.classList.add('relative');
+      group.insertBefore(controlWrap, optionPanel);
+      group.insertBefore(menu, optionPanel);
+      menu.appendChild(optionPanel);
+
+      optionPanel.classList.add('shadow-lg');
+      if (actionRow && actionRow !== legacyHeader && actionRow !== optionPanel) {
+        menu.appendChild(actionRow);
+        actionRow.classList.add(
+          'rounded-lg',
+          'border',
+          'border-slate-200',
+          'bg-white',
+          'p-2',
+          'shadow-lg',
+          'dark:border-gray-700',
+          'dark:bg-gray-900'
+        );
+      }
+
+      legacyHeader.classList.add('hidden');
+
+      const updateSummary = () => {
+        const checkedCount = items.filter((item) => item.checked).length;
+        summary.textContent = checkedCount > 0 ? `${checkedCount} selected` : 'All';
+      };
+
+      items.forEach((item) => {
+        item.addEventListener('change', updateSummary);
+      });
+
+      const entry = { group, button, icon, menu };
+      entries.push(entry);
+
+      button.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const shouldOpen = menu.classList.contains('hidden');
+        if (shouldOpen) {
+          openEntry(entry);
+        } else {
+          closeEntry(entry);
+        }
+      });
+
+      updateSummary();
+      group.dataset.checkboxMenuBound = 'true';
+    });
+
+    if (!entries.length || window.__userFormCheckboxMenuEventsBound) {
+      return;
+    }
+
+    const closeAll = () => {
+      entries.forEach((entry) => closeEntry(entry));
+    };
+
+    document.addEventListener('click', (event) => {
+      const target = event.target;
+      if (!(target instanceof Element)) {
+        closeAll();
+        return;
+      }
+
+      const clickedInside = entries.some((entry) => entry.group.contains(target));
+      if (!clickedInside) {
+        closeAll();
+      }
+    });
+
+    document.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') {
+        closeAll();
+      }
+    });
+
+    window.__userFormCheckboxMenuEventsBound = true;
+  };
+
   const setupCustomCommandPermissions = () => {
     const builders = Array.from(document.querySelectorAll('[data-custom-command-builder]'));
     if (!builders.length) {
@@ -3867,6 +4058,7 @@
     setupUserEditSectionToggles();
     setupMultiSelectShortcuts();
     setupCheckboxShortcuts();
+    setupUserFormCheckboxMenus();
     setupTelegramDeviceInterfaceOptionPickers();
     setupTelegramDeviceInterfaceInputs();
     setupCustomCommandPermissions();

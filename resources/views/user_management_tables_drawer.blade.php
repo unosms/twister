@@ -41,7 +41,7 @@
     </style>
     <?php echo $__env->make('partials.admin_sidebar_styles', \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>
     <script src="<?php echo e(asset('js/actions.js') . '?v=' . filemtime(public_path('js/actions.js'))); ?>" defer></script></head>
-<body class="bg-background-light dark:bg-background-dark text-[#0d121b] dark:text-white h-screen overflow-hidden flex flex-col font-display">
+<body class="bg-background-light dark:bg-background-dark text-[#0d121b] dark:text-white h-screen overflow-hidden flex flex-col font-display" data-user-form-checkbox-filters="1">
 <!-- Top Navigation Bar -->
 <header class="flex items-center justify-between whitespace-nowrap border-b border-solid border-[#e7ebf3] dark:border-gray-800 bg-white dark:bg-background-dark px-10 py-3 sticky top-0 z-30">
 <div class="flex items-center gap-3">
