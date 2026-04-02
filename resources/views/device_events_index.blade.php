@@ -131,7 +131,7 @@
                 </div>
             @endif
 
-            <form method="get" action="{{ route('devices.events.index') }}" class="rounded-xl border border-[#cfd7e7] bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900">
+            <form method="get" action="{{ route('devices.events.index') }}" class="rounded-xl border border-[#cfd7e7] bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900" data-events-filter-form>
                 <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
                     <label class="flex flex-col gap-1">
                         <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Device</span>
@@ -346,6 +346,7 @@
         if (!scrollContainer) {
             return;
         }
+        var filterForm = document.querySelector('[data-events-filter-form]');
 
         var pageKey = window.location.pathname + window.location.search;
         var scrollKey = 'device-events-scroll:' + pageKey;
@@ -391,6 +392,43 @@
             return !(tagName === 'input' || tagName === 'select' || tagName === 'textarea');
         };
 
+        var buildRefreshUrl = function () {
+            var url = new URL(window.location.href);
+            if (!filterForm) {
+                return url.toString();
+            }
+
+            var params = new URLSearchParams(url.search);
+            var fieldNames = [];
+            var elements = filterForm.elements ? Array.from(filterForm.elements) : [];
+
+            elements.forEach(function (element) {
+                if (!element || !element.name || element.disabled) {
+                    return;
+                }
+
+                fieldNames.push(element.name);
+            });
+
+            fieldNames = Array.from(new Set(fieldNames));
+            fieldNames.forEach(function (name) {
+                params.delete(name);
+            });
+
+            var formData = new FormData(filterForm);
+            formData.forEach(function (rawValue, key) {
+                var value = (typeof rawValue === 'string') ? rawValue : String(rawValue || '');
+                if (value === '') {
+                    return;
+                }
+
+                params.append(key, value);
+            });
+
+            url.search = params.toString();
+            return url.toString();
+        };
+
         var scheduleRefresh = function (delayMs) {
             if (refreshTimerId !== null) {
                 window.clearTimeout(refreshTimerId);
@@ -403,7 +441,7 @@
                 }
 
                 saveScrollPosition();
-                window.location.reload();
+                window.location.replace(buildRefreshUrl());
             }, delayMs);
         };
 
