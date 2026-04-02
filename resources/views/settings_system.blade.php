@@ -159,6 +159,22 @@ This page is organized around practical system tasks: change the timezone, manag
 <h2 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Global Time Zone</h2>
 <p class="text-sm leading-6 text-slate-600 dark:text-slate-300">Choose the timezone used for timestamps, dashboards, human-readable dates, and logs across the admin interface.</p>
 </div>
+<details class="group rounded-2xl border border-slate-200 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-950/40">
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3 px-4 py-3">
+<span class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+<span class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-400 text-[11px] font-bold leading-none text-slate-600 dark:border-slate-500 dark:text-slate-200">i</span>
+Time Zone Help
+</span>
+<span class="material-symbols-outlined text-[18px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="border-t border-slate-200 px-4 pb-4 pt-3 text-xs text-slate-600 dark:border-slate-800 dark:text-slate-300">
+<ol class="list-decimal space-y-1 pl-5">
+<li>Search by country/city first, then confirm the exact timezone ID in the dropdown.</li>
+<li>Saved timezone affects dashboard dates, event timestamps, logs, and relative time labels.</li>
+<li>After saving, refresh pages that display time-based data to verify expected offsets.</li>
+</ol>
+</div>
+</details>
 <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
 <div class="space-y-4">
 <div>
@@ -314,6 +330,18 @@ Backup Workflow Help
 <p class="text-sm font-bold text-slate-900 dark:text-white">Backup Scheduler</p>
 <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Choose how often the fleet backup command should run. The cron job still runs every minute; this changes when `devices:run-backups` becomes due.</p>
 </div>
+<details class="group rounded-xl border border-slate-200 bg-slate-50/70 dark:border-slate-700 dark:bg-slate-900/40">
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3 px-3 py-2">
+<span class="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
+<span class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-400 text-[10px] font-bold leading-none text-slate-600 dark:border-slate-500 dark:text-slate-200">i</span>
+Scheduler Help
+</span>
+<span class="material-symbols-outlined text-[16px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="border-t border-slate-200 px-3 pb-3 pt-2 text-xs text-slate-600 dark:border-slate-700 dark:text-slate-300">
+Set the desired interval here; cron still runs every minute and executes backup only when interval is due.
+</div>
+</details>
 <form class="rounded-2xl border border-slate-200 bg-slate-50/80 p-3 dark:border-slate-800 dark:bg-slate-950/40 sm:p-4" method="POST" action="{{ route('settings.backup-schedule.update') }}">
 @csrf
 <div class="grid gap-3 sm:grid-cols-[minmax(0,220px)_auto] sm:items-center sm:justify-end">
@@ -338,6 +366,22 @@ Save Backup Schedule
 <div class="mt-6 rounded-2xl border border-slate-200 p-5 dark:border-slate-800" id="backup-folder-permissions">
 <p class="text-sm font-bold text-slate-900 dark:text-white">Backup Folder Permissions</p>
 <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Manually grant or revoke backup folder permissions, and save the TFTP server address used by backup scripts.</p>
+<details class="group mt-3 rounded-xl border border-slate-200 bg-slate-50/70 dark:border-slate-700 dark:bg-slate-900/40">
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3 px-3 py-2">
+<span class="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
+<span class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-400 text-[10px] font-bold leading-none text-slate-600 dark:border-slate-500 dark:text-slate-200">i</span>
+Permissions Help
+</span>
+<span class="material-symbols-outlined text-[16px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="border-t border-slate-200 px-3 pb-3 pt-2 text-xs text-slate-600 dark:border-slate-700 dark:text-slate-300">
+<ol class="list-decimal space-y-1 pl-5">
+<li>Save the TFTP server first so scripts and permission actions target the right host path.</li>
+<li>Use grant before scheduled/manual backups if folder writes are failing.</li>
+<li>Use revoke after maintenance windows to reduce accidental write risk.</li>
+</ol>
+</div>
+</details>
 @if ($errors->has('backup_permissions'))
 <div class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
 {{ $errors->first('backup_permissions') }}
@@ -385,6 +429,18 @@ Revoke Backup Permissions
 <div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
 <p class="text-sm font-bold text-slate-900 dark:text-white">Fleet Backup Actions</p>
 <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Run all backups now or clear all existing backup files across every device folder.</p>
+<details class="group mt-3 rounded-xl border border-slate-200 bg-slate-50/70 dark:border-slate-700 dark:bg-slate-900/40">
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3 px-3 py-2">
+<span class="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
+<span class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-400 text-[10px] font-bold leading-none text-slate-600 dark:border-slate-500 dark:text-slate-200">i</span>
+Fleet Actions Help
+</span>
+<span class="material-symbols-outlined text-[16px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="border-t border-slate-200 px-3 pb-3 pt-2 text-xs text-slate-600 dark:border-slate-700 dark:text-slate-300">
+Run backup creates current snapshots for all devices. Clear all removes saved backup files globally but keeps folder structure.
+</div>
+</details>
 <div class="mt-4 grid gap-4 md:grid-cols-2">
 <form class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/40" method="POST" action="{{ route('settings.backups.manage') }}" onsubmit="return confirm('Run backups for all devices now?');">
 @csrf
@@ -412,6 +468,18 @@ Clear All Backups
 <div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
 <p class="text-sm font-bold text-slate-900 dark:text-white">Clear One Device Backup</p>
 <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Reset one device backup folder without touching the rest of the fleet.</p>
+<details class="group mt-3 rounded-xl border border-slate-200 bg-slate-50/70 dark:border-slate-700 dark:bg-slate-900/40">
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3 px-3 py-2">
+<span class="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
+<span class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-400 text-[10px] font-bold leading-none text-slate-600 dark:border-slate-500 dark:text-slate-200">i</span>
+Single Device Help
+</span>
+<span class="material-symbols-outlined text-[16px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="border-t border-slate-200 px-3 pb-3 pt-2 text-xs text-slate-600 dark:border-slate-700 dark:text-slate-300">
+Use this when only one device backup is corrupt/outdated and you do not want to impact the rest of the fleet.
+</div>
+</details>
 <form class="mt-5 space-y-4" method="POST" action="{{ route('settings.backups.manage') }}" onsubmit="return confirm('Clear backups for the selected device only?');">
 @csrf
 <input type="hidden" name="operation" value="clear_device"/>
@@ -437,6 +505,22 @@ Clear Selected Device Backups
 <div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800" id="backup-scripts">
 <p class="text-sm font-bold text-slate-900 dark:text-white">Backup Scripts</p>
 <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Export all scripts to a ZIP backup, or import a scripts backup ZIP to restore/update automation scripts.</p>
+<details class="group mt-3 rounded-xl border border-slate-200 bg-slate-50/70 dark:border-slate-700 dark:bg-slate-900/40">
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3 px-3 py-2">
+<span class="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
+<span class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-400 text-[10px] font-bold leading-none text-slate-600 dark:border-slate-500 dark:text-slate-200">i</span>
+Scripts Backup Help
+</span>
+<span class="material-symbols-outlined text-[16px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="border-t border-slate-200 px-3 pb-3 pt-2 text-xs text-slate-600 dark:border-slate-700 dark:text-slate-300">
+<ol class="list-decimal space-y-1 pl-5">
+<li>Export scripts before upgrades or manual script edits.</li>
+<li>Import overwrites files inside <code>scripts/</code>; use only trusted ZIP snapshots.</li>
+<li>Keep one known-good ZIP for rollback after each change cycle.</li>
+</ol>
+</div>
+</details>
 @if ($errors->has('scripts_backup'))
 <div class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
 {{ $errors->first('scripts_backup') }}
@@ -487,6 +571,22 @@ Import Scripts Backup
 <div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800" id="database-backup">
 <p class="text-sm font-bold text-slate-900 dark:text-white">Database Backup to FTP</p>
 <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Create a SQL backup for a standalone or virtual server database, then upload it directly to your FTP server.</p>
+<details class="group mt-3 rounded-xl border border-slate-200 bg-slate-50/70 dark:border-slate-700 dark:bg-slate-900/40">
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3 px-3 py-2">
+<span class="inline-flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
+<span class="inline-flex h-4 w-4 items-center justify-center rounded-full border border-slate-400 text-[10px] font-bold leading-none text-slate-600 dark:border-slate-500 dark:text-slate-200">i</span>
+Database Backup Help
+</span>
+<span class="material-symbols-outlined text-[16px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="border-t border-slate-200 px-3 pb-3 pt-2 text-xs text-slate-600 dark:border-slate-700 dark:text-slate-300">
+<ol class="list-decimal space-y-1 pl-5">
+<li>Select the correct server type and database name exactly as configured.</li>
+<li>Validate FTP IP, username, and password before running to avoid partial backup runs.</li>
+<li>Prefer running this during low activity windows for large databases.</li>
+</ol>
+</div>
+</details>
 @if ($errors->has('database_backup'))
 <div class="mt-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-200">
 {{ $errors->first('database_backup') }}
