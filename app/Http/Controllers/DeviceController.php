@@ -308,27 +308,73 @@ class DeviceController extends Controller
             ->orderBy('id')
             ->get();
 
+        $normalizeQueryValues = static function (mixed $raw): array {
+            $values = is_array($raw)
+                ? $raw
+                : (($raw === null || $raw === '') ? [] : [$raw]);
+
+            return array_values(array_map(
+                static fn ($value): string => trim((string) $value),
+                $values
+            ));
+        };
+
+        $deviceFilterValues = $normalizeQueryValues($request->query('device_id', []));
+        $sourceFilterValues = $normalizeQueryValues($request->query('source', []));
+        $statusFilterValues = $normalizeQueryValues($request->query('status', []));
+        $severityFilterValues = $normalizeQueryValues($request->query('severity', []));
+        $eventTypeFilterValues = $normalizeQueryValues($request->query('event_type', []));
+
+        $windowRawInput = $request->query('window', 'all');
+        if (is_array($windowRawInput)) {
+            $windowRawInput = $windowRawInput[0] ?? 'all';
+        }
+
+        $searchRawInput = $request->query('search', '');
+        if (is_array($searchRawInput)) {
+            $searchRawInput = $searchRawInput[0] ?? '';
+        }
+
         $filters = [
-            'device_id' => (int) $request->query('device_id', 0),
-            'source' => strtolower(trim((string) $request->query('source', 'all'))),
-            'status' => strtolower(trim((string) $request->query('status', 'all'))),
-            'severity' => strtolower(trim((string) $request->query('severity', 'all'))),
-            'event_type' => strtolower(trim((string) $request->query('event_type', 'all'))),
-            'window' => strtolower(trim((string) $request->query('window', 'all'))),
-            'search' => trim((string) $request->query('search', '')),
+            'device_id' => collect($deviceFilterValues)
+                ->map(static fn ($value): int => is_numeric($value) ? (int) $value : 0)
+                ->filter(static fn (int $value): bool => $value > 0)
+                ->unique()
+                ->values()
+                ->all(),
+            'source' => collect($sourceFilterValues)
+                ->map(static fn ($value): string => strtolower(trim((string) $value)))
+                ->filter(static fn (string $value): bool => in_array($value, ['interface', 'device'], true))
+                ->unique()
+                ->values()
+                ->all(),
+            'status' => collect($statusFilterValues)
+                ->map(static fn ($value): string => strtolower(trim((string) $value)))
+                ->filter(static fn (string $value): bool => in_array($value, ['open', 'resolved'], true))
+                ->unique()
+                ->values()
+                ->all(),
+            'severity' => collect($severityFilterValues)
+                ->map(static fn ($value): string => strtolower(trim((string) $value)))
+                ->filter(static fn (string $value): bool => $value !== '' && $value !== 'all')
+                ->unique()
+                ->values()
+                ->all(),
+            'event_type' => collect($eventTypeFilterValues)
+                ->map(static fn ($value): string => strtolower(trim((string) $value)))
+                ->filter(static fn (string $value): bool => $value !== '' && $value !== 'all')
+                ->unique()
+                ->values()
+                ->all(),
+            'window' => strtolower(trim((string) $windowRawInput)),
+            'search' => trim((string) $searchRawInput),
         ];
 
-        if (!$devices->contains('id', $filters['device_id'])) {
-            $filters['device_id'] = 0;
-        }
-
-        if (!in_array($filters['source'], ['all', 'interface', 'device'], true)) {
-            $filters['source'] = 'all';
-        }
-
-        if (!in_array($filters['status'], ['all', 'open', 'resolved'], true)) {
-            $filters['status'] = 'all';
-        }
+        $deviceIdLookup = array_flip($devices->pluck('id')->map(static fn ($id): int => (int) $id)->all());
+        $filters['device_id'] = array_values(array_filter(
+            $filters['device_id'],
+            static fn (int $id): bool => isset($deviceIdLookup[$id])
+        ));
 
         $windowHourMap = [
             '1h' => 1,
@@ -399,42 +445,55 @@ class DeviceController extends Controller
             ->sort()
             ->values();
 
-        if ($filters['severity'] !== 'all' && !$severityOptions->contains($filters['severity'])) {
-            $filters['severity'] = 'all';
-        }
+        $severityOptionLookup = array_flip($severityOptions->all());
+        $eventTypeOptionLookup = array_flip($eventTypeOptions->all());
 
-        if ($filters['event_type'] !== 'all' && !$eventTypeOptions->contains($filters['event_type'])) {
-            $filters['event_type'] = 'all';
-        }
+        $filters['severity'] = array_values(array_filter(
+            $filters['severity'],
+            static fn (string $value): bool => isset($severityOptionLookup[$value])
+        ));
+        $filters['event_type'] = array_values(array_filter(
+            $filters['event_type'],
+            static fn (string $value): bool => isset($eventTypeOptionLookup[$value])
+        ));
 
         $escapeLike = static function (string $value): string {
             return str_replace(['\\', '%', '_'], ['\\\\', '\\%', '\\_'], $value);
         };
         $searchLike = $filters['search'] !== '' ? '%' . $escapeLike($filters['search']) . '%' : '';
         $searchEventId = ctype_digit($filters['search']) ? (int) $filters['search'] : null;
+        $applyNormalizedInFilter = static function ($query, string $column, array $values): void {
+            if (empty($values)) {
+                return;
+            }
+
+            $placeholders = implode(',', array_fill(0, count($values), '?'));
+            $query->whereRaw(
+                'LOWER(TRIM(COALESCE(' . $column . ", ''))) IN (" . $placeholders . ')',
+                $values
+            );
+        };
 
         $applyFilters = function ($query, string $alias, bool $isInterface) use (
             $filters,
             $windowStartTimestamp,
             $searchLike,
-            $searchEventId
+            $searchEventId,
+            $applyNormalizedInFilter
         ): void {
-            if ($filters['device_id'] > 0) {
-                $query->where("{$alias}.device_id", $filters['device_id']);
+            if (!empty($filters['device_id'])) {
+                $query->whereIn("{$alias}.device_id", $filters['device_id']);
             }
 
-            if ($filters['severity'] !== 'all') {
-                $query->whereRaw('LOWER(TRIM(COALESCE(' . $alias . '.severity, \'\'))) = ?', [$filters['severity']]);
-            }
+            $applyNormalizedInFilter($query, $alias . '.severity', $filters['severity']);
+            $applyNormalizedInFilter($query, $alias . '.event_type', $filters['event_type']);
 
-            if ($filters['event_type'] !== 'all') {
-                $query->whereRaw('LOWER(TRIM(COALESCE(' . $alias . '.event_type, \'\'))) = ?', [$filters['event_type']]);
-            }
-
-            if ($filters['status'] === 'open') {
-                $query->whereNull("{$alias}.resolved_at");
-            } elseif ($filters['status'] === 'resolved') {
-                $query->whereNotNull("{$alias}.resolved_at");
+            if (count($filters['status']) === 1) {
+                if ($filters['status'][0] === 'open') {
+                    $query->whereNull("{$alias}.resolved_at");
+                } elseif ($filters['status'][0] === 'resolved') {
+                    $query->whereNotNull("{$alias}.resolved_at");
+                }
             }
 
             if ($windowStartTimestamp !== null) {
@@ -470,8 +529,10 @@ class DeviceController extends Controller
 
         $eventsPaginator = null;
         $eventsPerPage = 50;
-        $includeInterfaceEvents = $hasInterfaceEvents && $filters['source'] !== 'device';
-        $includeDeviceEvents = $hasDeviceEvents && $filters['source'] !== 'interface';
+        $includeInterfaceEvents = $hasInterfaceEvents
+            && (empty($filters['source']) || in_array('interface', $filters['source'], true));
+        $includeDeviceEvents = $hasDeviceEvents
+            && (empty($filters['source']) || in_array('device', $filters['source'], true));
 
         if ($includeInterfaceEvents || $includeDeviceEvents) {
             $unionBaseQuery = null;

@@ -47,6 +47,37 @@
 <body class="bg-background-light dark:bg-background-dark text-[#0d121b] dark:text-gray-100 h-screen overflow-hidden">
 @php
     $filters = is_array($filters ?? null) ? $filters : [];
+    $selectedDeviceIds = array_values(array_unique(array_map(
+        static fn ($value): int => is_numeric($value) ? (int) $value : 0,
+        (array) ($filters['device_id'] ?? [])
+    )));
+    $selectedDeviceIds = array_values(array_filter($selectedDeviceIds, static fn (int $value): bool => $value > 0));
+    $selectedDeviceLookup = array_fill_keys($selectedDeviceIds, true);
+
+    $selectedSourceValues = array_values(array_unique(array_map(
+        static fn ($value): string => strtolower(trim((string) $value)),
+        (array) ($filters['source'] ?? [])
+    )));
+    $selectedSourceLookup = array_fill_keys($selectedSourceValues, true);
+
+    $selectedStatusValues = array_values(array_unique(array_map(
+        static fn ($value): string => strtolower(trim((string) $value)),
+        (array) ($filters['status'] ?? [])
+    )));
+    $selectedStatusLookup = array_fill_keys($selectedStatusValues, true);
+
+    $selectedSeverityValues = array_values(array_unique(array_map(
+        static fn ($value): string => strtolower(trim((string) $value)),
+        (array) ($filters['severity'] ?? [])
+    )));
+    $selectedSeverityLookup = array_fill_keys($selectedSeverityValues, true);
+
+    $selectedEventTypeValues = array_values(array_unique(array_map(
+        static fn ($value): string => strtolower(trim((string) $value)),
+        (array) ($filters['event_type'] ?? [])
+    )));
+    $selectedEventTypeLookup = array_fill_keys($selectedEventTypeValues, true);
+
     $severityOptions = collect($severityOptions ?? []);
     $eventTypeOptions = collect($eventTypeOptions ?? []);
     $windowLabels = [
@@ -135,52 +166,52 @@
                 <div class="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
                     <label class="flex flex-col gap-1">
                         <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Device</span>
-                        <select class="rounded-lg border-slate-300 text-sm dark:border-gray-700 dark:bg-gray-800" name="device_id">
-                            <option value="0" @selected((int) ($filters['device_id'] ?? 0) === 0)>All devices</option>
+                        <select class="min-h-[7rem] rounded-lg border-slate-300 text-sm dark:border-gray-700 dark:bg-gray-800" name="device_id[]" multiple>
                             @foreach ($devices as $deviceOption)
-                                <option value="{{ (int) $deviceOption->id }}" @selected((int) ($filters['device_id'] ?? 0) === (int) $deviceOption->id)>
+                                <option value="{{ (int) $deviceOption->id }}" @selected(isset($selectedDeviceLookup[(int) $deviceOption->id]))>
                                     {{ $deviceOption->name ?: ('Device #' . $deviceOption->id) }}{{ $deviceOption->type ? ' (' . $deviceOption->type . ')' : '' }}
                                 </option>
                             @endforeach
                         </select>
+                        <span class="text-[10px] text-slate-400">Leave empty for all devices.</span>
                     </label>
 
                     <label class="flex flex-col gap-1">
                         <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Source</span>
-                        <select class="rounded-lg border-slate-300 text-sm dark:border-gray-700 dark:bg-gray-800" name="source">
-                            <option value="all" @selected(($filters['source'] ?? 'all') === 'all')>All</option>
-                            <option value="interface" @selected(($filters['source'] ?? 'all') === 'interface')>Interface events</option>
-                            <option value="device" @selected(($filters['source'] ?? 'all') === 'device')>Device events</option>
+                        <select class="min-h-[7rem] rounded-lg border-slate-300 text-sm dark:border-gray-700 dark:bg-gray-800" name="source[]" multiple>
+                            <option value="interface" @selected(isset($selectedSourceLookup['interface']))>Interface events</option>
+                            <option value="device" @selected(isset($selectedSourceLookup['device']))>Device events</option>
                         </select>
+                        <span class="text-[10px] text-slate-400">Leave empty for all sources.</span>
                     </label>
 
                     <label class="flex flex-col gap-1">
                         <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Status</span>
-                        <select class="rounded-lg border-slate-300 text-sm dark:border-gray-700 dark:bg-gray-800" name="status">
-                            <option value="all" @selected(($filters['status'] ?? 'all') === 'all')>All</option>
-                            <option value="open" @selected(($filters['status'] ?? 'all') === 'open')>Open</option>
-                            <option value="resolved" @selected(($filters['status'] ?? 'all') === 'resolved')>Resolved</option>
+                        <select class="min-h-[7rem] rounded-lg border-slate-300 text-sm dark:border-gray-700 dark:bg-gray-800" name="status[]" multiple>
+                            <option value="open" @selected(isset($selectedStatusLookup['open']))>Open</option>
+                            <option value="resolved" @selected(isset($selectedStatusLookup['resolved']))>Resolved</option>
                         </select>
+                        <span class="text-[10px] text-slate-400">Leave empty for both.</span>
                     </label>
 
                     <label class="flex flex-col gap-1">
                         <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Severity</span>
-                        <select class="rounded-lg border-slate-300 text-sm dark:border-gray-700 dark:bg-gray-800" name="severity">
-                            <option value="all" @selected(($filters['severity'] ?? 'all') === 'all')>All</option>
+                        <select class="min-h-[7rem] rounded-lg border-slate-300 text-sm dark:border-gray-700 dark:bg-gray-800" name="severity[]" multiple>
                             @foreach ($severityOptions as $severityOption)
-                                <option value="{{ $severityOption }}" @selected(($filters['severity'] ?? 'all') === $severityOption)>{{ ucfirst($severityOption) }}</option>
+                                <option value="{{ $severityOption }}" @selected(isset($selectedSeverityLookup[(string) $severityOption]))>{{ ucfirst($severityOption) }}</option>
                             @endforeach
                         </select>
+                        <span class="text-[10px] text-slate-400">Leave empty for all severities.</span>
                     </label>
 
                     <label class="flex flex-col gap-1">
                         <span class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Event Type</span>
-                        <select class="rounded-lg border-slate-300 text-sm dark:border-gray-700 dark:bg-gray-800" name="event_type">
-                            <option value="all" @selected(($filters['event_type'] ?? 'all') === 'all')>All</option>
+                        <select class="min-h-[7rem] rounded-lg border-slate-300 text-sm dark:border-gray-700 dark:bg-gray-800" name="event_type[]" multiple>
                             @foreach ($eventTypeOptions as $eventTypeOption)
-                                <option value="{{ $eventTypeOption }}" @selected(($filters['event_type'] ?? 'all') === $eventTypeOption)>{{ $eventTypeOption }}</option>
+                                <option value="{{ $eventTypeOption }}" @selected(isset($selectedEventTypeLookup[(string) $eventTypeOption]))>{{ $eventTypeOption }}</option>
                             @endforeach
                         </select>
+                        <span class="text-[10px] text-slate-400">Leave empty for all event types.</span>
                     </label>
 
                     <label class="flex flex-col gap-1">
@@ -199,6 +230,7 @@
                 </div>
 
                 <div class="mt-3 flex flex-wrap items-center gap-2">
+                    <span class="text-[10px] text-slate-400 w-full">Use Ctrl (Windows) or Cmd (Mac) to select multiple values in each list.</span>
                     <button class="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700" type="submit">
                         Apply Filters
                     </button>
@@ -252,7 +284,7 @@
                                         ? ($ifName !== '' ? $ifName : '-')
                                         : '-';
                                     if ($sourceValue === 'interface' && $ifAlias !== '') {
-                                        $interfaceLabel .= ' • ' . $ifAlias;
+                                        $interfaceLabel .= ' | ' . $ifAlias;
                                     }
 
                                     $details = [];
@@ -408,6 +440,11 @@
                 }
 
                 fieldNames.push(element.name);
+                if (element.name.endsWith('[]')) {
+                    fieldNames.push(element.name.slice(0, -2));
+                } else {
+                    fieldNames.push(element.name + '[]');
+                }
             });
 
             fieldNames = Array.from(new Set(fieldNames));
