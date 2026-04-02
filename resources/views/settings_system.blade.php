@@ -62,7 +62,7 @@ $telegramTemplateCriticalValue = old('telegram_template_critical', $telegramTemp
 <div class="flex h-screen overflow-hidden">
 @include('partials.admin_sidebar')
 
-<main class="flex-1 min-w-0 flex flex-col overflow-y-auto">
+<main class="flex-1 min-w-0 flex flex-col overflow-y-auto scroll-smooth">
 <header class="min-h-16 flex-shrink-0 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-background-dark/80 backdrop-blur-md px-4 sm:px-6 lg:px-8 py-2 flex items-center justify-between gap-3 sticky top-0 z-10">
 <div class="flex items-center gap-3 min-w-0 flex-1">
 <button class="h-10 w-10 flex items-center justify-center rounded-lg border border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/40 hover:bg-slate-100 dark:hover:bg-slate-800" type="button" data-sidebar-toggle aria-label="Toggle sidebar">
@@ -107,14 +107,9 @@ Refresh
 <p class="mt-3 text-sm leading-6 text-slate-600 dark:text-slate-300">
 This page is organized around practical system tasks: change the timezone, manage Telegram templates, run or clear backups, reset runtime data, and export or import the full configuration.
 </p>
-<div class="mt-5 flex flex-wrap gap-2">
-<a class="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:border-primary dark:hover:text-primary" href="#timezone-settings">Time Zone</a>
-<a class="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:border-primary dark:hover:text-primary" href="#telegram-templates">Telegram Templates</a>
-<a class="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:border-primary dark:hover:text-primary" href="#backup-operations">Backups</a>
-<a class="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:border-primary dark:hover:text-primary" href="#backup-folder-permissions">Backup Permissions</a>
-<a class="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:border-primary dark:hover:text-primary" href="#backup-scripts">Backup Scripts</a>
-<a class="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:border-primary dark:hover:text-primary" href="#system-cleanup">Cleanup</a>
-<a class="inline-flex items-center rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-600 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-300 dark:hover:border-primary dark:hover:text-primary" href="#config-backup">Config Backup</a>
+<div class="mt-5 rounded-2xl border border-slate-200 bg-slate-50/80 px-4 py-3 dark:border-slate-800 dark:bg-slate-950/40">
+<p class="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500 dark:text-slate-400">Navigation</p>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Use the quick section navigator below to jump directly to each settings area.</p>
 </div>
 </div>
 <div class="grid gap-3 sm:grid-cols-2 xl:w-[400px]">
@@ -138,8 +133,25 @@ This page is organized around practical system tasks: change the timezone, manag
 </div>
 </section>
 
-<div class="grid gap-6 xl:grid-cols-[minmax(0,1.05fr)_minmax(320px,0.95fr)]">
-<section class="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 sm:p-8 xl:order-1" id="timezone-settings">
+<section class="sticky top-20 z-[6] rounded-2xl border border-slate-200 bg-white/95 px-4 py-4 shadow-sm backdrop-blur dark:border-slate-800 dark:bg-slate-900/90 sm:px-5">
+<div class="flex flex-col gap-1">
+<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Quick Navigation</p>
+<p class="text-sm text-slate-600 dark:text-slate-300">Jump to the settings area you want to update.</p>
+</div>
+<div class="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-8">
+<a class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:border-primary dark:hover:text-primary" href="#timezone-settings">Time Zone</a>
+<a class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:border-primary dark:hover:text-primary" href="#telegram-templates">Telegram Templates</a>
+<a class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:border-primary dark:hover:text-primary" href="#backup-operations">Backup Operations</a>
+<a class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:border-primary dark:hover:text-primary" href="#backup-folder-permissions">Backup Permissions</a>
+<a class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:border-primary dark:hover:text-primary" href="#backup-scripts">Backup Scripts</a>
+<a class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:border-primary dark:hover:text-primary" href="#database-backup">Database Backup</a>
+<a class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:border-primary dark:hover:text-primary" href="#system-cleanup">Cleanup</a>
+<a class="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary hover:text-primary dark:border-slate-700 dark:bg-slate-900/50 dark:text-slate-200 dark:hover:border-primary dark:hover:text-primary" href="#config-backup">Config Backup</a>
+</div>
+</section>
+
+<div class="space-y-6">
+<section class="scroll-mt-28 rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 sm:p-8" id="timezone-settings">
 <form class="space-y-6" method="POST" action="{{ route('settings.update') }}">
 @csrf
 <div class="flex flex-col gap-2">
@@ -198,7 +210,7 @@ Save Time Zone
 </form>
 </section>
 
-<section class="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 sm:p-8 xl:col-span-2 xl:order-3" id="telegram-templates">
+<section class="scroll-mt-28 rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 sm:p-8" id="telegram-templates">
 <div class="flex flex-col gap-2">
 <p class="text-xs font-bold uppercase tracking-[0.24em] text-primary">Telegram</p>
 <h2 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Global Event Types and Message Templates</h2>
@@ -244,7 +256,7 @@ Save Telegram Templates
 </form>
 </section>
 
-<section class="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 sm:p-8 xl:order-2" id="backup-operations">
+<section class="scroll-mt-28 rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 sm:p-8" id="backup-operations">
 <div class="flex flex-col gap-2">
 <p class="text-xs font-bold uppercase tracking-[0.24em] text-primary">Backups</p>
 <h2 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Backup Operations</h2>
@@ -288,6 +300,7 @@ Save Backup Schedule
 </div>
 </div>
 
+<p class="mt-6 text-xs font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Access Control</p>
 <div class="mt-6 rounded-2xl border border-slate-200 p-5 dark:border-slate-800" id="backup-folder-permissions">
 <p class="text-sm font-bold text-slate-900 dark:text-white">Backup Folder Permissions</p>
 <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Manually grant or revoke backup folder permissions, and save the TFTP server address used by backup scripts.</p>
@@ -333,6 +346,7 @@ Revoke Backup Permissions
 <p class="mt-4 text-xs text-slate-500 dark:text-slate-400">Applies to configured backup roots and per-device backup folders.</p>
 </div>
 
+<p class="mt-6 text-xs font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Execution</p>
 <div class="mt-6 space-y-4">
 <div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
 <p class="text-sm font-bold text-slate-900 dark:text-white">Fleet Backup Actions</p>
@@ -385,6 +399,7 @@ Clear Selected Device Backups
 </form>
 </div>
 
+<p class="text-xs font-bold uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Script and Database Archives</p>
 <div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800" id="backup-scripts">
 <p class="text-sm font-bold text-slate-900 dark:text-white">Backup Scripts</p>
 <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Export all scripts to a ZIP backup, or import a scripts backup ZIP to restore/update automation scripts.</p>
@@ -435,7 +450,7 @@ Import Scripts Backup
 </div>
 </div>
 
-<div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
+<div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800" id="database-backup">
 <p class="text-sm font-bold text-slate-900 dark:text-white">Database Backup to FTP</p>
 <p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Create a SQL backup for a standalone or virtual server database, then upload it directly to your FTP server.</p>
 @if ($errors->has('database_backup'))
@@ -479,7 +494,7 @@ Backup Database to FTP
 </div>
 </section>
 
-<section class="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 sm:p-8 xl:col-span-2" id="system-cleanup">
+<section class="scroll-mt-28 rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 sm:p-8" id="system-cleanup">
 <div class="flex flex-col gap-2">
 <p class="text-xs font-bold uppercase tracking-[0.24em] text-primary">Cleanup</p>
 <h2 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Logs and Notifications</h2>
@@ -523,7 +538,7 @@ Clear Notifications
 </div>
 </section>
 
-<section class="rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 sm:p-8 xl:col-span-2" id="config-backup">
+<section class="scroll-mt-28 rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 sm:p-8" id="config-backup">
 <div class="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
 <div class="max-w-3xl">
 <p class="text-xs font-bold uppercase tracking-[0.24em] text-primary">System Configuration Backup</p>
