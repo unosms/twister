@@ -2485,15 +2485,13 @@
       controlWrap.append(title, button);
 
       const menu = document.createElement('div');
-      menu.className = 'absolute left-0 right-0 top-full z-40 mt-1 hidden space-y-2';
+      menu.className = 'mt-1 hidden space-y-2';
       menu.dataset.checkboxMenu = '';
 
-      group.classList.add('relative');
       group.insertBefore(controlWrap, optionPanel);
       group.insertBefore(menu, optionPanel);
       menu.appendChild(optionPanel);
 
-      optionPanel.classList.add('shadow-lg');
       if (actionRow && actionRow !== legacyHeader && actionRow !== optionPanel) {
         menu.appendChild(actionRow);
         actionRow.classList.add(
@@ -2502,7 +2500,6 @@
           'border-slate-200',
           'bg-white',
           'p-2',
-          'shadow-lg',
           'dark:border-gray-700',
           'dark:bg-gray-900'
         );
