@@ -80,13 +80,21 @@ $severityOptions = array_values(array_unique(array_map(static fn ($value): strin
 $selectedTelegramSeverities = old('telegram_severities', ['high', 'disaster']);
 if (!is_array($selectedTelegramSeverities) || empty($selectedTelegramSeverities)) { $selectedTelegramSeverities = ['high', 'disaster']; }
 $selectedTelegramSeverities = array_values(array_unique(array_map(static fn ($value): string => strtolower(trim((string) $value)), $selectedTelegramSeverities)));
-$severityOptions = array_values(array_unique(array_merge($severityOptions, $selectedTelegramSeverities)));
+$severityOptionLookup = array_fill_keys($severityOptions, true);
+$selectedTelegramSeverities = array_values(array_filter(
+    $selectedTelegramSeverities,
+    static fn ($value): bool => isset($severityOptionLookup[$value])
+));
 $eventTypeOptions = $telegramEventTypeOptions ?? ['device_down', 'link_down', 'link_up', 'speed_changed', 'device_up'];
 $eventTypeOptions = array_values(array_unique(array_map(static fn ($value): string => strtolower(trim((string) $value)), (array) $eventTypeOptions)));
 $selectedTelegramEventTypes = old('telegram_event_types', ['device_down', 'link_down']);
 if (!is_array($selectedTelegramEventTypes) || empty($selectedTelegramEventTypes)) { $selectedTelegramEventTypes = ['device_down', 'link_down']; }
 $selectedTelegramEventTypes = array_values(array_unique(array_map(static fn ($value): string => strtolower(trim((string) $value)), $selectedTelegramEventTypes)));
-$eventTypeOptions = array_values(array_unique(array_merge($eventTypeOptions, $selectedTelegramEventTypes)));
+$eventTypeOptionLookup = array_fill_keys($eventTypeOptions, true);
+$selectedTelegramEventTypes = array_values(array_filter(
+    $selectedTelegramEventTypes,
+    static fn ($value): bool => isset($eventTypeOptionLookup[$value])
+));
 $selectedCommandTemplateIds = old('command_template_ids', []);
 if (!is_array($selectedCommandTemplateIds)) { $selectedCommandTemplateIds = []; }
 $selectedCommandTemplateIds = array_values(array_unique(array_map('intval', array_filter($selectedCommandTemplateIds, static fn ($id): bool => is_numeric($id)))));

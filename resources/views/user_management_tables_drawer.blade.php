@@ -355,7 +355,11 @@ $selectedTelegramSeverities = array_values(array_unique(array_map(
     static fn ($value): string => strtolower(trim((string) $value)),
     $selectedTelegramSeverities
 )));
-$severityOptions = array_values(array_unique(array_merge($severityOptions, $selectedTelegramSeverities)));
+$severityOptionLookup = array_fill_keys($severityOptions, true);
+$selectedTelegramSeverities = array_values(array_filter(
+    $selectedTelegramSeverities,
+    static fn ($value): bool => isset($severityOptionLookup[$value])
+));
 
 $eventTypeOptions = $telegramEventTypeOptions ?? ['device_down', 'link_down', 'link_up', 'speed_changed', 'device_up'];
 $eventTypeOptions = array_values(array_unique(array_map(
@@ -370,7 +374,11 @@ $selectedTelegramEventTypes = array_values(array_unique(array_map(
     static fn ($value): string => strtolower(trim((string) $value)),
     $selectedTelegramEventTypes
 )));
-$eventTypeOptions = array_values(array_unique(array_merge($eventTypeOptions, $selectedTelegramEventTypes)));
+$eventTypeOptionLookup = array_fill_keys($eventTypeOptions, true);
+$selectedTelegramEventTypes = array_values(array_filter(
+    $selectedTelegramEventTypes,
+    static fn ($value): bool => isset($eventTypeOptionLookup[$value])
+));
 $selectedCommandTemplateIds = old('command_template_ids', $user->commandTemplates->pluck('id')->all());
 if (!is_array($selectedCommandTemplateIds)) {
     $selectedCommandTemplateIds = [];

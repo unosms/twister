@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\AppSetting;
 use App\Models\CommandTemplate;
 use App\Models\Device;
 use App\Models\DeviceAssignment;
@@ -1467,15 +1466,6 @@ class UserController extends Controller
     private function telegramEventTypeOptions(): array
     {
         $options = $this->distinctEventFieldValues('event_type');
-
-        if (AppSetting::supportsStorage()) {
-            $customEventTypes = $this->normalizeTelegramEventTypes(
-                AppSetting::getValue('telegram_event_types_custom', '')
-            );
-            if (!empty($customEventTypes)) {
-                $options = array_merge($options, $customEventTypes);
-            }
-        }
 
         if (empty($options)) {
             $options = self::TELEGRAM_EVENT_TYPES_FALLBACK;
