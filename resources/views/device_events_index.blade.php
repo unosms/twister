@@ -184,17 +184,14 @@
             @endif
 
             <form method="get" action="{{ route('devices.events.index') }}" class="rounded-xl border border-[#cfd7e7] bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900" data-events-filter-form>
-                <div class="mb-4 rounded-lg border border-slate-200 bg-slate-50 px-3 py-3 dark:border-gray-700 dark:bg-gray-800/60">
-                    <div class="flex flex-wrap items-center justify-between gap-2">
-                        <span class="text-[11px] text-slate-500 dark:text-slate-300">Click any filter title to open its checkbox menu.</span>
-                        <div class="flex flex-wrap items-center gap-2">
-                            <button class="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700" type="submit">
-                                Apply Filters
-                            </button>
-                            <a class="inline-flex items-center rounded-lg border border-[#cfd7e7] bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700" href="{{ route('devices.events.index') }}">
-                                Clear All
-                            </a>
-                        </div>
+                <div class="mb-4">
+                    <div class="inline-flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-800/60">
+                        <button class="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700" type="submit">
+                            Apply Filters
+                        </button>
+                        <a class="inline-flex items-center rounded-lg border border-[#cfd7e7] bg-white px-4 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200 dark:hover:bg-gray-700" href="{{ route('devices.events.index') }}">
+                            Clear All
+                        </a>
                     </div>
                 </div>
 
