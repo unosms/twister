@@ -1182,7 +1182,7 @@ Run <code>php artisan migrate --force</code> to enable Telegram per-device inter
 </div>
 </details>
 </div>
-<div class="sticky bottom-0 z-10 -mx-1 mt-1 px-1 py-3 flex flex-wrap items-center justify-end gap-3 border-t border-[#cfd7e7] dark:border-gray-700 bg-white/95 dark:bg-gray-900/95 backdrop-blur">
+<div class="-mx-1 mt-4 px-1 py-3 flex flex-wrap items-center justify-end gap-3 border-t border-[#cfd7e7] dark:border-gray-700 bg-white dark:bg-gray-900">
 <?php if (\Illuminate\Support\Facades\Route::has('users.telegram.test')): ?>
 <button class="px-4 py-2 text-sm font-semibold text-blue-700 border border-blue-200 rounded-lg hover:bg-blue-50" type="submit" formaction="<?php echo e(route('users.telegram.test', $user)); ?>" formnovalidate>Save + Send Telegram Test</button>
 <?php endif; ?>

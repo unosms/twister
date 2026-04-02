@@ -764,7 +764,7 @@ Run <code>php artisan migrate --force</code> to enable Telegram per-device inter
 </div>
 </div>
 
-<div class="sticky bottom-0 z-10 flex flex-wrap items-center justify-end gap-3 rounded-xl border border-slate-200 bg-white/95 px-4 py-3 shadow-sm backdrop-blur dark:bg-slate-900/95 dark:border-slate-800">
+<div class="mt-4 flex flex-wrap items-center justify-end gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm dark:bg-slate-900 dark:border-slate-800">
 <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 font-medium transition-colors" href="{{ route('auth.logout') }}">
 <span class="material-symbols-outlined text-[20px]">logout</span>
 <span class="text-sm">Logout</span>
