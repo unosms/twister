@@ -207,6 +207,23 @@
                         </a>
                     </div>
                 </div>
+                <details class="group mb-4 rounded-lg border border-slate-200 bg-slate-50/80 dark:border-gray-700 dark:bg-gray-800/50">
+                    <summary class="list-none flex cursor-pointer items-center justify-between gap-3 px-3 py-2">
+                        <span class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+                            <span class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-400 text-[11px] font-bold leading-none text-slate-600 dark:border-slate-500 dark:text-slate-200">i</span>
+                            Events Filter Help
+                        </span>
+                        <span class="material-symbols-outlined text-[18px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+                    </summary>
+                    <div class="border-t border-slate-200 px-3 pb-3 pt-2 text-xs text-slate-600 dark:border-gray-700 dark:text-slate-300">
+                        <ol class="list-decimal space-y-1 pl-5">
+                            <li>Use multi-select filters to combine device, source, status, severity, and event type in one view.</li>
+                            <li>Set <span class="font-semibold">Time Window</span> first for performance, then narrow with additional filters.</li>
+                            <li>Use search for quick text match on device name, interface, type, or event ID.</li>
+                            <li><span class="font-semibold">Clear All</span> resets the page back to the full unfiltered timeline.</li>
+                        </ol>
+                    </div>
+                </details>
 
                 <div class="grid items-start gap-3 md:grid-cols-2 xl:grid-cols-7">
                     <div class="flex flex-col gap-1">

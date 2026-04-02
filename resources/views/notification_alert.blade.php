@@ -86,6 +86,23 @@
 <span class="material-symbols-outlined text-[#4c669a] text-sm">chevron_right</span>
 <span class="text-[#0d121b] dark:text-white text-sm font-semibold">Notifications</span>
 </nav>
+<details class="group mb-4 rounded-lg border border-[#cfd7e7] bg-[#f8faff] dark:border-[#2a3447] dark:bg-[#151c2a]">
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3 px-3 py-2">
+<span class="inline-flex items-center gap-2 text-sm font-semibold text-[#0d121b] dark:text-white">
+<span class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-[#4c669a] text-[11px] font-bold leading-none text-[#4c669a] dark:border-slate-400 dark:text-slate-200">i</span>
+Notifications Help
+</span>
+<span class="material-symbols-outlined text-[18px] text-[#4c669a] transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="border-t border-[#cfd7e7] px-3 pb-3 pt-2 text-xs text-[#4c669a] dark:border-[#2a3447] dark:text-slate-300">
+<ol class="list-decimal space-y-1 pl-5">
+<li>Use severity and status filters together to narrow active issues quickly.</li>
+<li><span class="font-semibold">Investigate</span> keeps the alert for tracking, while <span class="font-semibold">Dismiss</span> closes it from the active queue.</li>
+<li><span class="font-semibold">Mark all as read</span> updates read state only and does not delete alert records.</li>
+<li>Use tab shortcuts (<span class="font-semibold">All</span>, <span class="font-semibold">Archived</span>, <span class="font-semibold">System Updates</span>) for faster triage.</li>
+</ol>
+</div>
+</details>
 <div class="flex flex-wrap items-center gap-3">
 <form method="POST" action="{{ route('notifications.markAllRead') }}">
 @csrf

@@ -216,6 +216,23 @@ Save Time Zone
 <h2 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Global Event Types and Message Templates</h2>
 <p class="text-sm leading-6 text-slate-600 dark:text-slate-300">These values apply system-wide. User forms now only choose devices, severities, and event types from this shared configuration.</p>
 </div>
+<details class="group mt-6 rounded-2xl border border-slate-200 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-950/40">
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3 px-4 py-3">
+<span class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+<span class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-400 text-[11px] font-bold leading-none text-slate-600 dark:border-slate-500 dark:text-slate-200">i</span>
+Telegram Template Help
+</span>
+<span class="material-symbols-outlined text-[18px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="border-t border-slate-200 px-4 pb-4 pt-3 text-xs text-slate-600 dark:border-slate-800 dark:text-slate-300">
+<ol class="list-decimal space-y-1 pl-5">
+<li>Manage all allowed Telegram event tags in <span class="font-semibold">Custom Event Types</span>.</li>
+<li>Use <span class="font-semibold">Default Template</span> as fallback, then override by severity only when needed.</li>
+<li>Keep placeholders (like <code>{deviceName}</code>, <code>{eventId}</code>) exactly as shown so runtime substitution works.</li>
+<li>After saving, test from user edit with <span class="font-semibold">Save + Send Telegram Test</span> to confirm delivery format.</li>
+</ol>
+</div>
+</details>
 <form class="mt-6 space-y-5" method="POST" action="{{ route('settings.telegram-templates.update') }}">
 @csrf
 <div>
@@ -262,6 +279,23 @@ Save Telegram Templates
 <h2 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Backup Operations</h2>
 <p class="text-sm leading-6 text-slate-600 dark:text-slate-300">Use one section for fleet backup actions and one-off device cleanup.</p>
 </div>
+<details class="group mt-6 rounded-2xl border border-slate-200 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-950/40">
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3 px-4 py-3">
+<span class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+<span class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-400 text-[11px] font-bold leading-none text-slate-600 dark:border-slate-500 dark:text-slate-200">i</span>
+Backup Workflow Help
+</span>
+<span class="material-symbols-outlined text-[18px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="border-t border-slate-200 px-4 pb-4 pt-3 text-xs text-slate-600 dark:border-slate-800 dark:text-slate-300">
+<ol class="list-decimal space-y-1 pl-5">
+<li>Set scheduler interval first, then verify TFTP server address and folder permissions.</li>
+<li>Use <span class="font-semibold">Run Backup Now</span> for an immediate fleet snapshot without waiting for cron.</li>
+<li>Use clear actions carefully: <span class="font-semibold">Clear All</span> affects every device, while <span class="font-semibold">Clear One Device</span> is scoped.</li>
+<li>Export scripts/config snapshots before running high-impact cleanup operations.</li>
+</ol>
+</div>
+</details>
 
 <div class="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-1 2xl:grid-cols-2">
 <div class="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950/50">
@@ -500,6 +534,22 @@ Backup Database to FTP
 <h2 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Logs and Notifications</h2>
 <p class="text-sm leading-6 text-slate-600 dark:text-slate-300">Clear runtime data without affecting saved configuration.</p>
 </div>
+<details class="group mt-6 rounded-2xl border border-slate-200 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-950/40">
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3 px-4 py-3">
+<span class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+<span class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-400 text-[11px] font-bold leading-none text-slate-600 dark:border-slate-500 dark:text-slate-200">i</span>
+Cleanup Help
+</span>
+<span class="material-symbols-outlined text-[18px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="border-t border-slate-200 px-4 pb-4 pt-3 text-xs text-slate-600 dark:border-slate-800 dark:text-slate-300">
+<ol class="list-decimal space-y-1 pl-5">
+<li><span class="font-semibold">Clear Logs</span> resets troubleshooting history but does not remove configuration.</li>
+<li><span class="font-semibold">Clear Notifications</span> deletes current alert feed entries for a clean state.</li>
+<li>Run export backups first if you need a historical record before cleanup.</li>
+</ol>
+</div>
+</details>
 
 <div class="mt-6 grid gap-6 xl:grid-cols-2">
 <div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
@@ -553,6 +603,22 @@ Export a JSON snapshot of users, devices, assignments, permissions, and system s
 @endforeach
 </div>
 </div>
+<details class="group mt-6 rounded-2xl border border-slate-200 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-950/40">
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3 px-4 py-3">
+<span class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+<span class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-400 text-[11px] font-bold leading-none text-slate-600 dark:border-slate-500 dark:text-slate-200">i</span>
+Configuration Snapshot Help
+</span>
+<span class="material-symbols-outlined text-[18px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="border-t border-slate-200 px-4 pb-4 pt-3 text-xs text-slate-600 dark:border-slate-800 dark:text-slate-300">
+<ol class="list-decimal space-y-1 pl-5">
+<li>Export a fresh snapshot before any major user/device/permission changes.</li>
+<li>Import replaces current records and signs out active sessions to reload restored accounts safely.</li>
+<li>Use snapshots from trusted environments only; keep one rollback file before every import.</li>
+</ol>
+</div>
+</details>
 
 <div class="mt-6 grid gap-6 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]">
 <div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800">

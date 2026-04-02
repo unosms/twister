@@ -241,6 +241,23 @@ $oldServerServices = array_values(array_filter(array_map(
 <div class="pt-4">
 <form class="space-y-6" method="POST" action="{{ route('devices.store') }}">
 @csrf
+<details class="group rounded-lg border border-[#cfd7e7] bg-gray-50/80 dark:border-gray-700 dark:bg-gray-800/40">
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3 px-3 py-2">
+<span class="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
+<span class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-gray-400 text-[11px] font-bold leading-none text-gray-600 dark:border-gray-500 dark:text-gray-200">i</span>
+Device Registration Help
+</span>
+<span class="material-symbols-outlined text-[18px] text-gray-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="border-t border-[#cfd7e7] px-3 pb-3 pt-2 text-xs text-gray-600 dark:border-gray-700 dark:text-gray-300">
+<ol class="list-decimal space-y-1 pl-5">
+<li>Select <span class="font-semibold">Device Type</span> first; only matching fields are required and enabled.</li>
+<li>For SNMP-based monitoring, verify community/version/port match the device before saving.</li>
+<li>For servers, choose services and fill only service-specific fields (for example VNC details when VNC is selected).</li>
+<li>Use consistent naming and folder location to keep backups, scripts, and assignment search organized.</li>
+</ol>
+</div>
+</details>
 <div class="grid grid-cols-1 gap-4">
 <div class="flex flex-col gap-2">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Device Type</label>

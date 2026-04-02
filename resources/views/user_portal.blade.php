@@ -301,6 +301,23 @@ $share = ($totalDevices ?? 0) > 0 ? (int) round(($entry['count'] / $totalDevices
 <p class="text-sm font-bold text-slate-900 dark:text-white">Telegram Settings</p>
 <span class="text-xs text-slate-400">User portal</span>
 </div>
+<details class="group mt-3 rounded-xl border border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-800/40">
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3 px-3 py-2">
+<span class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+<span class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-400 text-[11px] font-bold leading-none text-slate-600 dark:border-slate-500 dark:text-slate-200">i</span>
+Telegram Setup Help
+</span>
+<span class="material-symbols-outlined text-[18px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="border-t border-slate-200 px-3 pb-3 pt-2 text-xs text-slate-600 dark:border-slate-700 dark:text-slate-300">
+<ol class="list-decimal space-y-1 pl-5">
+<li>Create your bot in Telegram with <code>@BotFather</code> using <code>/newbot</code>.</li>
+<li>Copy the returned token and send one message to your bot or target group.</li>
+<li>Open <code>https://api.telegram.org/bot&lt;YOUR_BOT_TOKEN&gt;/getUpdates</code> and copy <code>chat.id</code>.</li>
+<li>Private chats use positive IDs; groups/channels are usually negative (<code>-100...</code>).</li>
+</ol>
+</div>
+</details>
 <form class="mt-4 space-y-3" method="POST" action="{{ route('portal.telegram-settings.update') }}">
 @csrf
 <div class="space-y-1">

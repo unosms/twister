@@ -94,6 +94,22 @@ $selectedUserId = $selectedUser?->id;
 <div class="flex flex-col gap-2">
 <h1 class="text-[#0d121b] dark:text-white text-4xl font-black leading-tight tracking-[-0.033em]">Assign Devices Wizard</h1>
 <p class="text-[#4c669a] text-base font-normal">Step 1: Link hardware assets to your organization's personnel.</p>
+<details class="group mt-2 rounded-lg border border-[#cfd7e7] bg-white/80 p-0 dark:border-gray-700 dark:bg-gray-800/50">
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3 px-3 py-2">
+<span class="inline-flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-gray-200">
+<span class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-gray-400 text-[11px] font-bold leading-none text-gray-600 dark:border-gray-500 dark:text-gray-200">i</span>
+Assignment Wizard Help
+</span>
+<span class="material-symbols-outlined text-[18px] text-gray-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="border-t border-[#cfd7e7] px-3 pb-3 pt-2 text-xs text-gray-600 dark:border-gray-700 dark:text-gray-300">
+<ol class="list-decimal space-y-1 pl-5">
+<li>Select a user first, then choose available devices in the right panel.</li>
+<li>Devices locked to another user must be unassigned first from device/user management before reassigning here.</li>
+<li>Use filters and search to narrow large inventories by type, ID, or serial.</li>
+</ol>
+</div>
+</details>
 </div>
 <div class="flex items-center gap-x-4 bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
 <div class="flex items-center gap-3">

@@ -135,6 +135,23 @@ Refresh
 <h3 class="mt-2 text-xl font-black text-slate-900 dark:text-white">Run support workflows</h3>
 <p class="mt-2 text-sm text-slate-500">Probe devices directly from this page and keep the result summary visible after the run.</p>
 </div>
+<details class="group mt-4 rounded-xl border border-slate-200 bg-slate-50/80 dark:border-slate-700 dark:bg-slate-900/40">
+<summary class="list-none flex cursor-pointer items-center justify-between gap-3 px-3 py-2">
+<span class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
+<span class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-400 text-[11px] font-bold leading-none text-slate-600 dark:border-slate-500 dark:text-slate-200">i</span>
+Diagnostics Workflow Help
+</span>
+<span class="material-symbols-outlined text-[18px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
+</summary>
+<div class="border-t border-slate-200 px-3 pb-3 pt-2 text-xs text-slate-600 dark:border-slate-700 dark:text-slate-300">
+<ol class="list-decimal space-y-1 pl-5">
+<li>Start with <span class="font-semibold">Run Diagnostic</span> for a full current-health snapshot.</li>
+<li>Use <span class="font-semibold">Auto Debug</span> when active alerts need focused probing and capture.</li>
+<li>If you need step-by-step script traces, enable provisioning capture before running support actions.</li>
+<li>Review telemetry and notifications links to correlate probe output with recent live events.</li>
+</ol>
+</div>
+</details>
 <div class="mt-5 grid gap-3 sm:grid-cols-2">
 <form action="{{ route('support.auto-debug') }}" method="POST">
 @csrf
