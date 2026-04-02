@@ -5,7 +5,6 @@
     <meta name="csrf-token" content="{{ csrf_token() }}" />
     <meta name="app-base" content="{{ url('/') }}" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta http-equiv="refresh" content="5" />
     <title>Device Events | Device Control Manager</title>
     <script src="https://cdn.tailwindcss.com?plugins=forms"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet" />
@@ -109,7 +108,7 @@
 <div class="flex h-screen overflow-hidden">
     @include('partials.admin_sidebar', ['sidebarAuthUser' => $authUser ?? null])
 
-    <main class="flex-1 flex flex-col overflow-y-auto">
+    <main class="flex-1 flex flex-col overflow-y-auto" data-events-scroll-container>
         <header class="h-16 border-b border-[#e7ebf3] dark:border-gray-800 bg-white dark:bg-background-dark flex items-center justify-between px-4 sm:px-8 shrink-0">
             <div class="flex items-center gap-4 flex-1 min-w-0">
                 <button class="flex h-10 w-10 items-center justify-center rounded-lg border border-[#e7ebf3] bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-800 dark:bg-background-dark dark:hover:bg-gray-800" type="button" data-sidebar-toggle aria-label="Toggle sidebar">
@@ -341,5 +340,79 @@
         </section>
     </main>
 </div>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var scrollContainer = document.querySelector('[data-events-scroll-container]');
+        if (!scrollContainer) {
+            return;
+        }
+
+        var pageKey = window.location.pathname + window.location.search;
+        var scrollKey = 'device-events-scroll:' + pageKey;
+        var scrollTsKey = scrollKey + ':ts';
+        var maxRestoreAgeMs = 20000;
+        var refreshIntervalMs = 5000;
+        var refreshTimerId = null;
+
+        var saveScrollPosition = function () {
+            try {
+                sessionStorage.setItem(scrollKey, String(Math.max(0, scrollContainer.scrollTop || 0)));
+                sessionStorage.setItem(scrollTsKey, String(Date.now()));
+            } catch (error) {
+                // Ignore storage failures and continue refreshing.
+            }
+        };
+
+        var restoreScrollPosition = function () {
+            try {
+                var savedTop = Number.parseInt(sessionStorage.getItem(scrollKey) || '', 10);
+                var savedTs = Number.parseInt(sessionStorage.getItem(scrollTsKey) || '', 10);
+                if (Number.isNaN(savedTop) || Number.isNaN(savedTs)) {
+                    return;
+                }
+
+                if ((Date.now() - savedTs) > maxRestoreAgeMs) {
+                    return;
+                }
+
+                scrollContainer.scrollTop = Math.max(0, savedTop);
+            } catch (error) {
+                // Ignore storage failures and continue without restoration.
+            }
+        };
+
+        var canRefreshNow = function () {
+            var active = document.activeElement;
+            if (!active) {
+                return true;
+            }
+
+            var tagName = (active.tagName || '').toLowerCase();
+            return !(tagName === 'input' || tagName === 'select' || tagName === 'textarea');
+        };
+
+        var scheduleRefresh = function (delayMs) {
+            if (refreshTimerId !== null) {
+                window.clearTimeout(refreshTimerId);
+            }
+
+            refreshTimerId = window.setTimeout(function () {
+                if (!canRefreshNow()) {
+                    scheduleRefresh(1000);
+                    return;
+                }
+
+                saveScrollPosition();
+                window.location.reload();
+            }, delayMs);
+        };
+
+        restoreScrollPosition();
+        window.setTimeout(restoreScrollPosition, 0);
+        scrollContainer.addEventListener('scroll', saveScrollPosition, { passive: true });
+        window.addEventListener('beforeunload', saveScrollPosition);
+        scheduleRefresh(refreshIntervalMs);
+    });
+</script>
 </body>
 </html>
