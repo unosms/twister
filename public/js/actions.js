@@ -596,7 +596,9 @@
     style.textContent = `
       details[data-help-popover] {
         position: relative;
-        display: inline-block;
+        display: flex;
+        justify-content: flex-end;
+        width: 100%;
         border: 0 !important;
         background: transparent !important;
         padding: 0 !important;
@@ -611,6 +613,7 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
+        margin-left: auto;
         width: 2rem;
         height: 2rem;
         border-radius: 9999px;
