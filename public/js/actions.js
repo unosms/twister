@@ -22,6 +22,7 @@
   const liveSearchHiddenClass = 'live-search-hidden';
   const liveSearchStyleId = 'live-search-style';
   const mobileLayoutStyleId = 'mobile-layout-style';
+  const helpPopoverStyleId = 'help-popover-style';
   const mobileSidebarClass = 'sidebar-mobile-open';
   const mobileBreakpointPx = 1023;
   const ciscoModelsWithoutUsername = new Set(['3560', '4948']);
@@ -583,6 +584,199 @@
     `;
 
     document.head.appendChild(style);
+  };
+
+  const ensureHelpPopoverStyle = () => {
+    if (document.getElementById(helpPopoverStyleId)) {
+      return;
+    }
+
+    const style = document.createElement('style');
+    style.id = helpPopoverStyleId;
+    style.textContent = `
+      details[data-help-popover] {
+        position: relative;
+        display: inline-block;
+        border: 0 !important;
+        background: transparent !important;
+        padding: 0 !important;
+      }
+
+      details[data-help-popover] > summary::-webkit-details-marker {
+        display: none;
+      }
+
+      details[data-help-popover] > summary {
+        list-style: none;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 2rem;
+        height: 2rem;
+        border-radius: 9999px;
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        color: #64748b;
+        cursor: pointer;
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+      }
+
+      details[data-help-popover] > summary:hover {
+        border-color: #135bec;
+        color: #135bec;
+      }
+
+      details[data-help-popover] > summary:focus-visible {
+        outline: 2px solid rgba(19, 91, 236, 0.4);
+        outline-offset: 2px;
+      }
+
+      details[data-help-popover] > summary .material-symbols-outlined {
+        font-size: 18px;
+        line-height: 1;
+      }
+
+      details[data-help-popover] > [data-help-popover-panel] {
+        position: absolute;
+        right: 0;
+        top: calc(100% + 0.5rem);
+        z-index: 85;
+        display: none;
+        width: min(32rem, calc(100vw - 2rem));
+        border: 1px solid #cbd5e1;
+        border-radius: 0.75rem;
+        background: #ffffff;
+        box-shadow: 0 18px 40px rgba(15, 23, 42, 0.2);
+      }
+
+      details[data-help-popover][open] > [data-help-popover-panel] {
+        display: block;
+      }
+
+      .dark details[data-help-popover] > summary {
+        border-color: #334155;
+        background: #0f172a;
+        color: #cbd5e1;
+      }
+
+      .dark details[data-help-popover] > summary:hover {
+        border-color: #135bec;
+        color: #ffffff;
+      }
+
+      .dark details[data-help-popover] > [data-help-popover-panel] {
+        border-color: #334155;
+        background: #0f172a;
+        box-shadow: 0 18px 40px rgba(2, 6, 23, 0.6);
+      }
+    `;
+
+    document.head.appendChild(style);
+  };
+
+  const setupHelpPopovers = () => {
+    const helpDetails = Array.from(document.querySelectorAll('details')).filter((details) => {
+      if (details.dataset.helpPopoverBound === '1') {
+        return false;
+      }
+
+      const summary = details.querySelector(':scope > summary');
+      if (!summary) {
+        return false;
+      }
+
+      return Array.from(summary.querySelectorAll('span')).some((span) => {
+        return (span.textContent || '').trim().toLowerCase() === 'i';
+      });
+    });
+
+    if (!helpDetails.length) {
+      return;
+    }
+
+    ensureHelpPopoverStyle();
+
+    const allPopovers = () => Array.from(document.querySelectorAll('details[data-help-popover]'));
+
+    const closePopovers = (except = null) => {
+      allPopovers().forEach((popover) => {
+        if (except && popover === except) {
+          return;
+        }
+
+        popover.open = false;
+        const summary = popover.querySelector(':scope > summary');
+        if (summary) {
+          summary.setAttribute('aria-expanded', 'false');
+        }
+      });
+    };
+
+    helpDetails.forEach((details) => {
+      const summary = details.querySelector(':scope > summary');
+      if (!summary) {
+        return;
+      }
+
+      const panel = Array.from(details.children).find((child) => child !== summary);
+      if (!panel) {
+        return;
+      }
+
+      const summaryLabel = (summary.textContent || '').replace(/\s+/g, ' ').trim();
+      const ariaLabel = summaryLabel !== '' ? summaryLabel : 'Help';
+
+      summary.innerHTML = '';
+      const iconWrap = document.createElement('span');
+      iconWrap.className =
+        'inline-flex h-8 w-8 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-500 shadow-sm dark:border-slate-600 dark:bg-slate-900 dark:text-slate-200';
+      const icon = document.createElement('span');
+      icon.className = 'material-symbols-outlined text-[18px]';
+      icon.textContent = 'info';
+      iconWrap.appendChild(icon);
+      summary.appendChild(iconWrap);
+
+      summary.setAttribute('aria-label', ariaLabel);
+      summary.setAttribute('title', ariaLabel);
+      summary.setAttribute('aria-expanded', 'false');
+      panel.setAttribute('data-help-popover-panel', 'true');
+
+      details.removeAttribute('open');
+      details.setAttribute('data-help-popover', 'true');
+      details.dataset.helpPopoverBound = '1';
+
+      summary.addEventListener('click', (event) => {
+        event.preventDefault();
+        const willOpen = !details.open;
+        closePopovers(willOpen ? details : null);
+        details.open = willOpen;
+        summary.setAttribute('aria-expanded', willOpen ? 'true' : 'false');
+      });
+
+      details.addEventListener('toggle', () => {
+        summary.setAttribute('aria-expanded', details.open ? 'true' : 'false');
+        if (details.open) {
+          closePopovers(details);
+        }
+      });
+    });
+
+    if (document.documentElement.dataset.helpPopoverListenersBound !== '1') {
+      document.addEventListener('click', (event) => {
+        const clickedInsidePopover = allPopovers().some((popover) => popover.contains(event.target));
+        if (!clickedInsidePopover) {
+          closePopovers();
+        }
+      });
+
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          closePopovers();
+        }
+      });
+
+      document.documentElement.dataset.helpPopoverListenersBound = '1';
+    }
   };
 
   const setupMobileTableScroll = () => {
@@ -4082,6 +4276,7 @@
     setupPortalFilters();
     setupPortalNotifications();
     setupNotificationsMenu();
+    setupHelpPopovers();
     setupSidebarToggle();
     setupProvisioningToggle();
     setupGlobalLogoutButton();
