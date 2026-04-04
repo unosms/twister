@@ -345,9 +345,12 @@
             <div class="bg-white dark:bg-gray-900 border border-[#cfd7e7] dark:border-gray-800 rounded-xl overflow-hidden shadow-sm" data-events-list-container>
                 <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#e7ebf3] px-4 py-3 dark:border-gray-800">
                     <h2 class="text-lg font-semibold">Event Timeline</h2>
-                    <span class="text-xs font-semibold text-slate-500">
-                        Showing {{ $events->count() }} of {{ number_format($events->total()) }} events
-                    </span>
+                    <div class="text-right">
+                        <div class="text-xs font-semibold text-slate-500">
+                            Showing {{ $events->count() }} of {{ number_format($events->total()) }} events
+                        </div>
+                        <div class="text-[11px] text-slate-400">Click any row to view full details.</div>
+                    </div>
                 </div>
 
                 <div class="overflow-x-auto">
@@ -437,16 +440,40 @@
                                     }
 
                                     $detailsText = $details ? implode(' | ', $details) : '-';
+                                    $openedAtFormatted = $openedAt?->format('Y-m-d H:i:s') ?? '-';
+                                    $resolvedAtFormatted = $resolvedAt?->format('Y-m-d H:i:s') ?? '-';
+                                    $interfaceDescription = trim((string) ($event->interface_description ?? ''));
+                                    $eventIdentifier = preg_replace('/[^A-Za-z0-9_-]+/', '-', (string) ($event->event_id ?? $loop->index));
+                                    $eventRowKey = strtolower($sourceValue) . '-' . ($eventIdentifier !== '' ? $eventIdentifier : (string) $loop->index);
+                                    $statusTransition = (
+                                        $sourceValue === 'interface'
+                                        && is_numeric($event->old_status ?? null)
+                                        && is_numeric($event->new_status ?? null)
+                                    )
+                                        ? ((int) $event->old_status) . ' -> ' . ((int) $event->new_status)
+                                        : '-';
+                                    $speedTransition = ($oldSpeedValue !== null || $newSpeedValue !== null)
+                                        ? (($oldSpeedValue !== null ? (string) $oldSpeedValue : '-') . ' -> ' . ($newSpeedValue !== null ? (string) $newSpeedValue : '-') . ' Mbps')
+                                        : '-';
+                                    $deviceLabel = $event->device_name ?: ('Device #' . ($event->device_id ?? '-'));
                                 @endphp
-                                <tr class="hover:bg-slate-50/80 dark:hover:bg-gray-800/40">
+                                <tr
+                                    class="cursor-pointer transition hover:bg-slate-50/80 focus-visible:bg-slate-100/80 dark:hover:bg-gray-800/40 dark:focus-visible:bg-gray-800/70"
+                                    data-event-summary-row
+                                    data-event-row-key="{{ $eventRowKey }}"
+                                    tabindex="0"
+                                    role="button"
+                                    aria-expanded="false"
+                                    aria-controls="event-detail-{{ $eventRowKey }}"
+                                >
                                     <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200">
-                                        <div>{{ $openedAt?->format('Y-m-d H:i:s') ?? '-' }}</div>
+                                        <div>{{ $openedAtFormatted }}</div>
                                         <div class="text-[11px] text-slate-400">
-                                            {{ $resolvedAt ? 'Resolved ' . $resolvedAt->format('Y-m-d H:i:s') : 'Still open' }}
+                                            {{ $resolvedAt ? 'Resolved ' . $resolvedAtFormatted : 'Still open' }}
                                         </div>
                                     </td>
                                     <td class="px-4 py-3 text-sm text-slate-700 dark:text-slate-200">
-                                        <div class="font-semibold">{{ $event->device_name ?: ('Device #' . ($event->device_id ?? '-')) }}</div>
+                                        <div class="font-semibold">{{ $deviceLabel }}</div>
                                         <div class="text-[11px] text-slate-400">ID {{ $event->device_id ?? '-' }}</div>
                                     </td>
                                     <td class="px-4 py-3 text-sm">
@@ -474,6 +501,79 @@
                                     </td>
                                     <td class="px-4 py-3 text-xs text-slate-500 dark:text-slate-400">
                                         {{ $detailsText }}
+                                    </td>
+                                </tr>
+                                <tr
+                                    id="event-detail-{{ $eventRowKey }}"
+                                    class="hidden bg-slate-50/70 dark:bg-gray-900/70"
+                                    data-event-detail-row
+                                    data-event-row-key="{{ $eventRowKey }}"
+                                >
+                                    <td class="px-4 pb-4 pt-0" colspan="9">
+                                        <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+                                            <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                                                <div>
+                                                    <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Event ID</div>
+                                                    <div class="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-100">{{ $event->event_id ?? '-' }}</div>
+                                                </div>
+                                                <div>
+                                                    <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Device</div>
+                                                    <div class="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-100">{{ $deviceLabel }}</div>
+                                                </div>
+                                                <div>
+                                                    <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Source</div>
+                                                    <div class="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-100">{{ ucfirst($sourceValue) }}</div>
+                                                </div>
+                                                <div>
+                                                    <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Status</div>
+                                                    <div class="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-100">{{ $statusLabel }}</div>
+                                                </div>
+                                                <div>
+                                                    <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Event Type</div>
+                                                    <div class="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-100">{{ $event->event_type ?: '-' }}</div>
+                                                </div>
+                                                <div>
+                                                    <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Severity</div>
+                                                    <div class="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-100">{{ $severityValue !== '' ? $severityValue : '-' }}</div>
+                                                </div>
+                                                <div>
+                                                    <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Opened At</div>
+                                                    <div class="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-100">{{ $openedAtFormatted }}</div>
+                                                </div>
+                                                <div>
+                                                    <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Resolved At</div>
+                                                    <div class="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-100">{{ $resolvedAtFormatted }}</div>
+                                                </div>
+                                                <div>
+                                                    <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Duration</div>
+                                                    <div class="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-100">{{ $durationLabel($openedAtTs, $resolvedAtTs) }}</div>
+                                                </div>
+                                                <div>
+                                                    <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Interface</div>
+                                                    <div class="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-100">{{ $interfaceLabel }}</div>
+                                                </div>
+                                                <div>
+                                                    <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Interface Description</div>
+                                                    <div class="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-100">{{ $interfaceDescription !== '' ? $interfaceDescription : '-' }}</div>
+                                                </div>
+                                                <div>
+                                                    <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Device IP</div>
+                                                    <div class="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-100">{{ trim((string) ($event->device_ip ?? '')) !== '' ? $event->device_ip : '-' }}</div>
+                                                </div>
+                                                <div>
+                                                    <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Port State Change</div>
+                                                    <div class="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-100">{{ $statusTransition }}</div>
+                                                </div>
+                                                <div>
+                                                    <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Speed Change</div>
+                                                    <div class="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-100">{{ $speedTransition }}</div>
+                                                </div>
+                                                <div class="sm:col-span-2 xl:col-span-2">
+                                                    <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Summary</div>
+                                                    <div class="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-100">{{ $detailsText }}</div>
+                                                </div>
+                                            </div>
+                                        </div>
                                     </td>
                                 </tr>
                             @empty
@@ -522,6 +622,108 @@
         var refreshTimerId = null;
         var refreshInFlight = false;
         var refreshRequestId = 0;
+        var expandedEventRowKey = null;
+
+        var getDetailRowByKey = function (rowKey) {
+            var detailRows = eventsListContainer.querySelectorAll('[data-event-detail-row]');
+            for (var i = 0; i < detailRows.length; i += 1) {
+                if (detailRows[i].getAttribute('data-event-row-key') === rowKey) {
+                    return detailRows[i];
+                }
+            }
+
+            return null;
+        };
+
+        var setEventRowExpanded = function (summaryRow, detailRow, isExpanded) {
+            if (!summaryRow || !detailRow) {
+                return;
+            }
+
+            summaryRow.setAttribute('aria-expanded', isExpanded ? 'true' : 'false');
+            summaryRow.classList.toggle('bg-slate-100/80', isExpanded);
+            summaryRow.classList.toggle('dark:bg-gray-800/70', isExpanded);
+            detailRow.classList.toggle('hidden', !isExpanded);
+        };
+
+        var toggleEventRow = function (rowKey, forceOpenState) {
+            if (!rowKey) {
+                expandedEventRowKey = null;
+                return;
+            }
+
+            var summaryRows = Array.from(eventsListContainer.querySelectorAll('[data-event-summary-row]'));
+            if (!summaryRows.length) {
+                expandedEventRowKey = null;
+                return;
+            }
+
+            var targetSummaryRow = null;
+            summaryRows.forEach(function (row) {
+                if (row.getAttribute('data-event-row-key') === rowKey) {
+                    targetSummaryRow = row;
+                }
+            });
+
+            var targetDetailRow = targetSummaryRow ? getDetailRowByKey(rowKey) : null;
+            if (!targetSummaryRow || !targetDetailRow) {
+                expandedEventRowKey = null;
+                return;
+            }
+
+            var shouldOpen = typeof forceOpenState === 'boolean'
+                ? forceOpenState
+                : targetSummaryRow.getAttribute('aria-expanded') !== 'true';
+
+            summaryRows.forEach(function (row) {
+                var currentRowKey = row.getAttribute('data-event-row-key') || '';
+                var detailRow = getDetailRowByKey(currentRowKey);
+                if (!detailRow) {
+                    return;
+                }
+
+                var isCurrentOpen = shouldOpen && currentRowKey === rowKey;
+                setEventRowExpanded(row, detailRow, isCurrentOpen);
+            });
+
+            expandedEventRowKey = shouldOpen ? rowKey : null;
+        };
+
+        var bindEventRowInteractions = function () {
+            var summaryRows = Array.from(eventsListContainer.querySelectorAll('[data-event-summary-row]'));
+            summaryRows.forEach(function (row) {
+                if (row.dataset.rowDetailsBound === '1') {
+                    return;
+                }
+
+                row.dataset.rowDetailsBound = '1';
+
+                row.addEventListener('click', function (event) {
+                    if (event.target.closest('a, button, input, select, textarea, label')) {
+                        return;
+                    }
+
+                    toggleEventRow(row.getAttribute('data-event-row-key') || '');
+                });
+
+                row.addEventListener('keydown', function (event) {
+                    if (event.key !== 'Enter' && event.key !== ' ') {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    toggleEventRow(row.getAttribute('data-event-row-key') || '');
+                });
+            });
+        };
+
+        var restoreExpandedEventRow = function () {
+            if (!expandedEventRowKey) {
+                return;
+            }
+
+            toggleEventRow(expandedEventRowKey, true);
+        };
 
         var saveScrollPosition = function () {
             try {
@@ -718,6 +920,8 @@
                     }
 
                     eventsListContainer.innerHTML = nextEventsListContainer.innerHTML;
+                    bindEventRowInteractions();
+                    restoreExpandedEventRow();
                     scrollContainer.scrollTop = previousScrollTop;
                     saveScrollPosition();
                 })
@@ -749,6 +953,7 @@
 
         restoreScrollPosition();
         window.setTimeout(restoreScrollPosition, 0);
+        bindEventRowInteractions();
         scrollContainer.addEventListener('scroll', saveScrollPosition, { passive: true });
         window.addEventListener('beforeunload', saveScrollPosition);
         scheduleRefresh(refreshIntervalMs);
