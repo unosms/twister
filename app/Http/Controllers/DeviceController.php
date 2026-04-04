@@ -584,6 +584,20 @@ class DeviceController extends Controller
                         de.resolved_at
                     ");
                 $applyFilters($deviceQuery, 'de', false);
+                // Show device-online events only when there is an offline event
+                // for the same device at or before that timestamp.
+                $deviceQuery->where(function ($eventQuery): void {
+                    $eventQuery
+                        ->whereRaw("LOWER(TRIM(de.event_type)) NOT IN ('device_online', 'device_up', 'device.online')")
+                        ->orWhereExists(function ($offlineQuery): void {
+                            $offlineQuery
+                                ->selectRaw('1')
+                                ->from('device_events as deo')
+                                ->whereColumn('deo.device_id', 'de.device_id')
+                                ->whereRaw("LOWER(TRIM(deo.event_type)) IN ('device_offline', 'device_down', 'device.offline')")
+                                ->whereColumn('deo.opened_at', '<=', 'de.opened_at');
+                        });
+                });
 
                 if ($unionBaseQuery) {
                     $unionBaseQuery->unionAll($deviceQuery);

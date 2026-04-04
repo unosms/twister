@@ -486,13 +486,11 @@ function ensure_device_down(mysqli $conn, int $device_id, string $device_name, s
 }
 function resolve_device_down_and_log_up(mysqli $conn, int $device_id, string $device_name, string $ip, int $now): void {
   $sel = $conn->prepare("
-    SELECT id, opened_at
+    SELECT MIN(opened_at) AS opened_at, COUNT(*) AS total_open
     FROM device_events
     WHERE device_id=?
       AND event_type IN ('device_offline', 'device_down')
       AND resolved_at IS NULL
-    ORDER BY id DESC
-    LIMIT 1
   ");
   if (!$sel) {
     log_poll('resolve_device_down_and_log_up prepare failed: ' . $conn->error);
@@ -503,20 +501,31 @@ function resolve_device_down_and_log_up(mysqli $conn, int $device_id, string $de
   $open = $sel->get_result()->fetch_assoc();
   $sel->close();
 
-  if (!$open) {
+  $openCount = isset($open['total_open']) ? (int)$open['total_open'] : 0;
+  if ($openCount <= 0) {
     return;
   }
-
-  $eventId = (int)$open['id'];
   $openedAt = (int)$open['opened_at'];
 
-  $upd = $conn->prepare("UPDATE device_events SET resolved_at=? WHERE id=?");
+  $upd = $conn->prepare("
+    UPDATE device_events
+    SET resolved_at=?
+    WHERE device_id=?
+      AND event_type IN ('device_offline', 'device_down')
+      AND resolved_at IS NULL
+  ");
+  $resolvedRows = 0;
   if ($upd) {
-    $upd->bind_param("ii", $now, $eventId);
+    $upd->bind_param("ii", $now, $device_id);
     $upd->execute();
+    $resolvedRows = max(0, (int)$upd->affected_rows);
     $upd->close();
   } else {
     log_poll('resolve_device_down_and_log_up update prepare failed: ' . $conn->error);
+  }
+
+  if ($resolvedRows <= 0) {
+    return;
   }
 
   $upIns = $conn->prepare("
@@ -536,8 +545,8 @@ function resolve_device_down_and_log_up(mysqli $conn, int $device_id, string $de
   }
 
   $duration = fmt_dur(max(0, $now - $openedAt));
-  tg_send_dev("DEVICE ONLINE\nHost: {$device_name}\nIP: {$ip}\nRecovered in: {$duration}\nResolved offline ID: {$eventId}" . ($upEventId > 0 ? "\nEvent ID: {$upEventId}" : ''));
-  log_poll("device offline event resolved: device_id={$device_id} event_id={$eventId} online_event_id={$upEventId}");
+  tg_send_dev("DEVICE ONLINE\nHost: {$device_name}\nIP: {$ip}\nRecovered in: {$duration}\nResolved offline events: {$resolvedRows}" . ($upEventId > 0 ? "\nEvent ID: {$upEventId}" : ''));
+  log_poll("device offline events resolved: device_id={$device_id} resolved_rows={$resolvedRows} online_event_id={$upEventId}");
 }
 
 /* ============================================================
