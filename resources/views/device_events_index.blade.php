@@ -197,7 +197,7 @@
             @endif
 
             <form method="get" action="{{ route('devices.events.index') }}" class="rounded-xl border border-[#d8dfed] bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5" data-events-filter-form>
-                <div class="mb-4">
+                <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
                     <div class="inline-flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-800/60">
                         <button class="inline-flex items-center rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700" type="submit">
                             Apply Filters
@@ -206,24 +206,28 @@
                             Clear All
                         </a>
                     </div>
-                </div>
-                <details class="group mb-4 rounded-lg border border-slate-200 bg-slate-50/80 dark:border-gray-700 dark:bg-gray-800/50">
-                    <summary class="list-none flex cursor-pointer items-center justify-between gap-3 px-3 py-2">
-                        <span class="inline-flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-                            <span class="inline-flex h-5 w-5 items-center justify-center rounded-full border border-slate-400 text-[11px] font-bold leading-none text-slate-600 dark:border-slate-500 dark:text-slate-200">i</span>
-                            Events Filter Help
-                        </span>
-                        <span class="material-symbols-outlined text-[18px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
-                    </summary>
-                    <div class="border-t border-slate-200 px-3 pb-3 pt-2 text-xs text-slate-600 dark:border-gray-700 dark:text-slate-300">
-                        <ol class="list-decimal space-y-1 pl-5">
-                            <li>Use multi-select filters to combine device, source, status, severity, and event type in one view.</li>
-                            <li>Set <span class="font-semibold">Time Window</span> first for performance, then narrow with additional filters.</li>
-                            <li>Use search for quick text match on device name, interface, type, or event ID.</li>
-                            <li><span class="font-semibold">Clear All</span> resets the page back to the full unfiltered timeline.</li>
-                        </ol>
+                    <div class="relative" data-info-popover>
+                        <button
+                            class="inline-flex h-9 w-9 items-center justify-center rounded-full border border-slate-300 bg-white text-slate-600 shadow-sm transition hover:border-primary hover:text-primary dark:border-gray-700 dark:bg-gray-800 dark:text-slate-200 dark:hover:border-primary"
+                            type="button"
+                            aria-label="Events filter help"
+                            aria-expanded="false"
+                            aria-controls="events-filter-help-popover"
+                            data-info-popover-toggle
+                        >
+                            <span class="material-symbols-outlined text-[18px]">info</span>
+                        </button>
+                        <div id="events-filter-help-popover" class="hidden absolute right-0 top-full z-40 mt-2 w-[min(28rem,calc(100vw-2rem))] rounded-lg border border-slate-200 bg-white p-3 text-xs text-slate-600 shadow-xl dark:border-gray-700 dark:bg-gray-900 dark:text-slate-300" data-info-popover-panel>
+                            <p class="font-semibold text-slate-800 dark:text-slate-100">Events Filter Help</p>
+                            <ol class="mt-2 list-decimal space-y-1 pl-5">
+                                <li>Use multi-select filters to combine device, source, status, severity, and event type in one view.</li>
+                                <li>Set <span class="font-semibold">Time Window</span> first for performance, then narrow with additional filters.</li>
+                                <li>Use search for quick text match on device name, interface, type, or event ID.</li>
+                                <li><span class="font-semibold">Clear All</span> resets the page back to the full unfiltered timeline.</li>
+                            </ol>
+                        </div>
                     </div>
-                </details>
+                </div>
 
                 <div class="grid items-start gap-3 md:grid-cols-2 xl:grid-cols-7">
                     <div class="flex flex-col gap-1">
@@ -506,6 +510,9 @@
 
         var filterForm = document.querySelector('[data-events-filter-form]');
         var filterDropdowns = Array.from(document.querySelectorAll('[data-filter-collapsible]'));
+        var infoPopover = document.querySelector('[data-info-popover]');
+        var infoPopoverToggle = infoPopover ? infoPopover.querySelector('[data-info-popover-toggle]') : null;
+        var infoPopoverPanel = infoPopover ? infoPopover.querySelector('[data-info-popover-panel]') : null;
 
         var pageKey = window.location.pathname + window.location.search;
         var scrollKey = 'device-events-scroll:' + pageKey;
@@ -552,16 +559,42 @@
             });
         };
 
+        var setInfoPopoverOpen = function (isOpen) {
+            if (!infoPopoverToggle || !infoPopoverPanel) {
+                return;
+            }
+
+            infoPopoverPanel.classList.toggle('hidden', !isOpen);
+            infoPopoverToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+        };
+
         filterDropdowns.forEach(function (dropdown) {
             dropdown.addEventListener('toggle', function () {
                 if (dropdown.open) {
                     closeAllFilterDropdowns(dropdown);
+                    setInfoPopoverOpen(false);
                 }
             });
         });
 
+        if (infoPopoverToggle) {
+            infoPopoverToggle.addEventListener('click', function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                var shouldOpen = infoPopoverPanel && infoPopoverPanel.classList.contains('hidden');
+                if (shouldOpen) {
+                    closeAllFilterDropdowns(null);
+                }
+                setInfoPopoverOpen(shouldOpen);
+            });
+        }
+
         document.addEventListener('click', function (event) {
             if (!filterDropdowns.length) {
+                if (infoPopover && !infoPopover.contains(event.target)) {
+                    setInfoPopoverOpen(false);
+                }
                 return;
             }
 
@@ -572,16 +605,25 @@
             if (!clickedInsideDropdown) {
                 closeAllFilterDropdowns(null);
             }
+
+            if (infoPopover && !infoPopover.contains(event.target)) {
+                setInfoPopoverOpen(false);
+            }
         });
 
         document.addEventListener('keydown', function (event) {
             if (event.key === 'Escape') {
                 closeAllFilterDropdowns(null);
+                setInfoPopoverOpen(false);
             }
         });
 
         var canRefreshNow = function () {
             if (document.visibilityState === 'hidden') {
+                return false;
+            }
+
+            if (infoPopoverPanel && !infoPopoverPanel.classList.contains('hidden')) {
                 return false;
             }
 
