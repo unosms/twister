@@ -23,6 +23,8 @@
   const liveSearchStyleId = 'live-search-style';
   const mobileLayoutStyleId = 'mobile-layout-style';
   const helpPopoverStyleId = 'help-popover-style';
+  const sidebarTipStyleId = 'sidebar-tip-style';
+  const sidebarTipElementId = 'sidebar-tip-element';
   const mobileSidebarClass = 'sidebar-mobile-open';
   const mobileBreakpointPx = 1023;
   const ciscoModelsWithoutUsername = new Set(['3560', '4948']);
@@ -779,6 +781,210 @@
       });
 
       document.documentElement.dataset.helpPopoverListenersBound = '1';
+    }
+  };
+
+  const ensureSidebarTipStyle = () => {
+    if (document.getElementById(sidebarTipStyleId)) {
+      return;
+    }
+
+    const style = document.createElement('style');
+    style.id = sidebarTipStyleId;
+    style.textContent = `
+      #${sidebarTipElementId} {
+        position: fixed;
+        left: -9999px;
+        top: -9999px;
+        z-index: 95;
+        pointer-events: none;
+        max-width: 16rem;
+        border-radius: 0.625rem;
+        border: 1px solid #cbd5e1;
+        background: #ffffff;
+        color: #334155;
+        font-size: 0.75rem;
+        line-height: 1.35;
+        font-weight: 600;
+        padding: 0.45rem 0.6rem;
+        box-shadow: 0 14px 32px rgba(15, 23, 42, 0.2);
+        opacity: 0;
+        transform: translateY(2px);
+        transition: opacity 0.12s ease, transform 0.12s ease;
+      }
+
+      #${sidebarTipElementId}[data-visible="1"] {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .dark #${sidebarTipElementId} {
+        border-color: #334155;
+        background: #0f172a;
+        color: #cbd5e1;
+        box-shadow: 0 14px 32px rgba(2, 6, 23, 0.7);
+      }
+    `;
+
+    document.head.appendChild(style);
+  };
+
+  const setupSidebarHoverTips = () => {
+    const targets = Array.from(document.querySelectorAll('[data-sidebar-tip]'));
+    if (!targets.length) {
+      return;
+    }
+
+    const canHover = typeof window.matchMedia !== 'function'
+      ? true
+      : window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+    if (!canHover) {
+      return;
+    }
+
+    ensureSidebarTipStyle();
+
+    let tooltip = document.getElementById(sidebarTipElementId);
+    if (!tooltip) {
+      tooltip = document.createElement('div');
+      tooltip.id = sidebarTipElementId;
+      tooltip.setAttribute('role', 'tooltip');
+      tooltip.setAttribute('aria-hidden', 'true');
+      tooltip.dataset.visible = '0';
+      document.body.appendChild(tooltip);
+    }
+
+    const hoverDelayMs = 2000;
+    const visibleDurationMs = 1400;
+    let activeTarget = null;
+    let hoverTimer = null;
+    let hideTimer = null;
+
+    const clearTimers = () => {
+      if (hoverTimer !== null) {
+        window.clearTimeout(hoverTimer);
+        hoverTimer = null;
+      }
+      if (hideTimer !== null) {
+        window.clearTimeout(hideTimer);
+        hideTimer = null;
+      }
+    };
+
+    const hideTooltip = () => {
+      clearTimers();
+      if (!tooltip) {
+        return;
+      }
+      activeTarget = null;
+      tooltip.dataset.visible = '0';
+      tooltip.setAttribute('aria-hidden', 'true');
+      tooltip.style.left = '-9999px';
+      tooltip.style.top = '-9999px';
+    };
+
+    const positionTooltip = (target) => {
+      if (!tooltip || !target) {
+        return;
+      }
+
+      const targetRect = target.getBoundingClientRect();
+      const spacing = 12;
+      const viewportPadding = 8;
+      const tipRect = tooltip.getBoundingClientRect();
+
+      let left = targetRect.right + spacing;
+      if ((left + tipRect.width + viewportPadding) > window.innerWidth) {
+        left = targetRect.left - tipRect.width - spacing;
+      }
+
+      let top = targetRect.top + (targetRect.height / 2) - (tipRect.height / 2);
+
+      left = Math.max(viewportPadding, Math.min(left, window.innerWidth - tipRect.width - viewportPadding));
+      top = Math.max(viewportPadding, Math.min(top, window.innerHeight - tipRect.height - viewportPadding));
+
+      tooltip.style.left = `${Math.round(left)}px`;
+      tooltip.style.top = `${Math.round(top)}px`;
+    };
+
+    const showTooltip = (target) => {
+      if (!tooltip || !target) {
+        return;
+      }
+
+      const text = String(target.dataset.sidebarTip || '').trim();
+      if (!text) {
+        return;
+      }
+
+      activeTarget = target;
+      tooltip.textContent = text;
+      tooltip.dataset.visible = '0';
+      tooltip.setAttribute('aria-hidden', 'false');
+      tooltip.style.left = '-9999px';
+      tooltip.style.top = '-9999px';
+
+      window.requestAnimationFrame(() => {
+        if (activeTarget !== target) {
+          return;
+        }
+        positionTooltip(target);
+        tooltip.dataset.visible = '1';
+      });
+
+      hideTimer = window.setTimeout(() => {
+        if (activeTarget === target) {
+          hideTooltip();
+        }
+      }, visibleDurationMs);
+    };
+
+    const scheduleTooltip = (target) => {
+      clearTimers();
+      hoverTimer = window.setTimeout(() => {
+        showTooltip(target);
+      }, hoverDelayMs);
+    };
+
+    targets.forEach((target) => {
+      if (target.dataset.sidebarTipBound === '1') {
+        return;
+      }
+
+      target.dataset.sidebarTipBound = '1';
+
+      target.addEventListener('mouseenter', () => scheduleTooltip(target));
+      target.addEventListener('mouseleave', () => {
+        if (activeTarget === target) {
+          hideTooltip();
+          return;
+        }
+        clearTimers();
+      });
+      target.addEventListener('mousedown', hideTooltip);
+      target.addEventListener('focusin', () => scheduleTooltip(target));
+      target.addEventListener('focusout', () => {
+        if (activeTarget === target) {
+          hideTooltip();
+          return;
+        }
+        clearTimers();
+      });
+    });
+
+    if (document.documentElement.dataset.sidebarTipListenersBound !== '1') {
+      document.addEventListener('scroll', hideTooltip, true);
+      window.addEventListener('resize', () => {
+        if (activeTarget && tooltip && tooltip.dataset.visible === '1') {
+          positionTooltip(activeTarget);
+        }
+      });
+      document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') {
+          hideTooltip();
+        }
+      });
+      document.documentElement.dataset.sidebarTipListenersBound = '1';
     }
   };
 
@@ -4280,6 +4486,7 @@
     setupPortalNotifications();
     setupNotificationsMenu();
     setupHelpPopovers();
+    setupSidebarHoverTips();
     setupSidebarToggle();
     setupProvisioningToggle();
     setupGlobalLogoutButton();

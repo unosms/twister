@@ -36,53 +36,53 @@
 </div>
 
 <nav class="flex flex-col gap-1">
-    <a class="flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors {{ $dashboardActive ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('dashboard') }}" data-sidebar-item>
+    <a class="flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors {{ $dashboardActive ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('dashboard') }}" data-sidebar-item data-sidebar-tip="System health, activity, and quick status summary.">
         <span class="material-symbols-outlined text-[20px]">dashboard</span>
         <span class="text-sm" data-sidebar-label>Dashboard</span>
     </a>
 
     <details class="sidebar-collapsible-group flex flex-col gap-1" {{ $deviceNavActive ? 'open' : '' }}>
-        <summary class="flex cursor-pointer list-none items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors {{ $deviceNavActive ? 'bg-primary/10 text-primary' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" data-sidebar-item>
+        <summary class="flex cursor-pointer list-none items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors {{ $deviceNavActive ? 'bg-primary/10 text-primary' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" data-sidebar-item data-sidebar-tip="Open device tools: management, room layout, list, and events.">
             <span class="material-symbols-outlined text-[20px]">devices</span>
             <span class="text-sm" data-sidebar-label>Devices</span>
             <span class="material-symbols-outlined ml-auto text-[18px] sidebar-collapsible-icon">expand_more</span>
         </summary>
         <div class="sidebar-subnav ml-10 flex flex-col gap-1">
-            <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $deviceControlActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.index') }}">Device Management</a>
-            <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $deviceCabinetActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.cabinet-room.index') }}">Cabinet Room</a>
-            <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $deviceDetailsActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.details') }}">Devices List</a>
-            <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $deviceEventsActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.events.index') }}">Events</a>
+            <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $deviceControlActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.index') }}" data-sidebar-tip="Register and edit devices, monitoring, and credentials.">Device Management</a>
+            <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $deviceCabinetActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.cabinet-room.index') }}" data-sidebar-tip="Visual cabinet and room placement for devices.">Cabinet Room</a>
+            <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $deviceDetailsActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.details') }}" data-sidebar-tip="Search and inspect full device inventory.">Devices List</a>
+            <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $deviceEventsActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.events.index') }}" data-sidebar-tip="View timeline of interface and device events.">Events</a>
         </div>
     </details>
 
-    <a class="flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors {{ $assignmentsActive ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.wizard') }}" data-sidebar-item>
+    <a class="flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors {{ $assignmentsActive ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.wizard') }}" data-sidebar-item data-sidebar-tip="Assign devices to users and access scopes.">
         <span class="material-symbols-outlined text-[20px]">assignment</span>
         <span class="text-sm" data-sidebar-label>Assignments</span>
     </a>
 
-    <a class="flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors {{ $notificationsActive ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('notifications.index') }}" data-sidebar-item>
+    <a class="flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors {{ $notificationsActive ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('notifications.index') }}" data-sidebar-item data-sidebar-tip="Review active alerts and notification history.">
         <span class="material-symbols-outlined text-[20px]">notifications</span>
         <span class="text-sm" data-sidebar-label>Notifications</span>
     </a>
 
     <details class="sidebar-collapsible-group flex flex-col gap-1" {{ $diagnosticsActive ? 'open' : '' }}>
-        <summary class="flex cursor-pointer list-none items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors {{ $diagnosticsActive ? 'bg-primary/10 text-primary' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" data-sidebar-item>
+        <summary class="flex cursor-pointer list-none items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors {{ $diagnosticsActive ? 'bg-primary/10 text-primary' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" data-sidebar-item data-sidebar-tip="Troubleshooting tools, support console, and telemetry logs.">
             <span class="material-symbols-outlined text-[20px]">construction</span>
             <span class="text-sm" data-sidebar-label>Diagnostics</span>
             <span class="material-symbols-outlined ml-auto text-[18px] sidebar-collapsible-icon">expand_more</span>
         </summary>
         <div class="sidebar-subnav ml-10 flex flex-col gap-1">
-            <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $supportConsoleActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('support.index') }}">Support Console</a>
-            <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $logsActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('telemetry.index') }}">Logs</a>
+            <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $supportConsoleActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('support.index') }}" data-sidebar-tip="Run auto-debug and diagnostic workflows.">Support Console</a>
+            <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $logsActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('telemetry.index') }}" data-sidebar-tip="Inspect telemetry and provisioning logs.">Logs</a>
         </div>
     </details>
 
-    <a class="flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors {{ $usersActive ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('users.index') }}" data-sidebar-item>
+    <a class="flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors {{ $usersActive ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('users.index') }}" data-sidebar-item data-sidebar-tip="Create users and manage permissions and scopes.">
         <span class="material-symbols-outlined text-[20px]">group</span>
         <span class="text-sm" data-sidebar-label>Users</span>
     </a>
 
-    <a class="flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors {{ $settingsActive ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('settings.index') }}" data-sidebar-item>
+    <a class="flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors {{ $settingsActive ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('settings.index') }}" data-sidebar-item data-sidebar-tip="System-wide settings, backups, and cleanup tools.">
         <span class="material-symbols-outlined text-[20px]">tune</span>
         <span class="text-sm" data-sidebar-label>Settings</span>
     </a>

@@ -19,7 +19,7 @@
         </div>
     </div>
 
-    <a class="flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium text-red-500 transition-colors hover:bg-red-50 dark:hover:bg-red-950/20" href="{{ route('auth.logout') }}" data-sidebar-item>
+    <a class="flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium text-red-500 transition-colors hover:bg-red-50 dark:hover:bg-red-950/20" href="{{ route('auth.logout') }}" data-sidebar-item data-sidebar-tip="Sign out from the admin portal.">
         <span class="material-symbols-outlined text-[20px]">logout</span>
         <span class="text-sm" data-sidebar-label>Logout</span>
     </a>
