@@ -84,6 +84,8 @@ class SettingsController extends Controller
                 'alert_count' => $this->tableCount('alerts'),
                 'notification_count' => $this->tableCount('notifications'),
                 'telemetry_count' => $this->tableCount('telemetry_logs'),
+                'interface_event_count' => $this->tableCount('interface_events'),
+                'device_event_count' => $this->tableCount('device_events'),
             ],
             'telegramEventTypesCustom' => $telegramSettings['event_types_custom'],
             'telegramTemplateDefault' => $telegramSettings['default'],
@@ -358,6 +360,83 @@ class SettingsController extends Controller
             return back()->withErrors([
                 'notifications' => 'Could not clear notifications: ' . $exception->getMessage(),
             ]);
+        }
+    }
+
+    public function manageEvents(Request $request)
+    {
+        $data = $request->validate([
+            'operation' => ['required', 'string', Rule::in(['clear_all', 'clear_device'])],
+            'event_device_id' => [
+                Rule::requiredIf(static fn () => $request->input('operation') === 'clear_device'),
+                'nullable',
+                'integer',
+                'exists:devices,id',
+            ],
+        ]);
+
+        try {
+            $hasInterfaceEventsTable = Schema::hasTable('interface_events');
+            $hasDeviceEventsTable = Schema::hasTable('device_events');
+
+            if (!$hasInterfaceEventsTable && !$hasDeviceEventsTable) {
+                return back()->withErrors([
+                    'events' => 'Event tables are not available yet. Run the event poller to generate event history.',
+                ]);
+            }
+
+            $operation = (string) $data['operation'];
+            $targetDeviceId = isset($data['event_device_id']) ? (int) $data['event_device_id'] : null;
+            $targetDevice = $operation === 'clear_device' && $targetDeviceId
+                ? Device::query()->find($targetDeviceId)
+                : null;
+
+            $interfaceDeleted = 0;
+            $deviceDeleted = 0;
+
+            DB::transaction(function () use (
+                $operation,
+                $targetDeviceId,
+                $hasInterfaceEventsTable,
+                $hasDeviceEventsTable,
+                &$interfaceDeleted,
+                &$deviceDeleted
+            ): void {
+                if ($hasInterfaceEventsTable) {
+                    $interfaceQuery = DB::table('interface_events');
+                    if ($operation === 'clear_device' && $targetDeviceId) {
+                        $interfaceQuery->where('device_id', $targetDeviceId);
+                    }
+                    $interfaceDeleted = $interfaceQuery->delete();
+                }
+
+                if ($hasDeviceEventsTable) {
+                    $deviceQuery = DB::table('device_events');
+                    if ($operation === 'clear_device' && $targetDeviceId) {
+                        $deviceQuery->where('device_id', $targetDeviceId);
+                    }
+                    $deviceDeleted = $deviceQuery->delete();
+                }
+            });
+
+            $deletedTotal = $interfaceDeleted + $deviceDeleted;
+            if ($operation === 'clear_device' && $targetDeviceId) {
+                $deviceLabel = $targetDevice?->name ?: ('Device #' . $targetDeviceId);
+
+                return redirect()
+                    ->route('settings.index')
+                    ->with('status', "Cleared {$deletedTotal} event row(s) for {$deviceLabel}.");
+            }
+
+            return redirect()
+                ->route('settings.index')
+                ->with('status', "Cleared {$deletedTotal} total event row(s) across all devices.");
+        } catch (\Throwable $exception) {
+            return back()
+                ->withErrors([
+                    'events' => 'Could not clear events: ' . $exception->getMessage(),
+                ])
+                ->withInput();
         }
     }
 

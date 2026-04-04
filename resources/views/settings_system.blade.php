@@ -51,6 +51,7 @@ $localNow = now()->copy()->timezone($currentTimezone);
 $selectedTimezone = old('timezone', $currentTimezone);
 $backupRootPrimary = $backupRootOptions[0] ?? '/srv/tftp';
 $selectedBackupDeviceId = old('device_id', $selectedBackupDeviceId ?? '');
+$selectedCleanupEventDeviceId = old('event_device_id', '');
 $telegramEventTypesCustomValue = old('telegram_event_types_custom', $telegramEventTypesCustom ?? '');
 $telegramTemplateDefaultValue = old('telegram_template_default', $telegramTemplateDefault ?? '');
 $telegramTemplateLowValue = old('telegram_template_low', $telegramTemplateLow ?? '');
@@ -631,7 +632,7 @@ Backup Database to FTP
 <section class="scroll-mt-28 rounded-3xl border border-slate-200 bg-white/95 p-6 shadow-sm dark:border-slate-800 dark:bg-slate-900/85 sm:p-8" id="system-cleanup">
 <div class="flex flex-col gap-2">
 <p class="text-xs font-bold uppercase tracking-[0.24em] text-primary">Cleanup</p>
-<h2 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Logs and Notifications</h2>
+<h2 class="text-2xl font-black tracking-tight text-slate-900 dark:text-white">Logs, Notifications, and Events</h2>
 <p class="text-sm leading-6 text-slate-600 dark:text-slate-300">Clear runtime data without affecting saved configuration.</p>
 </div>
 <details class="group mt-6 rounded-2xl border border-slate-200 bg-slate-50/80 dark:border-slate-800 dark:bg-slate-950/40">
@@ -646,12 +647,13 @@ Cleanup Help
 <ol class="list-decimal space-y-1 pl-5">
 <li><span class="font-semibold">Clear Logs</span> resets troubleshooting history but does not remove configuration.</li>
 <li><span class="font-semibold">Clear Notifications</span> deletes current alert feed entries for a clean state.</li>
+<li><span class="font-semibold">Clear Events</span> removes device/interface event history globally or only for one selected device.</li>
 <li>Run export backups first if you need a historical record before cleanup.</li>
 </ol>
 </div>
 </details>
 
-<div class="mt-6 grid gap-6 xl:grid-cols-2">
+<div class="mt-6 grid gap-6 xl:grid-cols-3">
 <div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
 <div class="flex items-start justify-between gap-4">
 <div>
@@ -684,6 +686,45 @@ Clear Logs
 Clear Notifications
 </button>
 </form>
+</div>
+
+<div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
+<div class="flex items-start justify-between gap-4">
+<div>
+<p class="text-sm font-bold text-slate-900 dark:text-white">Clear Events</p>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Delete events for all devices, or target one selected device only.</p>
+</div>
+<div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-400">{{ ($maintenanceStats['interface_event_count'] ?? 0) + ($maintenanceStats['device_event_count'] ?? 0) }} rows</div>
+</div>
+
+<div class="mt-5 grid gap-3">
+<form method="POST" action="{{ route('settings.events.manage') }}" onsubmit="return confirm('Delete all interface and device events for every device?');">
+@csrf
+<input type="hidden" name="operation" value="clear_all"/>
+<button class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-red-300 bg-red-50 px-5 py-3 text-sm font-bold text-red-700 transition hover:bg-red-100 dark:border-red-900/60 dark:bg-red-950/25 dark:text-red-300 dark:hover:bg-red-950/40" type="submit">
+<span class="material-symbols-outlined text-[18px]">delete_forever</span>
+Clear Events (All Devices)
+</button>
+</form>
+
+<form class="space-y-3" method="POST" action="{{ route('settings.events.manage') }}" onsubmit="return confirm('Delete all interface and device events for the selected device?');">
+@csrf
+<input type="hidden" name="operation" value="clear_device"/>
+<div>
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-200" for="settings-events-device">Selected Device</label>
+<select class="mt-2 h-11 w-full rounded-2xl border border-slate-300 bg-white px-4 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" id="settings-events-device" name="event_device_id" required>
+<option value="">Choose a device…</option>
+@foreach ($backupDevices as $deviceOption)
+<option value="{{ $deviceOption['id'] }}" @selected((string) $selectedCleanupEventDeviceId === (string) $deviceOption['id'])>{{ $deviceOption['name'] }}</option>
+@endforeach
+</select>
+</div>
+<button class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-slate-50 px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" type="submit">
+<span class="material-symbols-outlined text-[18px]">delete_sweep</span>
+Clear Events (Selected Device)
+</button>
+</form>
+</div>
 </div>
 </div>
 </section>

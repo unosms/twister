@@ -92,6 +92,7 @@ Route::middleware(['admin.auth', 'audit.log'])->group(function () {
     Route::post('/settings/database-backup', [SettingsController::class, 'backupDatabaseToFtp'])->name('settings.database-backup.run');
     Route::post('/settings/logs/clear', [SettingsController::class, 'clearLogs'])->name('settings.logs.clear');
     Route::post('/settings/notifications/clear', [SettingsController::class, 'clearNotifications'])->name('settings.notifications.clear');
+    Route::post('/settings/events/manage', [SettingsController::class, 'manageEvents'])->name('settings.events.manage');
     Route::get('/settings/system-config/export', [SettingsController::class, 'exportSystemConfiguration'])->name('settings.system-config.export');
     Route::post('/settings/system-config/import', [SettingsController::class, 'importSystemConfiguration'])->name('settings.system-config.import');
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
