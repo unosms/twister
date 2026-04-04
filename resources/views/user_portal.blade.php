@@ -130,7 +130,7 @@ $commandTemplates = $commandTemplates ?? collect();
 </div>
 <div class="relative hidden lg:block w-[23rem]">
 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">search</span>
-<input class="h-11 w-full rounded-2xl border-none bg-slate-100 pl-10 pr-4 text-sm text-slate-700 focus:ring-2 focus:ring-primary/20 dark:bg-slate-800 dark:text-slate-100" placeholder="Search devices, firmware, IP or location..." type="text" data-live-search data-live-search-target="[data-portal-device-card],[data-portal-secondary-row]"/>
+<input class="h-11 w-full rounded-2xl border-none bg-slate-100 pl-10 pr-4 text-sm text-slate-700 focus:ring-2 focus:ring-primary/20 dark:bg-slate-800 dark:text-slate-100" placeholder="Search devices, firmware, IP or location..." type="text" data-live-search data-live-search-target="[data-portal-device-card],[data-portal-secondary-row]" data-sidebar-tip="Search visible devices by name, IP, model, location, firmware, or port tags."/>
 </div>
 </div>
 
@@ -141,7 +141,7 @@ $commandTemplates = $commandTemplates ?? collect();
 </div>
 
 <div class="relative">
-<button class="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800" type="button" data-portal-notifications>
+<button class="relative flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:bg-slate-800" type="button" data-portal-notifications data-sidebar-tip="Open portal notifications for offline, warning, and stale device counts.">
 <span class="material-symbols-outlined">notifications</span>
 @if (($portalNotificationCount ?? 0) > 0)
 <span class="absolute right-1.5 top-1.5 flex h-5 min-w-[1.25rem] items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-bold text-white">{{ $portalNotificationCount }}</span>
@@ -348,7 +348,7 @@ placeholder="123456:ABC..."
 </div>
 </div>
 <p class="text-xs text-slate-500">Leave token blank to use the global TELEGRAM_BOT_TOKEN.</p>
-<button class="inline-flex h-10 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-white transition hover:bg-primary/90" type="submit">
+<button class="inline-flex h-10 items-center justify-center rounded-xl bg-primary px-4 text-sm font-semibold text-white transition hover:bg-primary/90" type="submit" data-sidebar-tip="Save your personal Telegram chat ID and optional bot token for portal alerts.">
 Save Telegram Settings
 </button>
 </form>
@@ -440,19 +440,19 @@ No recent activity has been recorded yet.
 </div>
 
 <div class="mt-6 flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-<button class="flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-white transition" type="button" data-device-filter="all">
+<button class="flex h-11 shrink-0 items-center justify-center gap-2 rounded-full bg-primary px-5 text-sm font-semibold text-white transition" type="button" data-device-filter="all" data-sidebar-tip="Show all devices available in your current page and scope.">
 All Devices
 <span class="rounded-full bg-white/15 px-2 py-0.5 text-xs">{{ $totalDevices ?? 0 }}</span>
 </button>
-<button class="flex h-11 shrink-0 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:border-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" type="button" data-device-filter="online">
+<button class="flex h-11 shrink-0 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:border-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" type="button" data-device-filter="online" data-sidebar-tip="Filter to devices that are currently online.">
 Online
 <span class="rounded-full bg-emerald-100 px-2 py-0.5 text-xs text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300">{{ $activeDevices ?? 0 }}</span>
 </button>
-<button class="flex h-11 shrink-0 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:border-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" type="button" data-device-filter="warning">
+<button class="flex h-11 shrink-0 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:border-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" type="button" data-device-filter="warning" data-sidebar-tip="Filter to devices with warning status and possible issues.">
 Warning
 <span class="rounded-full bg-amber-100 px-2 py-0.5 text-xs text-amber-700 dark:bg-amber-950/30 dark:text-amber-300">{{ $warningDevices ?? 0 }}</span>
 </button>
-<button class="flex h-11 shrink-0 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:border-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" type="button" data-device-filter="offline">
+<button class="flex h-11 shrink-0 items-center justify-center gap-2 rounded-full border border-slate-200 bg-white px-5 text-sm font-semibold text-slate-700 transition hover:border-primary dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200" type="button" data-device-filter="offline" data-sidebar-tip="Filter to devices that are currently offline.">
 Offline
 <span class="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-700 dark:bg-slate-700 dark:text-slate-200">{{ $offlineDevices ?? 0 }}</span>
 </button>
@@ -551,7 +551,7 @@ $assignedPortsTokens = $assignedPortsExpression !== ''
 
 <div class="mt-5">
 <label class="text-[11px] font-bold uppercase tracking-[0.24em] text-slate-400">Launch Approved Command</label>
-<select class="mt-2 h-11 w-full rounded-2xl border-slate-200 bg-white text-sm font-medium text-slate-800 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" data-command-select data-device-id="{{ $device->id }}" data-port-scoped="{{ ($devicePortScopedLookup[(int) $device->id] ?? false) ? '1' : '0' }}">
+<select class="mt-2 h-11 w-full rounded-2xl border-slate-200 bg-white text-sm font-medium text-slate-800 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" data-command-select data-device-id="{{ $device->id }}" data-port-scoped="{{ ($devicePortScopedLookup[(int) $device->id] ?? false) ? '1' : '0' }}" data-sidebar-tip="Choose an approved command for this device and its allowed scope.">
 @if ($deviceCommandTemplates->isNotEmpty())
 <option value="" disabled selected>Select a command</option>
 @foreach ($deviceCommandTemplates as $template)
@@ -567,13 +567,13 @@ $assignedPortsTokens = $assignedPortsExpression !== ''
     || (($canViewAssignedDeviceEvents ?? false) && ($eventAccessibleDeviceLookup[(int) $device->id] ?? false)))
 <div class="mt-4 flex flex-wrap gap-2">
 @if (($canViewAssignedDeviceGraphs ?? false) && ($graphAccessibleDeviceLookup[(int) $device->id] ?? false))
-<a class="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-950/20 dark:text-blue-200 dark:hover:bg-blue-900/30" href="{{ route('portal.devices.graphs', ['id' => $device->id]) }}">
+<a class="inline-flex items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-xs font-bold text-blue-700 transition hover:bg-blue-100 dark:border-blue-900/50 dark:bg-blue-950/20 dark:text-blue-200 dark:hover:bg-blue-900/30" href="{{ route('portal.devices.graphs', ['id' => $device->id]) }}" data-sidebar-tip="Open interactive traffic charts for this device.">
 <span class="material-symbols-outlined text-[16px]">monitoring</span>
 View Device Graphs
 </a>
 @endif
 @if (($canViewAssignedDeviceEvents ?? false) && ($eventAccessibleDeviceLookup[(int) $device->id] ?? false))
-<a class="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-200 dark:hover:bg-emerald-900/30" href="{{ route('portal.devices.events', ['device' => $device->id]) }}">
+<a class="inline-flex items-center justify-center gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-100 dark:border-emerald-900/50 dark:bg-emerald-950/20 dark:text-emerald-200 dark:hover:bg-emerald-900/30" href="{{ route('portal.devices.events', ['device' => $device->id]) }}" data-sidebar-tip="Open the filtered event timeline for this device.">
 <span class="material-symbols-outlined text-[16px]">event</span>
 View Device Events
 </a>
@@ -601,7 +601,7 @@ No devices match the current search and status filters on this page.
 
 <div class="mt-8 flex justify-center">
 @if ($devices->nextPageUrl())
-<a class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" href="{{ $devices->nextPageUrl() }}">
+<a class="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-6 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" href="{{ $devices->nextPageUrl() }}" data-sidebar-tip="Load the next page of devices in your assigned scope.">
 <span>Load More Devices</span>
 <span class="material-symbols-outlined text-[18px]">arrow_forward</span>
 </a>
@@ -622,7 +622,7 @@ No devices match the current search and status filters on this page.
 <div class="flex flex-wrap items-center gap-4 text-sm text-slate-500">
 <span>{{ $totalDevices ?? 0 }} visible devices</span>
 <span>{{ $commandTemplateCount ?? 0 }} command templates</span>
-<a class="inline-flex items-center gap-2 rounded-full px-3 py-2 font-semibold text-red-500 transition hover:bg-red-50 dark:hover:bg-red-950/20" href="{{ route('auth.logout') }}">
+<a class="inline-flex items-center gap-2 rounded-full px-3 py-2 font-semibold text-red-500 transition hover:bg-red-50 dark:hover:bg-red-950/20" href="{{ route('auth.logout') }}" data-sidebar-tip="Sign out from the user portal.">
 <span class="material-symbols-outlined text-[18px]">logout</span>
 Logout
 </a>
