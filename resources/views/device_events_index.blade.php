@@ -338,7 +338,7 @@
 
             </form>
 
-            <div class="bg-white dark:bg-gray-900 border border-[#cfd7e7] dark:border-gray-800 rounded-xl overflow-hidden shadow-sm">
+            <div class="bg-white dark:bg-gray-900 border border-[#cfd7e7] dark:border-gray-800 rounded-xl overflow-hidden shadow-sm" data-events-list-container>
                 <div class="flex flex-wrap items-center justify-between gap-2 border-b border-[#e7ebf3] px-4 py-3 dark:border-gray-800">
                     <h2 class="text-lg font-semibold">Event Timeline</h2>
                     <span class="text-xs font-semibold text-slate-500">
@@ -498,6 +498,12 @@
         if (!scrollContainer) {
             return;
         }
+
+        var eventsListContainer = document.querySelector('[data-events-list-container]');
+        if (!eventsListContainer) {
+            return;
+        }
+
         var filterForm = document.querySelector('[data-events-filter-form]');
         var filterDropdowns = Array.from(document.querySelectorAll('[data-filter-collapsible]'));
 
@@ -507,6 +513,8 @@
         var maxRestoreAgeMs = 20000;
         var refreshIntervalMs = 5000;
         var refreshTimerId = null;
+        var refreshInFlight = false;
+        var refreshRequestId = 0;
 
         var saveScrollPosition = function () {
             try {
@@ -573,6 +581,10 @@
         });
 
         var canRefreshNow = function () {
+            if (document.visibilityState === 'hidden') {
+                return false;
+            }
+
             var anyFilterOpen = document.querySelector('[data-filter-collapsible][open]');
             if (anyFilterOpen) {
                 return false;
@@ -629,6 +641,55 @@
             return url.toString();
         };
 
+        var refreshEventsList = function () {
+            if (refreshInFlight) {
+                scheduleRefresh(refreshIntervalMs);
+                return;
+            }
+
+            refreshInFlight = true;
+            refreshRequestId += 1;
+            var requestId = refreshRequestId;
+            var previousScrollTop = Math.max(0, scrollContainer.scrollTop || 0);
+
+            window.fetch(buildRefreshUrl(), {
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                credentials: 'same-origin'
+            })
+                .then(function (response) {
+                    if (!response.ok) {
+                        throw new Error('Failed to refresh events list.');
+                    }
+                    return response.text();
+                })
+                .then(function (html) {
+                    if (requestId !== refreshRequestId) {
+                        return;
+                    }
+
+                    var doc = new DOMParser().parseFromString(html, 'text/html');
+                    var nextEventsListContainer = doc.querySelector('[data-events-list-container]');
+                    if (!nextEventsListContainer) {
+                        throw new Error('Refreshed events container not found.');
+                    }
+
+                    eventsListContainer.innerHTML = nextEventsListContainer.innerHTML;
+                    scrollContainer.scrollTop = previousScrollTop;
+                    saveScrollPosition();
+                })
+                .catch(function () {
+                    // Ignore transient refresh failures and retry on next cycle.
+                })
+                .finally(function () {
+                    if (requestId === refreshRequestId) {
+                        refreshInFlight = false;
+                    }
+                    scheduleRefresh(refreshIntervalMs);
+                });
+        };
+
         var scheduleRefresh = function (delayMs) {
             if (refreshTimerId !== null) {
                 window.clearTimeout(refreshTimerId);
@@ -640,8 +701,7 @@
                     return;
                 }
 
-                saveScrollPosition();
-                window.location.replace(buildRefreshUrl());
+                refreshEventsList();
             }, delayMs);
         };
 
