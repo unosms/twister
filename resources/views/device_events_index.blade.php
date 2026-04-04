@@ -156,11 +156,19 @@
 
     $severityBadgeClass = static function (string $severity): string {
         return match (strtolower(trim($severity))) {
-            'info' => 'bg-slate-100 text-slate-700',
-            'average' => 'bg-amber-100 text-amber-700',
-            'high' => 'bg-orange-100 text-orange-700',
-            'disaster' => 'bg-rose-100 text-rose-700',
+            'high', 'critical', 'disaster' => 'bg-red-100 text-red-700',
+            'average', 'medium', 'warn', 'warning' => 'bg-amber-100 text-amber-700',
+            'info', 'low' => 'bg-slate-100 text-slate-700',
             default => 'bg-slate-100 text-slate-700',
+        };
+    };
+
+    $severityRowClass = static function (string $severity): string {
+        return match (strtolower(trim($severity))) {
+            'high', 'critical', 'disaster' => 'bg-red-50/50 dark:bg-red-950/15',
+            'average', 'medium', 'warn', 'warning' => 'bg-amber-50/50 dark:bg-amber-950/15',
+            'info', 'low' => 'bg-slate-50/60 dark:bg-slate-900/35',
+            default => '',
         };
     };
 
@@ -458,7 +466,7 @@
                                     $deviceLabel = $event->device_name ?: ('Device #' . ($event->device_id ?? '-'));
                                 @endphp
                                 <tr
-                                    class="cursor-pointer transition hover:bg-slate-50/80 focus-visible:bg-slate-100/80 dark:hover:bg-gray-800/40 dark:focus-visible:bg-gray-800/70"
+                                    class="cursor-pointer transition {{ $severityRowClass($severityValue) }} hover:bg-slate-50/80 focus-visible:bg-slate-100/80 dark:hover:bg-gray-800/40 dark:focus-visible:bg-gray-800/70"
                                     data-event-summary-row
                                     data-event-row-key="{{ $eventRowKey }}"
                                     tabindex="0"
