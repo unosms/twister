@@ -828,6 +828,8 @@ class TelegramEventNotifier
             'speed_changed' => 'port.speed_changed',
             'device_up' => 'device.online',
             'device_down' => 'device.offline',
+            'device_online' => 'device.online',
+            'device_offline' => 'device.offline',
             default => $baseType,
         };
 

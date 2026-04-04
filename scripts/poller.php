@@ -440,12 +440,104 @@ function insert_iface_event(mysqli $conn, array $e) : int {
 }
 
 function ensure_device_down(mysqli $conn, int $device_id, string $device_name, string $ip, int $now): void {
-  // Device reachability events are intentionally not persisted.
-  return;
+  $sel = $conn->prepare("
+    SELECT id
+    FROM device_events
+    WHERE device_id=?
+      AND event_type IN ('device_offline', 'device_down')
+      AND resolved_at IS NULL
+    ORDER BY id DESC
+    LIMIT 1
+  ");
+  if (!$sel) {
+    log_poll('ensure_device_down prepare failed: ' . $conn->error);
+    return;
+  }
+  $sel->bind_param("i", $device_id);
+  $sel->execute();
+  $open = $sel->get_result()->fetch_assoc();
+  $sel->close();
+
+  if ($open) {
+    return;
+  }
+
+  $ins = $conn->prepare("
+    INSERT INTO device_events
+      (device_id, device_name, ip, event_type, severity, opened_at)
+    VALUES (?, ?, ?, 'device_offline', 'High', ?)
+  ");
+  if (!$ins) {
+    log_poll('ensure_device_down insert prepare failed: ' . $conn->error);
+    return;
+  }
+  $ins->bind_param("issi", $device_id, $device_name, $ip, $now);
+  $ok = $ins->execute();
+  $eventId = $ok ? (int)$ins->insert_id : 0;
+  $ins->close();
+
+  if (!$ok) {
+    log_poll('ensure_device_down insert failed: ' . $conn->error);
+    return;
+  }
+
+  tg_send_dev("DEVICE OFFLINE\nHost: {$device_name}\nIP: {$ip}\nTime: " . date('Y-m-d H:i:s', $now) . "\nEvent ID: {$eventId}");
+  log_poll("device offline event created: device_id={$device_id} event_id={$eventId}");
 }
 function resolve_device_down_and_log_up(mysqli $conn, int $device_id, string $device_name, string $ip, int $now): void {
-  // Device reachability events are intentionally not persisted.
-  return;
+  $sel = $conn->prepare("
+    SELECT id, opened_at
+    FROM device_events
+    WHERE device_id=?
+      AND event_type IN ('device_offline', 'device_down')
+      AND resolved_at IS NULL
+    ORDER BY id DESC
+    LIMIT 1
+  ");
+  if (!$sel) {
+    log_poll('resolve_device_down_and_log_up prepare failed: ' . $conn->error);
+    return;
+  }
+  $sel->bind_param("i", $device_id);
+  $sel->execute();
+  $open = $sel->get_result()->fetch_assoc();
+  $sel->close();
+
+  if (!$open) {
+    return;
+  }
+
+  $eventId = (int)$open['id'];
+  $openedAt = (int)$open['opened_at'];
+
+  $upd = $conn->prepare("UPDATE device_events SET resolved_at=? WHERE id=?");
+  if ($upd) {
+    $upd->bind_param("ii", $now, $eventId);
+    $upd->execute();
+    $upd->close();
+  } else {
+    log_poll('resolve_device_down_and_log_up update prepare failed: ' . $conn->error);
+  }
+
+  $upIns = $conn->prepare("
+    INSERT INTO device_events
+      (device_id, device_name, ip, event_type, severity, opened_at)
+    VALUES (?, ?, ?, 'device_online', 'Info', ?)
+  ");
+  $upEventId = 0;
+  if ($upIns) {
+    $upIns->bind_param("issi", $device_id, $device_name, $ip, $now);
+    if ($upIns->execute()) {
+      $upEventId = (int)$upIns->insert_id;
+    }
+    $upIns->close();
+  } else {
+    log_poll('resolve_device_down_and_log_up online insert prepare failed: ' . $conn->error);
+  }
+
+  $duration = fmt_dur(max(0, $now - $openedAt));
+  tg_send_dev("DEVICE ONLINE\nHost: {$device_name}\nIP: {$ip}\nRecovered in: {$duration}\nResolved offline ID: {$eventId}" . ($upEventId > 0 ? "\nEvent ID: {$upEventId}" : ''));
+  log_poll("device offline event resolved: device_id={$device_id} event_id={$eventId} online_event_id={$upEventId}");
 }
 
 /* ============================================================

@@ -36,6 +36,8 @@ class UserController extends Controller
     ];
 
     private const TELEGRAM_EVENT_TYPES_FALLBACK = [
+        'device_offline',
+        'device_online',
         'device_down',
         'device_up',
         'link_down',

@@ -264,8 +264,8 @@ class PollDeviceEvents extends Command
         }
 
         $message = match ($rawType) {
-            'device.offline', 'device_down' => 'Device is offline',
-            'device.online', 'device_up' => 'Device is online',
+            'device.offline', 'device_down', 'device_offline' => 'Device is offline',
+            'device.online', 'device_up', 'device_online' => 'Device is online',
             default => 'Device event detected',
         };
 
@@ -341,7 +341,7 @@ class PollDeviceEvents extends Command
         }
 
         return match ($type) {
-            'device.offline', 'device_down' => 'high',
+            'device.offline', 'device_down', 'device_offline' => 'high',
             default => 'low',
         };
     }
