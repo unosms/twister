@@ -854,7 +854,7 @@
       document.body.appendChild(tooltip);
     }
 
-    const hoverDelayMs = 2000;
+    const hoverDelayMs = 1000;
     const visibleDurationMs = 1400;
     let activeTarget = null;
     let hoverTimer = null;
