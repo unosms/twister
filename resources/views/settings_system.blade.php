@@ -52,6 +52,17 @@ $selectedTimezone = old('timezone', $currentTimezone);
 $backupRootPrimary = $backupRootOptions[0] ?? '/srv/tftp';
 $selectedBackupDeviceId = old('device_id', $selectedBackupDeviceId ?? '');
 $selectedCleanupEventDeviceId = old('event_device_id', '');
+$cleanupAutoSettings = is_array($cleanupAutoSettings ?? null) ? $cleanupAutoSettings : [];
+$cleanupLogsAuto = is_array($cleanupAutoSettings['logs'] ?? null) ? $cleanupAutoSettings['logs'] : ['enabled' => false, 'frequency' => 'weekly'];
+$cleanupNotificationsAuto = is_array($cleanupAutoSettings['notifications'] ?? null) ? $cleanupAutoSettings['notifications'] : ['enabled' => false, 'frequency' => 'weekly'];
+$cleanupEventsAuto = is_array($cleanupAutoSettings['events'] ?? null) ? $cleanupAutoSettings['events'] : ['enabled' => false, 'frequency' => 'weekly'];
+$cleanupFrequencyOptions = [
+    'weekly' => 'Every 1 week',
+    'monthly' => 'Every month',
+    'yearly' => 'Every year',
+];
+$cleanupRangeStartValue = old('range_start', '');
+$cleanupRangeEndValue = old('range_end', '');
 $telegramEventTypesCustomValue = old('telegram_event_types_custom', $telegramEventTypesCustom ?? '');
 $telegramTemplateDefaultValue = old('telegram_template_default', $telegramTemplateDefault ?? '');
 $telegramTemplateLowValue = old('telegram_template_low', $telegramTemplateLow ?? '');
@@ -645,9 +656,9 @@ Cleanup Help
 </summary>
 <div class="border-t border-slate-200 px-4 pb-4 pt-3 text-xs text-slate-600 dark:border-slate-800 dark:text-slate-300">
 <ol class="list-decimal space-y-1 pl-5">
-<li><span class="font-semibold">Clear Logs</span> resets troubleshooting history but does not remove configuration.</li>
-<li><span class="font-semibold">Clear Notifications</span> deletes current alert feed entries for a clean state.</li>
-<li><span class="font-semibold">Clear Events</span> removes device/interface event history globally or only for one selected device.</li>
+<li><span class="font-semibold">Clear Logs</span>, <span class="font-semibold">Clear Notifications</span>, and <span class="font-semibold">Clear Events</span> now support all-data cleanup and date-range cleanup.</li>
+<li>Use the date range tools when you need targeted cleanup without wiping complete history.</li>
+<li>Enable auto-cleanup per section with weekly, monthly, or yearly cadence.</li>
 <li>Run export backups first if you need a historical record before cleanup.</li>
 </ol>
 </div>
@@ -658,41 +669,121 @@ Cleanup Help
 <div class="flex items-start justify-between gap-4">
 <div>
 <p class="text-sm font-bold text-slate-900 dark:text-white">Clear Logs</p>
-<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Reset application log files in `storage/logs` and delete telemetry rows for a clean troubleshooting baseline.</p>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Run full cleanup, targeted date-range telemetry cleanup, and configure automatic log retention cleanup.</p>
 </div>
 <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-400">{{ $maintenanceStats['telemetry_count'] }} telemetry</div>
 </div>
-<form class="mt-5" method="POST" action="{{ route('settings.logs.clear') }}" onsubmit="return confirm('Clear application and telemetry logs?');">
+<div class="mt-5 space-y-3">
+<form method="POST" action="{{ route('settings.logs.clear') }}" onsubmit="return confirm('Clear application and telemetry logs?');">
 @csrf
+<input type="hidden" name="operation" value="clear_all"/>
 <button class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-slate-50 px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" type="submit">
 <span class="material-symbols-outlined text-[18px]">cleaning_services</span>
-Clear Logs
+Clear Logs (All)
 </button>
 </form>
+
+<form class="space-y-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700" method="POST" action="{{ route('settings.logs.clear') }}" onsubmit="return confirm('Clear telemetry logs in the selected date range?');">
+@csrf
+<input type="hidden" name="operation" value="clear_range"/>
+<div class="grid gap-3">
+<input class="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" name="range_start" type="datetime-local" value="{{ $cleanupRangeStartValue }}" required/>
+<input class="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" name="range_end" type="datetime-local" value="{{ $cleanupRangeEndValue }}" required/>
+</div>
+<button class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" type="submit">
+<span class="material-symbols-outlined text-[18px]">date_range</span>
+Clear Logs (Date Range)
+</button>
+</form>
+
+@php
+    $logsAutoEnabled = ($cleanupLogsAuto['enabled'] ?? false) ? '1' : '0';
+    $logsAutoFrequency = (string) ($cleanupLogsAuto['frequency'] ?? 'weekly');
+@endphp
+<form class="space-y-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700" method="POST" action="{{ route('settings.logs.clear') }}">
+@csrf
+<input type="hidden" name="operation" value="set_auto"/>
+<div class="grid gap-3 sm:grid-cols-2">
+<select class="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" name="auto_cleanup_enabled">
+<option value="1" @selected($logsAutoEnabled === '1')>Auto Cleanup: Enabled</option>
+<option value="0" @selected($logsAutoEnabled === '0')>Auto Cleanup: Disabled</option>
+</select>
+<select class="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" name="auto_cleanup_frequency">
+@foreach ($cleanupFrequencyOptions as $frequencyValue => $frequencyLabel)
+<option value="{{ $frequencyValue }}" @selected($logsAutoFrequency === $frequencyValue)>{{ $frequencyLabel }}</option>
+@endforeach
+</select>
+</div>
+<button class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary/90" type="submit">
+<span class="material-symbols-outlined text-[18px]">autorenew</span>
+Save Auto Cleanup
+</button>
+</form>
+</div>
 </div>
 
 <div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
 <div class="flex items-start justify-between gap-4">
 <div>
 <p class="text-sm font-bold text-slate-900 dark:text-white">Clear Notifications</p>
-<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Delete current alert and notification records so the notifications area starts empty again.</p>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Run full cleanup, targeted date-range cleanup, and configure automatic alert and notification retention cleanup.</p>
 </div>
 <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-400">{{ $maintenanceStats['alert_count'] + $maintenanceStats['notification_count'] }} items</div>
 </div>
-<form class="mt-5" method="POST" action="{{ route('settings.notifications.clear') }}" onsubmit="return confirm('Delete all current alerts and notifications?');">
+<div class="mt-5 space-y-3">
+<form method="POST" action="{{ route('settings.notifications.clear') }}" onsubmit="return confirm('Delete all current alerts and notifications?');">
 @csrf
+<input type="hidden" name="operation" value="clear_all"/>
 <button class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-slate-50 px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" type="submit">
 <span class="material-symbols-outlined text-[18px]">notifications_off</span>
-Clear Notifications
+Clear Notifications (All)
 </button>
 </form>
+
+<form class="space-y-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700" method="POST" action="{{ route('settings.notifications.clear') }}" onsubmit="return confirm('Delete alerts and notifications in the selected date range?');">
+@csrf
+<input type="hidden" name="operation" value="clear_range"/>
+<div class="grid gap-3">
+<input class="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" name="range_start" type="datetime-local" value="{{ $cleanupRangeStartValue }}" required/>
+<input class="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" name="range_end" type="datetime-local" value="{{ $cleanupRangeEndValue }}" required/>
+</div>
+<button class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" type="submit">
+<span class="material-symbols-outlined text-[18px]">date_range</span>
+Clear Notifications (Date Range)
+</button>
+</form>
+
+@php
+    $notificationsAutoEnabled = ($cleanupNotificationsAuto['enabled'] ?? false) ? '1' : '0';
+    $notificationsAutoFrequency = (string) ($cleanupNotificationsAuto['frequency'] ?? 'weekly');
+@endphp
+<form class="space-y-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700" method="POST" action="{{ route('settings.notifications.clear') }}">
+@csrf
+<input type="hidden" name="operation" value="set_auto"/>
+<div class="grid gap-3 sm:grid-cols-2">
+<select class="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" name="auto_cleanup_enabled">
+<option value="1" @selected($notificationsAutoEnabled === '1')>Auto Cleanup: Enabled</option>
+<option value="0" @selected($notificationsAutoEnabled === '0')>Auto Cleanup: Disabled</option>
+</select>
+<select class="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" name="auto_cleanup_frequency">
+@foreach ($cleanupFrequencyOptions as $frequencyValue => $frequencyLabel)
+<option value="{{ $frequencyValue }}" @selected($notificationsAutoFrequency === $frequencyValue)>{{ $frequencyLabel }}</option>
+@endforeach
+</select>
+</div>
+<button class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary/90" type="submit">
+<span class="material-symbols-outlined text-[18px]">autorenew</span>
+Save Auto Cleanup
+</button>
+</form>
+</div>
 </div>
 
 <div class="rounded-2xl border border-slate-200 p-5 dark:border-slate-800">
 <div class="flex items-start justify-between gap-4">
 <div>
 <p class="text-sm font-bold text-slate-900 dark:text-white">Clear Events</p>
-<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Delete events for all devices, or target one selected device only.</p>
+<p class="mt-2 text-sm text-slate-600 dark:text-slate-300">Delete event history globally or per selected device, with full and date-range cleanup modes plus auto-cleanup options.</p>
 </div>
 <div class="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold text-slate-500 dark:border-slate-800 dark:bg-slate-950/40 dark:text-slate-400">{{ ($maintenanceStats['interface_event_count'] ?? 0) + ($maintenanceStats['device_event_count'] ?? 0) }} rows</div>
 </div>
@@ -713,7 +804,7 @@ Clear Events (All Devices)
 <div>
 <label class="block text-sm font-semibold text-slate-700 dark:text-slate-200" for="settings-events-device">Selected Device</label>
 <select class="mt-2 h-11 w-full rounded-2xl border border-slate-300 bg-white px-4 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" id="settings-events-device" name="event_device_id" required>
-<option value="">Choose a device…</option>
+<option value="">Choose a device...</option>
 @foreach ($backupDevices as $deviceOption)
 <option value="{{ $deviceOption['id'] }}" @selected((string) $selectedCleanupEventDeviceId === (string) $deviceOption['id'])>{{ $deviceOption['name'] }}</option>
 @endforeach
@@ -722,6 +813,65 @@ Clear Events (All Devices)
 <button class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-slate-50 px-5 py-3 text-sm font-bold text-slate-700 transition hover:bg-slate-100 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" type="submit">
 <span class="material-symbols-outlined text-[18px]">delete_sweep</span>
 Clear Events (Selected Device)
+</button>
+</form>
+
+<form class="space-y-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700" method="POST" action="{{ route('settings.events.manage') }}" onsubmit="return confirm('Delete event history in the selected date range for all devices?');">
+@csrf
+<input type="hidden" name="operation" value="clear_range"/>
+<div class="grid gap-3">
+<input class="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" name="range_start" type="datetime-local" value="{{ $cleanupRangeStartValue }}" required/>
+<input class="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" name="range_end" type="datetime-local" value="{{ $cleanupRangeEndValue }}" required/>
+</div>
+<button class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" type="submit">
+<span class="material-symbols-outlined text-[18px]">date_range</span>
+Clear Events (Date Range)
+</button>
+</form>
+
+<form class="space-y-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700" method="POST" action="{{ route('settings.events.manage') }}" onsubmit="return confirm('Delete event history in the selected date range for the selected device?');">
+@csrf
+<input type="hidden" name="operation" value="clear_device_range"/>
+<div>
+<label class="block text-sm font-semibold text-slate-700 dark:text-slate-200" for="settings-events-device-range">Selected Device</label>
+<select class="mt-2 h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" id="settings-events-device-range" name="event_device_id" required>
+<option value="">Choose a device...</option>
+@foreach ($backupDevices as $deviceOption)
+<option value="{{ $deviceOption['id'] }}" @selected((string) $selectedCleanupEventDeviceId === (string) $deviceOption['id'])>{{ $deviceOption['name'] }}</option>
+@endforeach
+</select>
+</div>
+<div class="grid gap-3">
+<input class="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" name="range_start" type="datetime-local" value="{{ $cleanupRangeStartValue }}" required/>
+<input class="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" name="range_end" type="datetime-local" value="{{ $cleanupRangeEndValue }}" required/>
+</div>
+<button class="inline-flex w-full items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800" type="submit">
+<span class="material-symbols-outlined text-[18px]">history_toggle_off</span>
+Clear Events (Device + Date Range)
+</button>
+</form>
+
+@php
+    $eventsAutoEnabled = ($cleanupEventsAuto['enabled'] ?? false) ? '1' : '0';
+    $eventsAutoFrequency = (string) ($cleanupEventsAuto['frequency'] ?? 'weekly');
+@endphp
+<form class="space-y-3 rounded-xl border border-slate-200 p-3 dark:border-slate-700" method="POST" action="{{ route('settings.events.manage') }}">
+@csrf
+<input type="hidden" name="operation" value="set_auto"/>
+<div class="grid gap-3 sm:grid-cols-2">
+<select class="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" name="auto_cleanup_enabled">
+<option value="1" @selected($eventsAutoEnabled === '1')>Auto Cleanup: Enabled</option>
+<option value="0" @selected($eventsAutoEnabled === '0')>Auto Cleanup: Disabled</option>
+</select>
+<select class="h-10 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm text-slate-900 focus:border-primary focus:ring-primary dark:border-slate-700 dark:bg-slate-900 dark:text-white" name="auto_cleanup_frequency">
+@foreach ($cleanupFrequencyOptions as $frequencyValue => $frequencyLabel)
+<option value="{{ $frequencyValue }}" @selected($eventsAutoFrequency === $frequencyValue)>{{ $frequencyLabel }}</option>
+@endforeach
+</select>
+</div>
+<button class="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2 text-sm font-semibold text-white transition hover:bg-primary/90" type="submit">
+<span class="material-symbols-outlined text-[18px]">autorenew</span>
+Save Auto Cleanup
 </button>
 </form>
 </div>

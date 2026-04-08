@@ -11,6 +11,7 @@ use App\Models\TelemetryLog;
 use App\Models\User;
 use App\Support\BackupSchedule;
 use App\Support\ProvisioningTrace;
+use Carbon\Carbon;
 use DateTimeZone;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -86,6 +87,11 @@ class SettingsController extends Controller
                 'telemetry_count' => $this->tableCount('telemetry_logs'),
                 'interface_event_count' => $this->tableCount('interface_events'),
                 'device_event_count' => $this->tableCount('device_events'),
+            ],
+            'cleanupAutoSettings' => [
+                'logs' => $this->cleanupAutoSettingFor('logs'),
+                'notifications' => $this->cleanupAutoSettingFor('notifications'),
+                'events' => $this->cleanupAutoSettingFor('events'),
             ],
             'telegramEventTypesCustom' => $telegramSettings['event_types_custom'],
             'telegramTemplateDefault' => $telegramSettings['default'],
@@ -291,9 +297,71 @@ class SettingsController extends Controller
         }
     }
 
-    public function clearLogs()
+    public function clearLogs(Request $request)
     {
+        $data = $request->validate([
+            'operation' => ['nullable', 'string', Rule::in(['clear_all', 'clear_range', 'set_auto'])],
+            'range_start' => [
+                Rule::requiredIf(static fn (): bool => $request->input('operation') === 'clear_range'),
+                'nullable',
+                'date',
+            ],
+            'range_end' => [
+                Rule::requiredIf(static fn (): bool => $request->input('operation') === 'clear_range'),
+                'nullable',
+                'date',
+            ],
+            'auto_cleanup_enabled' => [
+                Rule::requiredIf(static fn (): bool => $request->input('operation') === 'set_auto'),
+                'nullable',
+                'integer',
+                Rule::in([0, 1]),
+            ],
+            'auto_cleanup_frequency' => [
+                Rule::requiredIf(static fn (): bool => $request->input('operation') === 'set_auto'),
+                'nullable',
+                'string',
+                Rule::in(['weekly', 'monthly', 'yearly']),
+            ],
+        ]);
+
+        $operation = (string) ($data['operation'] ?? 'clear_all');
+
         try {
+            if ($operation === 'set_auto') {
+                if (!AppSetting::supportsStorage()) {
+                    return back()->withErrors([
+                        'logs' => 'The settings table is not available for auto-cleanup preferences.',
+                    ])->withInput();
+                }
+
+                $enabled = (int) ($data['auto_cleanup_enabled'] ?? 0) === 1;
+                $frequency = strtolower(trim((string) ($data['auto_cleanup_frequency'] ?? 'weekly')));
+                $this->saveCleanupAutoSetting('logs', $enabled, $frequency);
+
+                return redirect()
+                    ->route('settings.index')
+                    ->with('status', 'Logs auto-cleanup ' . ($enabled ? 'enabled' : 'disabled') . " ({$frequency}).");
+            }
+
+            if ($operation === 'clear_range') {
+                [$rangeStartAt, $rangeEndAt] = $this->parseCleanupRange(
+                    (string) ($data['range_start'] ?? ''),
+                    (string) ($data['range_end'] ?? '')
+                );
+
+                $telemetryDeleted = 0;
+                if (Schema::hasTable('telemetry_logs')) {
+                    $telemetryQuery = TelemetryLog::query();
+                    $this->applyDateRangeToQuery($telemetryQuery, 'recorded_at', 'created_at', $rangeStartAt, $rangeEndAt);
+                    $telemetryDeleted = $telemetryQuery->delete();
+                }
+
+                return redirect()
+                    ->route('settings.index')
+                    ->with('status', "Cleared {$telemetryDeleted} telemetry log row(s) in the selected date range.");
+            }
+
             $telemetryDeleted = Schema::hasTable('telemetry_logs')
                 ? TelemetryLog::query()->delete()
                 : 0;
@@ -333,13 +401,84 @@ class SettingsController extends Controller
         } catch (\Throwable $exception) {
             return back()->withErrors([
                 'logs' => 'Could not clear logs: ' . $exception->getMessage(),
-            ]);
+            ])->withInput();
         }
     }
 
-    public function clearNotifications()
+    public function clearNotifications(Request $request)
     {
+        $data = $request->validate([
+            'operation' => ['nullable', 'string', Rule::in(['clear_all', 'clear_range', 'set_auto'])],
+            'range_start' => [
+                Rule::requiredIf(static fn (): bool => $request->input('operation') === 'clear_range'),
+                'nullable',
+                'date',
+            ],
+            'range_end' => [
+                Rule::requiredIf(static fn (): bool => $request->input('operation') === 'clear_range'),
+                'nullable',
+                'date',
+            ],
+            'auto_cleanup_enabled' => [
+                Rule::requiredIf(static fn (): bool => $request->input('operation') === 'set_auto'),
+                'nullable',
+                'integer',
+                Rule::in([0, 1]),
+            ],
+            'auto_cleanup_frequency' => [
+                Rule::requiredIf(static fn (): bool => $request->input('operation') === 'set_auto'),
+                'nullable',
+                'string',
+                Rule::in(['weekly', 'monthly', 'yearly']),
+            ],
+        ]);
+
+        $operation = (string) ($data['operation'] ?? 'clear_all');
+
         try {
+            if ($operation === 'set_auto') {
+                if (!AppSetting::supportsStorage()) {
+                    return back()->withErrors([
+                        'notifications' => 'The settings table is not available for auto-cleanup preferences.',
+                    ])->withInput();
+                }
+
+                $enabled = (int) ($data['auto_cleanup_enabled'] ?? 0) === 1;
+                $frequency = strtolower(trim((string) ($data['auto_cleanup_frequency'] ?? 'weekly')));
+                $this->saveCleanupAutoSetting('notifications', $enabled, $frequency);
+
+                return redirect()
+                    ->route('settings.index')
+                    ->with('status', 'Notifications auto-cleanup ' . ($enabled ? 'enabled' : 'disabled') . " ({$frequency}).");
+            }
+
+            if ($operation === 'clear_range') {
+                [$rangeStartAt, $rangeEndAt] = $this->parseCleanupRange(
+                    (string) ($data['range_start'] ?? ''),
+                    (string) ($data['range_end'] ?? '')
+                );
+
+                $notificationDeleted = 0;
+                $alertDeleted = 0;
+                DB::transaction(function () use (&$notificationDeleted, &$alertDeleted, $rangeStartAt, $rangeEndAt): void {
+                    if (Schema::hasTable('notifications')) {
+                        $notificationQuery = SystemNotification::query();
+                        $this->applyDateRangeToQuery($notificationQuery, 'created_at', 'updated_at', $rangeStartAt, $rangeEndAt);
+                        $notificationDeleted = $notificationQuery->delete();
+                    }
+
+                    if (Schema::hasTable('alerts')) {
+                        $alertQuery = Alert::query();
+                        $this->applyDateRangeToQuery($alertQuery, 'created_at', 'updated_at', $rangeStartAt, $rangeEndAt);
+                        $alertDeleted = $alertQuery->delete();
+                    }
+                });
+
+                return redirect()
+                    ->route('settings.index')
+                    ->with('status', "Cleared {$alertDeleted} alert(s) and {$notificationDeleted} notification(s) in the selected date range.");
+            }
+
             $notificationCount = $this->tableCount('notifications');
             $alertCount = $this->tableCount('alerts');
 
@@ -359,23 +498,75 @@ class SettingsController extends Controller
         } catch (\Throwable $exception) {
             return back()->withErrors([
                 'notifications' => 'Could not clear notifications: ' . $exception->getMessage(),
-            ]);
+            ])->withInput();
         }
     }
 
     public function manageEvents(Request $request)
     {
         $data = $request->validate([
-            'operation' => ['required', 'string', Rule::in(['clear_all', 'clear_device'])],
+            'operation' => ['nullable', 'string', Rule::in(['clear_all', 'clear_device', 'clear_range', 'clear_device_range', 'set_auto'])],
             'event_device_id' => [
-                Rule::requiredIf(static fn () => $request->input('operation') === 'clear_device'),
+                Rule::requiredIf(static fn (): bool => in_array(
+                    (string) $request->input('operation'),
+                    ['clear_device', 'clear_device_range'],
+                    true
+                )),
                 'nullable',
                 'integer',
                 'exists:devices,id',
             ],
+            'range_start' => [
+                Rule::requiredIf(static fn (): bool => in_array(
+                    (string) $request->input('operation'),
+                    ['clear_range', 'clear_device_range'],
+                    true
+                )),
+                'nullable',
+                'date',
+            ],
+            'range_end' => [
+                Rule::requiredIf(static fn (): bool => in_array(
+                    (string) $request->input('operation'),
+                    ['clear_range', 'clear_device_range'],
+                    true
+                )),
+                'nullable',
+                'date',
+            ],
+            'auto_cleanup_enabled' => [
+                Rule::requiredIf(static fn (): bool => $request->input('operation') === 'set_auto'),
+                'nullable',
+                'integer',
+                Rule::in([0, 1]),
+            ],
+            'auto_cleanup_frequency' => [
+                Rule::requiredIf(static fn (): bool => $request->input('operation') === 'set_auto'),
+                'nullable',
+                'string',
+                Rule::in(['weekly', 'monthly', 'yearly']),
+            ],
         ]);
 
         try {
+            $operation = (string) $data['operation'];
+
+            if ($operation === 'set_auto') {
+                if (!AppSetting::supportsStorage()) {
+                    return back()->withErrors([
+                        'events' => 'The settings table is not available for auto-cleanup preferences.',
+                    ])->withInput();
+                }
+
+                $enabled = (int) ($data['auto_cleanup_enabled'] ?? 0) === 1;
+                $frequency = strtolower(trim((string) ($data['auto_cleanup_frequency'] ?? 'weekly')));
+                $this->saveCleanupAutoSetting('events', $enabled, $frequency);
+
+                return redirect()
+                    ->route('settings.index')
+                    ->with('status', 'Events auto-cleanup ' . ($enabled ? 'enabled' : 'disabled') . " ({$frequency}).");
+            }
+
             $hasInterfaceEventsTable = Schema::hasTable('interface_events');
             $hasDeviceEventsTable = Schema::hasTable('device_events');
 
@@ -385,11 +576,23 @@ class SettingsController extends Controller
                 ]);
             }
 
-            $operation = (string) $data['operation'];
-            $targetDeviceId = isset($data['event_device_id']) ? (int) $data['event_device_id'] : null;
-            $targetDevice = $operation === 'clear_device' && $targetDeviceId
+            $targetDeviceId = in_array($operation, ['clear_device', 'clear_device_range'], true)
+                ? (isset($data['event_device_id']) ? (int) $data['event_device_id'] : null)
+                : null;
+            $targetDevice = $targetDeviceId
                 ? Device::query()->find($targetDeviceId)
                 : null;
+            $rangeStartTimestamp = null;
+            $rangeEndTimestamp = null;
+
+            if (in_array($operation, ['clear_range', 'clear_device_range'], true)) {
+                [$rangeStartAt, $rangeEndAt] = $this->parseCleanupRange(
+                    (string) ($data['range_start'] ?? ''),
+                    (string) ($data['range_end'] ?? '')
+                );
+                $rangeStartTimestamp = $rangeStartAt->timestamp;
+                $rangeEndTimestamp = $rangeEndAt->timestamp;
+            }
 
             $interfaceDeleted = 0;
             $deviceDeleted = 0;
@@ -397,6 +600,8 @@ class SettingsController extends Controller
             DB::transaction(function () use (
                 $operation,
                 $targetDeviceId,
+                $rangeStartTimestamp,
+                $rangeEndTimestamp,
                 $hasInterfaceEventsTable,
                 $hasDeviceEventsTable,
                 &$interfaceDeleted,
@@ -404,28 +609,43 @@ class SettingsController extends Controller
             ): void {
                 if ($hasInterfaceEventsTable) {
                     $interfaceQuery = DB::table('interface_events');
-                    if ($operation === 'clear_device' && $targetDeviceId) {
+                    if (in_array($operation, ['clear_device', 'clear_device_range'], true) && $targetDeviceId) {
                         $interfaceQuery->where('device_id', $targetDeviceId);
+                    }
+                    if (in_array($operation, ['clear_range', 'clear_device_range'], true)) {
+                        $this->applyEventTimestampRangeToQuery($interfaceQuery, $rangeStartTimestamp, $rangeEndTimestamp);
                     }
                     $interfaceDeleted = $interfaceQuery->delete();
                 }
 
                 if ($hasDeviceEventsTable) {
                     $deviceQuery = DB::table('device_events');
-                    if ($operation === 'clear_device' && $targetDeviceId) {
+                    if (in_array($operation, ['clear_device', 'clear_device_range'], true) && $targetDeviceId) {
                         $deviceQuery->where('device_id', $targetDeviceId);
+                    }
+                    if (in_array($operation, ['clear_range', 'clear_device_range'], true)) {
+                        $this->applyEventTimestampRangeToQuery($deviceQuery, $rangeStartTimestamp, $rangeEndTimestamp);
                     }
                     $deviceDeleted = $deviceQuery->delete();
                 }
             });
 
             $deletedTotal = $interfaceDeleted + $deviceDeleted;
-            if ($operation === 'clear_device' && $targetDeviceId) {
+            if (in_array($operation, ['clear_device', 'clear_device_range'], true) && $targetDeviceId) {
                 $deviceLabel = $targetDevice?->name ?: ('Device #' . $targetDeviceId);
+                $messagePrefix = $operation === 'clear_device_range'
+                    ? 'Cleared date-range events'
+                    : 'Cleared';
 
                 return redirect()
                     ->route('settings.index')
-                    ->with('status', "Cleared {$deletedTotal} event row(s) for {$deviceLabel}.");
+                    ->with('status', "{$messagePrefix} {$deletedTotal} event row(s) for {$deviceLabel}.");
+            }
+
+            if ($operation === 'clear_range') {
+                return redirect()
+                    ->route('settings.index')
+                    ->with('status', "Cleared {$deletedTotal} event row(s) in the selected date range.");
             }
 
             return redirect()
@@ -1249,6 +1469,103 @@ class SettingsController extends Controller
         }
 
         return false;
+    }
+
+    private function parseCleanupRange(string $rangeStartRaw, string $rangeEndRaw): array
+    {
+        $rangeStart = Carbon::parse(trim($rangeStartRaw));
+        $rangeEnd = Carbon::parse(trim($rangeEndRaw));
+
+        if ($rangeEnd->lessThan($rangeStart)) {
+            $swap = $rangeStart;
+            $rangeStart = $rangeEnd;
+            $rangeEnd = $swap;
+        }
+
+        return [$rangeStart, $rangeEnd];
+    }
+
+    private function applyDateRangeToQuery(mixed $query, string $primaryColumn, string $fallbackColumn, Carbon $rangeStart, Carbon $rangeEnd): void
+    {
+        $query->where(function ($rangeQuery) use ($primaryColumn, $fallbackColumn, $rangeStart, $rangeEnd): void {
+            $rangeQuery->whereBetween($primaryColumn, [$rangeStart, $rangeEnd]);
+
+            if ($fallbackColumn !== '' && $fallbackColumn !== $primaryColumn) {
+                $rangeQuery->orWhere(function ($fallbackRangeQuery) use ($primaryColumn, $fallbackColumn, $rangeStart, $rangeEnd): void {
+                    $fallbackRangeQuery
+                        ->whereNull($primaryColumn)
+                        ->whereBetween($fallbackColumn, [$rangeStart, $rangeEnd]);
+                });
+            }
+        });
+    }
+
+    private function applyEventTimestampRangeToQuery(mixed $query, ?int $rangeStartTimestamp, ?int $rangeEndTimestamp): void
+    {
+        if ($rangeStartTimestamp !== null) {
+            $query->where(function ($rangeQuery) use ($rangeStartTimestamp): void {
+                $rangeQuery
+                    ->where('opened_at', '>=', $rangeStartTimestamp)
+                    ->orWhere('resolved_at', '>=', $rangeStartTimestamp);
+            });
+        }
+
+        if ($rangeEndTimestamp !== null) {
+            $query->where(function ($rangeQuery) use ($rangeEndTimestamp): void {
+                $rangeQuery
+                    ->where('opened_at', '<=', $rangeEndTimestamp)
+                    ->orWhere('resolved_at', '<=', $rangeEndTimestamp);
+            });
+        }
+    }
+
+    private function cleanupAutoSettingFor(string $scope): array
+    {
+        $default = [
+            'enabled' => false,
+            'frequency' => 'weekly',
+        ];
+
+        if (!in_array($scope, ['logs', 'notifications', 'events'], true)) {
+            return $default;
+        }
+
+        if (!AppSetting::supportsStorage()) {
+            return $default;
+        }
+
+        $enabledRaw = AppSetting::getValue($this->cleanupAutoSettingKey($scope, 'enabled'), '0');
+        $frequencyRaw = strtolower(trim((string) AppSetting::getValue(
+            $this->cleanupAutoSettingKey($scope, 'frequency'),
+            $default['frequency']
+        )));
+        if (!in_array($frequencyRaw, ['weekly', 'monthly', 'yearly'], true)) {
+            $frequencyRaw = $default['frequency'];
+        }
+
+        return [
+            'enabled' => in_array(strtolower(trim((string) $enabledRaw)), ['1', 'true', 'yes', 'on'], true),
+            'frequency' => $frequencyRaw,
+        ];
+    }
+
+    private function saveCleanupAutoSetting(string $scope, bool $enabled, string $frequency): void
+    {
+        if (!in_array($scope, ['logs', 'notifications', 'events'], true)) {
+            throw new \InvalidArgumentException('Invalid cleanup scope.');
+        }
+
+        if (!in_array($frequency, ['weekly', 'monthly', 'yearly'], true)) {
+            throw new \InvalidArgumentException('Invalid cleanup frequency.');
+        }
+
+        AppSetting::putValue($this->cleanupAutoSettingKey($scope, 'enabled'), $enabled ? '1' : '0');
+        AppSetting::putValue($this->cleanupAutoSettingKey($scope, 'frequency'), $frequency);
+    }
+
+    private function cleanupAutoSettingKey(string $scope, string $field): string
+    {
+        return 'cleanup_' . $scope . '_auto_' . $field;
     }
 
     private function tableCount(string $table): int
