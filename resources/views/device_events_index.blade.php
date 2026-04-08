@@ -122,7 +122,12 @@
         '12h' => 'Last 12 hours',
         '24h' => 'Last 24 hours',
         '72h' => 'Last 72 hours',
+        'date_range' => 'Date range',
     ];
+    $selectedWindow = (string) ($filters['window'] ?? 'all');
+    $isDateRangeWindow = $selectedWindow === 'date_range';
+    $selectedRangeStart = trim((string) ($filters['range_start'] ?? ''));
+    $selectedRangeEnd = trim((string) ($filters['range_end'] ?? ''));
 
     $durationLabel = static function (?int $startTs, ?int $endTs): string {
         if (!$startTs || $startTs <= 0) {
@@ -335,9 +340,9 @@
 
                     <label class="flex flex-col gap-1">
                         <span class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Time Window</span>
-                        <select class="h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-slate-100" name="window">
+                        <select class="h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-slate-100" name="window" data-events-window-select>
                             @foreach ($windowLabels as $windowValue => $windowLabel)
-                                <option value="{{ $windowValue }}" @selected(($filters['window'] ?? 'all') === $windowValue)>{{ $windowLabel }}</option>
+                                <option value="{{ $windowValue }}" @selected($selectedWindow === $windowValue)>{{ $windowLabel }}</option>
                             @endforeach
                         </select>
                     </label>
@@ -345,6 +350,17 @@
                     <label class="flex flex-col gap-1">
                         <span class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Search</span>
                         <input class="h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition placeholder:text-slate-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-slate-100 dark:placeholder:text-slate-500" name="search" type="text" value="{{ $filters['search'] ?? '' }}" placeholder="Device, interface, type, event id" />
+                    </label>
+                </div>
+
+                <div class="{{ $isDateRangeWindow ? 'mt-3 grid gap-3 sm:grid-cols-2' : 'mt-3 hidden grid gap-3 sm:grid-cols-2' }}" data-events-range-fields>
+                    <label class="flex flex-col gap-1">
+                        <span class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Range Start</span>
+                        <input class="h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-slate-100" name="range_start" type="datetime-local" value="{{ $selectedRangeStart }}" @disabled(!$isDateRangeWindow) />
+                    </label>
+                    <label class="flex flex-col gap-1">
+                        <span class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Range End</span>
+                        <input class="h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-slate-100" name="range_end" type="datetime-local" value="{{ $selectedRangeEnd }}" @disabled(!$isDateRangeWindow) />
                     </label>
                 </div>
 
@@ -621,6 +637,9 @@
         var infoPopover = document.querySelector('[data-info-popover]');
         var infoPopoverToggle = infoPopover ? infoPopover.querySelector('[data-info-popover-toggle]') : null;
         var infoPopoverPanel = infoPopover ? infoPopover.querySelector('[data-info-popover-panel]') : null;
+        var windowSelect = filterForm ? filterForm.querySelector('[data-events-window-select]') : null;
+        var windowRangeFields = filterForm ? filterForm.querySelector('[data-events-range-fields]') : null;
+        var windowRangeInputs = windowRangeFields ? Array.from(windowRangeFields.querySelectorAll('input[name="range_start"], input[name="range_end"]')) : [];
 
         var pageKey = window.location.pathname + window.location.search;
         var scrollKey = 'device-events-scroll:' + pageKey;
@@ -777,6 +796,23 @@
             infoPopoverPanel.classList.toggle('hidden', !isOpen);
             infoPopoverToggle.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
         };
+
+        var syncWindowRangeVisibility = function () {
+            if (!windowSelect || !windowRangeFields) {
+                return;
+            }
+
+            var isDateRangeWindow = (windowSelect.value || '') === 'date_range';
+            windowRangeFields.classList.toggle('hidden', !isDateRangeWindow);
+            windowRangeInputs.forEach(function (input) {
+                input.disabled = !isDateRangeWindow;
+            });
+        };
+
+        if (windowSelect) {
+            windowSelect.addEventListener('change', syncWindowRangeVisibility);
+        }
+        syncWindowRangeVisibility();
 
         filterDropdowns.forEach(function (dropdown) {
             dropdown.addEventListener('toggle', function () {

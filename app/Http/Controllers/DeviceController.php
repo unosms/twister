@@ -335,6 +335,16 @@ class DeviceController extends Controller
             $searchRawInput = $searchRawInput[0] ?? '';
         }
 
+        $rangeStartRawInput = $request->query('range_start', '');
+        if (is_array($rangeStartRawInput)) {
+            $rangeStartRawInput = $rangeStartRawInput[0] ?? '';
+        }
+
+        $rangeEndRawInput = $request->query('range_end', '');
+        if (is_array($rangeEndRawInput)) {
+            $rangeEndRawInput = $rangeEndRawInput[0] ?? '';
+        }
+
         $filters = [
             'device_id' => collect($deviceFilterValues)
                 ->map(static fn ($value): int => is_numeric($value) ? (int) $value : 0)
@@ -368,6 +378,8 @@ class DeviceController extends Controller
                 ->all(),
             'window' => strtolower(trim((string) $windowRawInput)),
             'search' => trim((string) $searchRawInput),
+            'range_start' => trim((string) $rangeStartRawInput),
+            'range_end' => trim((string) $rangeEndRawInput),
         ];
 
         $deviceIdLookup = array_flip($devices->pluck('id')->map(static fn ($id): int => (int) $id)->all());
@@ -384,12 +396,46 @@ class DeviceController extends Controller
             '24h' => 24,
             '72h' => 72,
         ];
-        if (!isset($windowHourMap[$filters['window']]) && $filters['window'] !== 'all') {
+        if (!isset($windowHourMap[$filters['window']]) && $filters['window'] !== 'all' && $filters['window'] !== 'date_range') {
             $filters['window'] = 'all';
         }
         $windowStartTimestamp = isset($windowHourMap[$filters['window']])
             ? now()->subHours($windowHourMap[$filters['window']])->timestamp
             : null;
+        $rangeStartTimestamp = null;
+        $rangeEndTimestamp = null;
+
+        if ($filters['window'] === 'date_range') {
+            $parseRangeDateTime = static function (string $value): ?\Carbon\Carbon {
+                $trimmed = trim($value);
+                if ($trimmed === '') {
+                    return null;
+                }
+
+                try {
+                    return \Carbon\Carbon::parse($trimmed);
+                } catch (\Throwable $exception) {
+                    return null;
+                }
+            };
+
+            $rangeStartAt = $parseRangeDateTime($filters['range_start']);
+            $rangeEndAt = $parseRangeDateTime($filters['range_end']);
+
+            if ($rangeStartAt && $rangeEndAt && $rangeEndAt->lessThan($rangeStartAt)) {
+                $swap = $rangeStartAt;
+                $rangeStartAt = $rangeEndAt;
+                $rangeEndAt = $swap;
+            }
+
+            $rangeStartTimestamp = $rangeStartAt?->timestamp;
+            $rangeEndTimestamp = $rangeEndAt?->timestamp;
+            $filters['range_start'] = $rangeStartAt?->format('Y-m-d\TH:i') ?? '';
+            $filters['range_end'] = $rangeEndAt?->format('Y-m-d\TH:i') ?? '';
+        } else {
+            $filters['range_start'] = '';
+            $filters['range_end'] = '';
+        }
 
         $hasInterfaceEvents = Schema::hasTable('interface_events');
         $hasDeviceEvents = Schema::hasTable('device_events');
@@ -477,6 +523,8 @@ class DeviceController extends Controller
         $applyFilters = function ($query, string $alias, bool $isInterface) use (
             $filters,
             $windowStartTimestamp,
+            $rangeStartTimestamp,
+            $rangeEndTimestamp,
             $searchLike,
             $searchEventId,
             $applyNormalizedInFilter
@@ -504,6 +552,22 @@ class DeviceController extends Controller
                 });
             }
 
+            if ($rangeStartTimestamp !== null) {
+                $query->where(function ($rangeQuery) use ($alias, $rangeStartTimestamp): void {
+                    $rangeQuery
+                        ->where("{$alias}.opened_at", '>=', $rangeStartTimestamp)
+                        ->orWhere("{$alias}.resolved_at", '>=', $rangeStartTimestamp);
+                });
+            }
+
+            if ($rangeEndTimestamp !== null) {
+                $query->where(function ($rangeQuery) use ($alias, $rangeEndTimestamp): void {
+                    $rangeQuery
+                        ->where("{$alias}.opened_at", '<=', $rangeEndTimestamp)
+                        ->orWhere("{$alias}.resolved_at", '<=', $rangeEndTimestamp);
+                });
+            }
+
             if ($searchLike !== '') {
                 $query->where(function ($searchQuery) use ($alias, $isInterface, $searchLike, $searchEventId): void {
                     $searchQuery
@@ -528,7 +592,7 @@ class DeviceController extends Controller
         };
 
         $eventsPaginator = null;
-        $eventsPerPage = 50;
+        $eventsPerPage = 20;
         $includeInterfaceEvents = $hasInterfaceEvents
             && (empty($filters['source']) || in_array('interface', $filters['source'], true));
         $includeDeviceEvents = $hasDeviceEvents
