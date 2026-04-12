@@ -10,13 +10,11 @@
     $usersActive = request()->routeIs('users.*');
     $deviceNavActive = request()->routeIs('devices.*') && !request()->routeIs('devices.wizard');
     $deviceControlActive = request()->routeIs('devices.index') || request()->routeIs('devices.create');
-    $deviceCabinetActive = request()->routeIs('devices.cabinet-room.*');
     $deviceDetailsActive = request()->routeIs('devices.details')
         || request()->routeIs('devices.backups.*')
         || request()->routeIs('devices.graphs');
     $deviceEventsActive = request()->routeIs('devices.events.*');
     $assignmentsActive = request()->routeIs('devices.wizard');
-    $notificationsActive = request()->routeIs('notifications.*');
     $diagnosticsActive = request()->routeIs('support.*')
         || request()->routeIs('telemetry.*')
         || request()->routeIs('debug.*');
@@ -42,14 +40,13 @@
     </a>
 
     <details class="sidebar-collapsible-group flex flex-col gap-1" {{ $deviceNavActive ? 'open' : '' }}>
-        <summary class="flex cursor-pointer list-none items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors {{ $deviceNavActive ? 'bg-primary/10 text-primary' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" data-sidebar-item data-sidebar-tip="Open device tools: management, room layout, list, and events.">
+        <summary class="flex cursor-pointer list-none items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors {{ $deviceNavActive ? 'bg-primary/10 text-primary' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" data-sidebar-item data-sidebar-tip="Open device tools: management, list, and events.">
             <span class="material-symbols-outlined text-[20px]">devices</span>
             <span class="text-sm" data-sidebar-label>Devices</span>
             <span class="material-symbols-outlined ml-auto text-[18px] sidebar-collapsible-icon">expand_more</span>
         </summary>
         <div class="sidebar-subnav ml-10 flex flex-col gap-1">
             <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $deviceControlActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.index') }}" data-sidebar-tip="Register and edit devices, monitoring, and credentials.">Device Management</a>
-            <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $deviceCabinetActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.cabinet-room.index') }}" data-sidebar-tip="Visual cabinet and room placement for devices.">Cabinet Room</a>
             <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $deviceDetailsActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.details') }}" data-sidebar-tip="Search and inspect full device inventory.">Devices List</a>
             <a class="rounded-lg px-3 py-1.5 text-xs font-semibold transition-colors {{ $deviceEventsActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 hover:text-primary dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.events.index') }}" data-sidebar-tip="View timeline of interface and device events.">Events</a>
         </div>
@@ -58,11 +55,6 @@
     <a class="flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors {{ $assignmentsActive ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.wizard') }}" data-sidebar-item data-sidebar-tip="Assign devices to users and access scopes.">
         <span class="material-symbols-outlined text-[20px]">assignment</span>
         <span class="text-sm" data-sidebar-label>Assignments</span>
-    </a>
-
-    <a class="flex items-center gap-3 rounded-lg px-3 py-2.5 font-medium transition-colors {{ $notificationsActive ? 'bg-primary text-white shadow-sm shadow-primary/20' : 'text-slate-600 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('notifications.index') }}" data-sidebar-item data-sidebar-tip="Review active alerts and notification history.">
-        <span class="material-symbols-outlined text-[20px]">notifications</span>
-        <span class="text-sm" data-sidebar-label>Notifications</span>
     </a>
 
     <details class="sidebar-collapsible-group flex flex-col gap-1" {{ $diagnosticsActive ? 'open' : '' }}>

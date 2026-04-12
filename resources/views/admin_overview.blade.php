@@ -231,7 +231,7 @@ $statusClass = match ($status) {
     default => 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300',
 };
 @endphp
-<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors" data-dashboard-device-row>
+<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors" data-dashboard-device-row data-live-search-suggest-text="{{ $device->name }}" data-live-search-text="{{ trim((string) ($device->name . ' ' . ($device->serial_number ?? '') . ' ' . ($device->type ?? '') . ' ' . ($device->status ?? '') . ' ' . ($device->assignedUser?->name ?? ''))) }}">
 <td class="px-6 py-4">
 <div class="flex items-center gap-3">
 <div class="h-9 w-9 rounded-xl bg-slate-100 dark:bg-slate-700 flex items-center justify-center text-slate-500">

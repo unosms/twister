@@ -376,7 +376,7 @@ $tone = $status === 'warning'
         ? 'border-rose-200 bg-rose-50 dark:border-rose-900/40 dark:bg-rose-950/20'
         : 'border-slate-200 bg-slate-50 dark:border-slate-800 dark:bg-slate-950/40');
 @endphp
-<div class="flex items-center justify-between gap-4 rounded-2xl border px-4 py-4 {{ $tone }}" data-portal-secondary-row data-live-search-text="{{ $device->name }} {{ $device->serial_number }} {{ $device->type }} {{ $device->location }} {{ $device->ip_address }}">
+<div class="flex items-center justify-between gap-4 rounded-2xl border px-4 py-4 {{ $tone }}" data-portal-secondary-row data-live-search-suggest-text="{{ $device->name }}" data-live-search-text="{{ $device->name }} {{ $device->serial_number }} {{ $device->type }} {{ $device->location }} {{ $device->ip_address }}">
 <div class="min-w-0">
 <p class="text-sm font-bold text-slate-900 dark:text-white">{{ $device->name }}</p>
 <p class="mt-1 text-xs text-slate-500">{{ strtoupper((string) ($device->type ?? 'Device')) }} | {{ $device->location ?: 'No location set' }}</p>
@@ -404,7 +404,7 @@ Everything in your scope is currently stable.
 </div>
 <div class="mt-5 space-y-3">
 @forelse ($recentDevices as $device)
-<div class="flex items-center gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-950/40" data-portal-secondary-row data-live-search-text="{{ $device->name }} {{ $device->serial_number }} {{ $device->type }} {{ $device->location }} {{ $device->ip_address }}">
+<div class="flex items-center gap-4 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-4 dark:border-slate-800 dark:bg-slate-950/40" data-portal-secondary-row data-live-search-suggest-text="{{ $device->name }}" data-live-search-text="{{ $device->name }} {{ $device->serial_number }} {{ $device->type }} {{ $device->location }} {{ $device->ip_address }}">
 <div class="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary/10 text-primary">
 <span class="material-symbols-outlined text-[20px]">router</span>
 </div>
@@ -486,7 +486,7 @@ $assignedPortsTokens = $assignedPortsExpression !== ''
     ? array_values(array_filter(array_map(static fn ($token) => trim((string) $token), preg_split('/\s*,\s*/', $assignedPortsExpression) ?: []), static fn ($token) => $token !== ''))
     : [];
 @endphp
-<article class="group overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl dark:border-slate-800 dark:bg-slate-950/40" data-device-status="{{ $status }}" data-portal-device-card data-live-search-text="{{ $device->name }} {{ $device->serial_number }} {{ $device->type }} {{ $device->location }} {{ $device->ip_address }} {{ $device->firmware_version }} {{ $assignedPortsExpression }}">
+<article class="group overflow-hidden rounded-[1.75rem] border border-slate-200 bg-white shadow-sm transition duration-300 hover:-translate-y-1 hover:shadow-xl dark:border-slate-800 dark:bg-slate-950/40" data-device-status="{{ $status }}" data-portal-device-card data-live-search-suggest-text="{{ $device->name }}" data-live-search-text="{{ $device->name }} {{ $device->serial_number }} {{ $device->type }} {{ $device->location }} {{ $device->ip_address }} {{ $device->firmware_version }} {{ $assignedPortsExpression }}">
 <div class="relative border-b border-slate-100 bg-[radial-gradient(circle_at_top_left,_rgba(19,91,236,0.16),_transparent_55%),linear-gradient(135deg,_#f8fafc,_#eef4ff)] px-5 py-5 dark:border-slate-800 dark:bg-[radial-gradient(circle_at_top_left,_rgba(19,91,236,0.18),_transparent_45%),linear-gradient(135deg,_#111827,_#0f172a)]">
 <div class="flex items-start justify-between gap-4">
 <div class="min-w-0">

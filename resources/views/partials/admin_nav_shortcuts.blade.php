@@ -3,7 +3,6 @@ $dashboardActive = request()->routeIs('dashboard');
 $usersActive = request()->routeIs('users.*');
 $deviceNavActive = request()->routeIs('devices.*');
 $deviceControlActive = request()->routeIs('devices.index');
-$deviceCabinetActive = request()->routeIs('devices.cabinet-room.*');
 $deviceDetailsActive = request()->routeIs('devices.details');
 $deviceEventsActive = request()->routeIs('devices.events.*');
 $assignmentsActive = request()->routeIs('devices.wizard');
@@ -28,7 +27,6 @@ Devices
 <div class="hidden h-6 w-px bg-slate-200 dark:bg-slate-700 sm:block"></div>
 <div class="flex flex-wrap items-center gap-2">
 <a class="rounded-lg px-3 py-2 text-xs font-semibold transition-colors {{ $deviceControlActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.index') }}">Device Management</a>
-<a class="rounded-lg px-3 py-2 text-xs font-semibold transition-colors {{ $deviceCabinetActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.cabinet-room.index') }}">Cabinet Room</a>
 <a class="rounded-lg px-3 py-2 text-xs font-semibold transition-colors {{ $deviceDetailsActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.details') }}">Devices List</a>
 <a class="rounded-lg px-3 py-2 text-xs font-semibold transition-colors {{ $deviceEventsActive ? 'bg-primary/10 text-primary' : 'text-slate-500 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-800' }}" href="{{ route('devices.events.index') }}">Events</a>
 </div>

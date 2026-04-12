@@ -345,6 +345,11 @@ class DeviceController extends Controller
             $rangeEndRawInput = $rangeEndRawInput[0] ?? '';
         }
 
+        $withNotesRawInput = $request->query('with_notes', '0');
+        if (is_array($withNotesRawInput)) {
+            $withNotesRawInput = $withNotesRawInput[0] ?? '0';
+        }
+
         $filters = [
             'device_id' => collect($deviceFilterValues)
                 ->map(static fn ($value): int => is_numeric($value) ? (int) $value : 0)
@@ -380,6 +385,11 @@ class DeviceController extends Controller
             'search' => trim((string) $searchRawInput),
             'range_start' => trim((string) $rangeStartRawInput),
             'range_end' => trim((string) $rangeEndRawInput),
+            'with_notes' => in_array(
+                strtolower(trim((string) $withNotesRawInput)),
+                ['1', 'true', 'yes', 'on'],
+                true
+            ),
         ];
 
         $deviceIdLookup = array_flip($devices->pluck('id')->map(static fn ($id): int => (int) $id)->all());
@@ -439,6 +449,11 @@ class DeviceController extends Controller
 
         $hasInterfaceEvents = Schema::hasTable('interface_events');
         $hasDeviceEvents = Schema::hasTable('device_events');
+        $hasEventNotesTable = Schema::hasTable('event_notes');
+
+        if (!$hasEventNotesTable) {
+            $filters['with_notes'] = false;
+        }
 
         $severityOptions = collect();
         $eventTypeOptions = collect();
@@ -597,6 +612,12 @@ class DeviceController extends Controller
             && (empty($filters['source']) || in_array('interface', $filters['source'], true));
         $includeDeviceEvents = $hasDeviceEvents
             && (empty($filters['source']) || in_array('device', $filters['source'], true));
+        $interfaceNoteSelect = $hasEventNotesTable
+            ? "COALESCE(ien.note, '') AS note, ien.updated_at AS note_updated_at"
+            : "'' AS note, NULL AS note_updated_at";
+        $deviceNoteSelect = $hasEventNotesTable
+            ? "COALESCE(den.note, '') AS note, den.updated_at AS note_updated_at"
+            : "'' AS note, NULL AS note_updated_at";
 
         if ($includeInterfaceEvents || $includeDeviceEvents) {
             $unionBaseQuery = null;
@@ -620,8 +641,18 @@ class DeviceController extends Controller
                         ie.old_speed_mbps,
                         ie.new_speed_mbps,
                         ie.opened_at,
-                        ie.resolved_at
+                        ie.resolved_at,
+                        {$interfaceNoteSelect}
                     ");
+                if ($hasEventNotesTable) {
+                    $interfaceQuery->leftJoin('event_notes as ien', function ($join): void {
+                        $join->on('ien.event_id', '=', 'ie.id')
+                            ->where('ien.source', '=', 'interface');
+                    });
+                    if ($filters['with_notes']) {
+                        $interfaceQuery->whereRaw("TRIM(COALESCE(ien.note, '')) <> ''");
+                    }
+                }
                 $applyFilters($interfaceQuery, 'ie', true);
                 $unionBaseQuery = $interfaceQuery;
             }
@@ -645,8 +676,18 @@ class DeviceController extends Controller
                         NULL AS old_speed_mbps,
                         NULL AS new_speed_mbps,
                         de.opened_at,
-                        de.resolved_at
+                        de.resolved_at,
+                        {$deviceNoteSelect}
                     ");
+                if ($hasEventNotesTable) {
+                    $deviceQuery->leftJoin('event_notes as den', function ($join): void {
+                        $join->on('den.event_id', '=', 'de.id')
+                            ->where('den.source', '=', 'device');
+                    });
+                    if ($filters['with_notes']) {
+                        $deviceQuery->whereRaw("TRIM(COALESCE(den.note, '')) <> ''");
+                    }
+                }
                 $applyFilters($deviceQuery, 'de', false);
                 // Show device-online events only when there is an offline event
                 // for the same device at or before that timestamp.
@@ -701,7 +742,79 @@ class DeviceController extends Controller
             'severityOptions' => $severityOptions,
             'eventTypeOptions' => $eventTypeOptions,
             'hasEventTables' => $hasInterfaceEvents || $hasDeviceEvents,
+            'hasEventNotesTable' => $hasEventNotesTable,
         ]);
+    }
+
+    public function storeEventNote(Request $request)
+    {
+        $validated = $request->validate([
+            'source' => ['required', Rule::in(['interface', 'device'])],
+            'event_id' => ['required', 'integer', 'min:1'],
+            'note' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        if (!Schema::hasTable('event_notes')) {
+            return back()->withErrors([
+                'note' => 'Event notes table is not available. Run `php artisan migrate --force`.',
+            ]);
+        }
+
+        $source = strtolower(trim((string) ($validated['source'] ?? '')));
+        $eventId = (int) ($validated['event_id'] ?? 0);
+        $note = trim((string) ($validated['note'] ?? ''));
+        $eventTable = $source === 'interface' ? 'interface_events' : 'device_events';
+
+        if (!Schema::hasTable($eventTable)) {
+            return back()->withErrors([
+                'note' => 'The event source table is not available.',
+            ]);
+        }
+
+        $eventExists = DB::table($eventTable)
+            ->where('id', $eventId)
+            ->exists();
+
+        if (!$eventExists) {
+            return back()->withErrors([
+                'note' => 'The selected event no longer exists.',
+            ]);
+        }
+
+        if ($note === '') {
+            DB::table('event_notes')
+                ->where('source', $source)
+                ->where('event_id', $eventId)
+                ->delete();
+
+            return back()->with('status', 'Event note removed.');
+        }
+
+        $noteQuery = DB::table('event_notes')
+            ->where('source', $source)
+            ->where('event_id', $eventId);
+
+        $userIdRaw = $request->session()->get('auth.user_id');
+        $userId = is_numeric($userIdRaw) ? (int) $userIdRaw : null;
+
+        if ($noteQuery->exists()) {
+            $noteQuery->update([
+                'note' => $note,
+                'updated_by_user_id' => $userId,
+                'updated_at' => now(),
+            ]);
+        } else {
+            DB::table('event_notes')->insert([
+                'source' => $source,
+                'event_id' => $eventId,
+                'note' => $note,
+                'updated_by_user_id' => $userId,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        return back()->with('status', 'Event note saved.');
     }
 
     public function statusSnapshot(Request $request)

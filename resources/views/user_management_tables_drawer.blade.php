@@ -117,7 +117,7 @@ Export
 <form id="user-filters" class="flex flex-wrap items-center gap-3 mb-6" method="GET" action="<?php echo e(route('users.index')); ?>">
 <div class="relative">
 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-base">search</span>
-<input class="pl-10 pr-4 py-2 bg-white dark:bg-gray-800 border border-[#cfd7e7] dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/50" name="search" placeholder="Search users" type="text" value="<?php echo e($filters['search'] ?? ''); ?>"/>
+<input class="pl-10 pr-4 py-2 bg-white dark:bg-gray-800 border border-[#cfd7e7] dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/50" name="search" placeholder="Search users" type="text" value="<?php echo e($filters['search'] ?? ''); ?>" data-live-search data-live-search-target="[data-user-table-row]"/>
 </div>
 <div class="relative">
 <select class="pl-3 pr-8 py-2 bg-white dark:bg-gray-800 border border-[#cfd7e7] dark:border-gray-700 rounded-lg text-sm appearance-none" name="role">
@@ -189,7 +189,7 @@ $roleClass = $isSuperAdmin
     : 'bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-300');
 $roleLabel = $isSuperAdmin ? 'Super Admin' : ucfirst($role);
 ?>
-<tr class="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors" data-user-table-row>
+<tr class="hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors" data-user-table-row data-live-search-suggest-text="<?php echo e($user->name); ?>" data-live-search-text="<?php echo e(trim((string) ($user->name . ' ' . ($user->email ?? '') . ' ' . ($roleLabel ?? '') . ' ' . ($user->status ?? '') . ' ' . ($user->devices_count ?? '')))); ?>">
 <td class="px-6 py-4">
 <div class="flex items-center gap-3">
 <?php echo $__env->make('partials.user_avatar', ['user' => $user, 'name' => $user->name, 'sizeClass' => 'h-10 w-10', 'textClass' => 'text-xs'], \Illuminate\Support\Arr::except(get_defined_vars(), ['__data', '__path']))->render(); ?>

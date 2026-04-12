@@ -4,7 +4,6 @@
 <p class="text-sm font-bold text-slate-900 dark:text-white">Notifications</p>
 <p class="text-xs text-slate-500" data-notifications-menu-summary>Loading recent alerts...</p>
 </div>
-<a class="text-xs font-semibold text-primary hover:underline" href="{{ route('notifications.index') }}">View all</a>
 </div>
 <div class="max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-slate-800" data-notifications-menu-body>
 <div class="px-4 py-5 text-sm text-slate-500">Loading notifications...</div>

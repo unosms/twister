@@ -72,6 +72,7 @@
 <body class="bg-background-light dark:bg-background-dark text-[#0d121b] dark:text-gray-100 h-screen overflow-hidden">
 @php
     $filters = is_array($filters ?? null) ? $filters : [];
+    $hasEventNotesTable = (bool) ($hasEventNotesTable ?? false);
     $selectedDeviceIds = array_values(array_unique(array_map(
         static fn ($value): int => is_numeric($value) ? (int) $value : 0,
         (array) ($filters['device_id'] ?? [])
@@ -128,6 +129,7 @@
     $isDateRangeWindow = $selectedWindow === 'date_range';
     $selectedRangeStart = trim((string) ($filters['range_start'] ?? ''));
     $selectedRangeEnd = trim((string) ($filters['range_end'] ?? ''));
+    $withNotesOnly = (bool) ($filters['with_notes'] ?? false);
 
     $durationLabel = static function (?int $startTs, ?int $endTs): string {
         if (!$startTs || $startTs <= 0) {
@@ -209,6 +211,18 @@
                 </div>
             @endif
 
+            @if (session('status'))
+                <div class="rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
+                    {{ session('status') }}
+                </div>
+            @endif
+
+            @if ($errors->any())
+                <div class="rounded-xl border border-rose-300 bg-rose-50 px-4 py-3 text-sm text-rose-800">
+                    {{ $errors->first() }}
+                </div>
+            @endif
+
             <form method="get" action="{{ route('devices.events.index') }}" class="rounded-xl border border-[#d8dfed] bg-white p-4 shadow-sm dark:border-gray-800 dark:bg-gray-900 sm:p-5" data-events-filter-form>
                 <div class="mb-4 flex flex-wrap items-start justify-between gap-3">
                     <div class="inline-flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 dark:border-gray-700 dark:bg-gray-800/60">
@@ -242,7 +256,7 @@
                     </div>
                 </div>
 
-                <div class="grid items-start gap-3 md:grid-cols-2 xl:grid-cols-7">
+                <div class="grid items-start gap-3 md:grid-cols-2 xl:grid-cols-8">
                     <div class="flex flex-col gap-1">
                         <span class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Device</span>
                         <details class="relative" data-filter-collapsible>
@@ -349,8 +363,19 @@
 
                     <label class="flex flex-col gap-1">
                         <span class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Search</span>
-                        <input class="h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition placeholder:text-slate-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-slate-100 dark:placeholder:text-slate-500" name="search" type="text" value="{{ $filters['search'] ?? '' }}" placeholder="Device, interface, type, event id" />
+                        <input class="h-11 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition placeholder:text-slate-400 focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-slate-100 dark:placeholder:text-slate-500" name="search" type="text" value="{{ $filters['search'] ?? '' }}" placeholder="Device, interface, type, event id" data-live-search data-live-search-target="[data-event-summary-row],[data-event-detail-row]" />
                     </label>
+
+                    <div class="flex flex-col gap-1">
+                        <span class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Notes</span>
+                        <label class="flex h-11 items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm dark:border-gray-700 dark:bg-gray-800 dark:text-slate-100">
+                            <input class="rounded border-slate-300 text-primary focus:ring-primary dark:border-gray-600" type="checkbox" name="with_notes" value="1" @checked($withNotesOnly) @disabled(!$hasEventNotesTable) />
+                            <span>Only events with notes</span>
+                        </label>
+                        @unless($hasEventNotesTable)
+                            <span class="text-[11px] text-slate-400">Run `php artisan migrate --force` to enable notes.</span>
+                        @endunless
+                    </div>
                 </div>
 
                 <div class="{{ $isDateRangeWindow ? 'mt-3 grid gap-3 sm:grid-cols-2' : 'mt-3 hidden grid gap-3 sm:grid-cols-2' }}" data-events-range-fields>
@@ -480,11 +505,38 @@
                                         ? (($oldSpeedValue !== null ? (string) $oldSpeedValue : '-') . ' -> ' . ($newSpeedValue !== null ? (string) $newSpeedValue : '-') . ' Mbps')
                                         : '-';
                                     $deviceLabel = $event->device_name ?: ('Device #' . ($event->device_id ?? '-'));
+                                    $eventSearchText = trim((string) (
+                                        $deviceLabel . ' '
+                                        . ($event->event_type ?? '') . ' '
+                                        . ($event->event_id ?? '') . ' '
+                                        . $interfaceLabel . ' '
+                                        . ($event->device_ip ?? '') . ' '
+                                        . $severityValue . ' '
+                                        . $statusLabel . ' '
+                                        . $detailsText
+                                    ));
+                                    $eventIdValue = is_numeric($event->event_id ?? null) ? (int) $event->event_id : 0;
+                                    $eventNote = trim((string) ($event->note ?? ''));
+                                    $hasEventNote = $eventNote !== '';
+                                    $oldSourceValue = strtolower(trim((string) old('source', '')));
+                                    $oldEventIdValue = is_numeric(old('event_id')) ? (int) old('event_id') : 0;
+                                    $isEditingThisNote = $oldSourceValue === $sourceValue && $oldEventIdValue === $eventIdValue;
+                                    $noteInputValue = $isEditingThisNote ? (string) old('note', $eventNote) : $eventNote;
+                                    $noteUpdatedAt = null;
+                                    if (!empty($event->note_updated_at)) {
+                                        try {
+                                            $noteUpdatedAt = \Carbon\Carbon::parse((string) $event->note_updated_at);
+                                        } catch (\Throwable $exception) {
+                                            $noteUpdatedAt = null;
+                                        }
+                                    }
                                 @endphp
                                 <tr
                                     class="cursor-pointer transition {{ $severityRowClass($severityValue) }} hover:bg-slate-50/80 focus-visible:bg-slate-100/80 dark:hover:bg-gray-800/40 dark:focus-visible:bg-gray-800/70"
                                     data-event-summary-row
                                     data-event-row-key="{{ $eventRowKey }}"
+                                    data-live-search-suggest-text="{{ $deviceLabel }}"
+                                    data-live-search-text="{{ $eventSearchText }}"
                                     tabindex="0"
                                     role="button"
                                     aria-expanded="false"
@@ -524,7 +576,12 @@
                                         {{ $durationLabel($openedAtTs, $resolvedAtTs) }}
                                     </td>
                                     <td class="px-4 py-3 text-xs text-slate-500 dark:text-slate-400">
-                                        {{ $detailsText }}
+                                        <div>{{ $detailsText }}</div>
+                                        @if ($hasEventNote)
+                                            <div class="mt-1 inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+                                                Note added
+                                            </div>
+                                        @endif
                                     </td>
                                 </tr>
                                 <tr
@@ -532,6 +589,7 @@
                                     class="hidden bg-slate-50/70 dark:bg-gray-900/70"
                                     data-event-detail-row
                                     data-event-row-key="{{ $eventRowKey }}"
+                                    data-live-search-text="{{ $eventSearchText }}"
                                 >
                                     <td class="px-4 pb-4 pt-0" colspan="9">
                                         <div class="rounded-xl border border-slate-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-900">
@@ -596,6 +654,37 @@
                                                     <div class="text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500">Summary</div>
                                                     <div class="mt-1 text-sm font-semibold text-slate-800 dark:text-slate-100">{{ $detailsText }}</div>
                                                 </div>
+                                            </div>
+
+                                            <div class="mt-4 border-t border-slate-200 pt-4 dark:border-gray-700">
+                                                @if ($hasEventNotesTable)
+                                                    <form class="space-y-2" method="post" action="{{ route('devices.events.notes.store') }}">
+                                                        @csrf
+                                                        <input type="hidden" name="source" value="{{ $sourceValue }}" />
+                                                        <input type="hidden" name="event_id" value="{{ $eventIdValue }}" />
+                                                        <label class="block text-[11px] font-semibold uppercase tracking-[0.08em] text-slate-500" for="event-note-{{ $eventRowKey }}">
+                                                            Note
+                                                        </label>
+                                                        <textarea
+                                                            id="event-note-{{ $eventRowKey }}"
+                                                            class="mt-1 h-24 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-700 shadow-sm transition focus:border-primary focus:ring-2 focus:ring-primary/20 dark:border-gray-700 dark:bg-gray-800 dark:text-slate-100"
+                                                            name="note"
+                                                            maxlength="2000"
+                                                            placeholder="Add troubleshooting notes or context for this event."
+                                                        >{{ $noteInputValue }}</textarea>
+                                                        <div class="flex flex-wrap items-center justify-between gap-2">
+                                                            <p class="text-[11px] text-slate-400">Leave empty and save to remove the note.</p>
+                                                            <button class="inline-flex items-center rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700" type="submit">
+                                                                {{ $hasEventNote ? 'Update Note' : 'Save Note' }}
+                                                            </button>
+                                                        </div>
+                                                        @if ($hasEventNote && $noteUpdatedAt)
+                                                            <p class="text-[11px] text-slate-400">Last updated {{ $noteUpdatedAt->diffForHumans() }}</p>
+                                                        @endif
+                                                    </form>
+                                                @else
+                                                    <p class="text-sm text-slate-500">Event notes are disabled until migrations are applied.</p>
+                                                @endif
                                             </div>
                                         </div>
                                     </td>

@@ -50,7 +50,7 @@
 </button>
 <div class="relative w-full max-w-md">
 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">search</span>
-<input class="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-primary/20" placeholder="Search devices by name, ID or location..." type="text"/>
+<input class="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-primary/20" placeholder="Search devices by name, ID or location..." type="text" data-live-search data-live-search-target="[data-device-row]" data-live-search-open-details="true"/>
 </div>
 </div>
 <div class="flex items-center gap-4">

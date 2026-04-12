@@ -111,7 +111,7 @@ $execUrl = $execPath ? (str_starts_with($execPath, 'http') ? $execPath : url($ex
 $alive = strtolower($device->status ?? '') === 'online';
 $rowNumber = isset($rowNumber) && is_numeric($rowNumber) ? (int) $rowNumber : null;
 ?>
-<tr class="hover:bg-gray-50 dark:hover:bg-gray-800/40" data-device-row data-device-id="<?php echo e($device->id); ?>">
+<tr class="hover:bg-gray-50 dark:hover:bg-gray-800/40" data-device-row data-device-id="<?php echo e($device->id); ?>" data-live-search-suggest-text="<?php echo e($switchName ?? ('Device #' . $device->id)); ?>" data-live-search-text="<?php echo e(trim((string) (($switchName ?? '') . ' ' . ($typeDisplay ?? '') . ' ' . ($subtypeDisplay ?? '') . ' ' . ($ipAddress ?? '') . ' ' . ($device->id ?? '') . ' ' . (data_get($device, 'location', ''))))); ?>">
 <td class="px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-100"><?php echo e($rowNumber ?? '-'); ?></td>
 <td class="px-4 py-3 text-sm text-gray-700 dark:text-gray-100"><?php echo e($switchName ?? '-'); ?></td>
 <td class="px-4 py-3 text-sm text-gray-600"><?php echo e($typeDisplay ?? "-"); ?></td>

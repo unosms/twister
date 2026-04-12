@@ -148,7 +148,7 @@ Diagnostics Workflow Help
 <li>Start with <span class="font-semibold">Run Diagnostic</span> for a full current-health snapshot.</li>
 <li>Use <span class="font-semibold">Auto Debug</span> when active alerts need focused probing and capture.</li>
 <li>If you need step-by-step script traces, enable provisioning capture before running support actions.</li>
-<li>Review telemetry and notifications links to correlate probe output with recent live events.</li>
+<li>Review telemetry and event timeline links to correlate probe output with recent live events.</li>
 </ol>
 </div>
 </details>
@@ -180,12 +180,12 @@ Diagnostics Workflow Help
 <span class="mt-4 text-base font-bold text-slate-900 dark:text-white">Telemetry Logs</span>
 <span class="mt-1 text-sm text-slate-500 dark:text-slate-400">Open the full telemetry stream in its dedicated page.</span>
 </a>
-<a class="flex flex-col items-start rounded-2xl border border-slate-200 px-4 py-4 text-left transition hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800" href="{{ route('notifications.index') }}">
+<a class="flex flex-col items-start rounded-2xl border border-slate-200 px-4 py-4 text-left transition hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800" href="{{ route('devices.events.index') }}">
 <span class="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300">
-<span class="material-symbols-outlined">notifications</span>
+<span class="material-symbols-outlined">event</span>
 </span>
-<span class="mt-4 text-base font-bold text-slate-900 dark:text-white">Notifications</span>
-<span class="mt-1 text-sm text-slate-500 dark:text-slate-400">Review the alerts that are feeding the support queue.</span>
+<span class="mt-4 text-base font-bold text-slate-900 dark:text-white">Events Timeline</span>
+<span class="mt-1 text-sm text-slate-500 dark:text-slate-400">Review live interface and device events for support triage.</span>
 </a>
 </div>
 <div class="mt-3">

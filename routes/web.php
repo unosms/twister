@@ -43,13 +43,12 @@ Route::middleware(['auth.session', 'audit.log'])->group(function () {
 
 Route::middleware(['admin.auth', 'audit.log'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::get('/notifications/menu', [NotificationController::class, 'menu'])->name('notifications.menu');
     Route::get('/devices', [DeviceController::class, 'index'])->name('devices.index');
     Route::get('/devices/create', [DeviceController::class, 'create'])->name('devices.create');
     Route::get('/devices/details', [DeviceController::class, 'details'])->name('devices.details');
     Route::get('/devices/events', [DeviceController::class, 'eventsIndex'])->name('devices.events.index');
-    Route::get('/devices/cabinet-room', [CabinetRoomController::class, 'index'])->name('devices.cabinet-room.index');
+    Route::post('/devices/events/notes', [DeviceController::class, 'storeEventNote'])->name('devices.events.notes.store');
     Route::get('/devices/status-snapshot', [DeviceController::class, 'statusSnapshot'])->name('devices.statusSnapshot');
     Route::post('/devices/status-snapshot', [DeviceController::class, 'statusSnapshot'])->name('devices.statusSnapshot.post');
     Route::get('/devices/{device}/probe', [DeviceController::class, 'probeDevice'])->name('devices.probe');

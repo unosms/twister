@@ -151,7 +151,7 @@ $badgeClass = match (strtolower($log->level ?? 'info')) {
     default => 'bg-green-100 text-green-700',
 };
 @endphp
-<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors" data-telemetry-row>
+<tr class="hover:bg-slate-50 dark:hover:bg-slate-800/60 transition-colors" data-telemetry-row data-live-search-suggest-text="{{ $deviceName }}" data-live-search-text="{{ trim((string) ($deviceName . ' ' . $level . ' ' . ($log->message ?? ''))) }}">
 <td class="px-6 py-4 text-sm text-slate-900 dark:text-white">{{ $deviceName }}</td>
 <td class="px-6 py-4">
 <span class="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold {{ $badgeClass }}">{{ $level }}</span>

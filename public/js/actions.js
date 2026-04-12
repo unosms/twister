@@ -1021,6 +1021,90 @@
 
     ensureLiveSearchStyle();
 
+    const normalizeSearchValue = (value) => {
+      let normalized = String(value ?? '')
+        .toLowerCase()
+        .replace(/[_\-./\\]+/g, ' ')
+        .trim();
+
+      try {
+        normalized = normalized.replace(/[^\p{L}\p{N}\s]+/gu, ' ');
+      } catch (error) {
+        normalized = normalized.replace(/[^a-z0-9\s]+/g, ' ');
+      }
+
+      return normalized.replace(/\s+/g, ' ').trim();
+    };
+
+    const compactSearchValue = (value, maxLength = 120) => {
+      const compact = String(value ?? '').replace(/\s+/g, ' ').trim();
+      if (!compact) {
+        return '';
+      }
+      if (compact.length <= maxLength) {
+        return compact;
+      }
+      return `${compact.slice(0, Math.max(1, maxLength - 1))}…`;
+    };
+
+    const inferTargetSuggestion = (target) => {
+      const explicit = compactSearchValue(
+        target.dataset.liveSearchSuggestText
+          || target.dataset.liveSearchName
+          || target.dataset.deviceName
+          || target.dataset.userName
+          || '',
+        120
+      );
+      if (explicit) {
+        return explicit;
+      }
+
+      const datasetText = compactSearchValue(target.dataset.liveSearchText || '', 120);
+      if (datasetText) {
+        return datasetText;
+      }
+
+      if (target.matches && target.matches('tr')) {
+        const cells = Array.from(target.querySelectorAll('td,th'));
+        for (let index = 0; index < cells.length; index += 1) {
+          const cellValue = compactSearchValue(cells[index].textContent || '', 80);
+          if (!cellValue) {
+            continue;
+          }
+          if (/[a-z]/i.test(cellValue)) {
+            return cellValue;
+          }
+        }
+      }
+
+      return compactSearchValue(target.textContent || '', 80);
+    };
+
+    const resolveTargetSearchText = (target) => {
+      const hintedText = [
+        target.dataset.liveSearchText || '',
+        target.dataset.liveSearchName || '',
+        target.dataset.liveSearchSuggestText || '',
+        target.dataset.deviceName || '',
+        target.dataset.deviceSerial || '',
+        target.dataset.userName || '',
+        target.dataset.userEmail || '',
+      ]
+        .join(' ')
+        .trim();
+
+      return compactSearchValue(hintedText || target.textContent || '', 600);
+    };
+
+    const escapeOptionValue = (value) => {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+    };
+
     inputs.forEach((input) => {
       if (input.dataset.liveSearchBound === 'true') {
         return;
@@ -1040,14 +1124,128 @@
         }
       };
 
-      const applyFilter = () => {
-        const term = (input.value || '').trim().toLowerCase();
-        const targets = getTargets();
-        targets.forEach((target) => {
-          const haystack = (target.dataset.liveSearchText || target.textContent || '').toLowerCase();
-          const match = !term || haystack.includes(term);
-          target.classList.toggle(liveSearchHiddenClass, !match);
+      const suggestionsEnabled = (input.dataset.liveSearchSuggestions || 'true') !== 'false';
+      const suggestionLimitRaw = Number.parseInt(input.dataset.liveSearchSuggestLimit || '', 10);
+      const suggestionLimit = Number.isFinite(suggestionLimitRaw)
+        ? Math.max(1, Math.min(50, suggestionLimitRaw))
+        : 12;
+      const shouldAutoManageDetails = (input.dataset.liveSearchOpenDetails || 'false') === 'true';
+      const detailsInitialState = new WeakMap();
+      let datalist = null;
+
+      if (suggestionsEnabled) {
+        const existingListId = input.getAttribute('list');
+        if (existingListId) {
+          datalist = document.getElementById(existingListId);
+        }
+
+        if (!datalist) {
+          const generatedListId = `live-search-list-${Math.random().toString(36).slice(2, 10)}`;
+          datalist = document.createElement('datalist');
+          datalist.id = generatedListId;
+          document.body.appendChild(datalist);
+          input.setAttribute('list', generatedListId);
+        }
+      }
+
+      const updateSuggestions = (contexts, normalizedTerm) => {
+        if (!datalist) {
+          return;
+        }
+
+        const seen = new Set();
+        const values = [];
+
+        contexts.forEach((context) => {
+          const suggestion = context.suggestion;
+          const suggestionNormalized = context.suggestionNormalized;
+          if (!suggestion || !suggestionNormalized) {
+            return;
+          }
+
+          if (
+            normalizedTerm
+            && !suggestionNormalized.includes(normalizedTerm)
+            && !context.haystackNormalized.includes(normalizedTerm)
+          ) {
+            return;
+          }
+
+          if (seen.has(suggestionNormalized)) {
+            return;
+          }
+          seen.add(suggestionNormalized);
+          values.push(suggestion);
         });
+
+        values.sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' }));
+        datalist.innerHTML = values
+          .slice(0, suggestionLimit)
+          .map((value) => `<option value="${escapeOptionValue(value)}"></option>`)
+          .join('');
+      };
+
+      const syncDetailsVisibility = (contexts, normalizedTerm) => {
+        if (!shouldAutoManageDetails) {
+          return;
+        }
+
+        const detailNodes = Array.from(
+          new Set(
+            contexts
+              .map((context) => context.target.closest('details'))
+              .filter((node) => Boolean(node))
+          )
+        );
+
+        detailNodes.forEach((detailsNode) => {
+          if (!detailsInitialState.has(detailsNode)) {
+            detailsInitialState.set(detailsNode, detailsNode.open);
+          }
+
+          const hasVisibleMatch = contexts.some((context) => {
+            return detailsNode.contains(context.target) && !context.target.classList.contains(liveSearchHiddenClass);
+          });
+
+          if (!normalizedTerm) {
+            detailsNode.classList.remove(liveSearchHiddenClass);
+            detailsNode.open = detailsInitialState.get(detailsNode) === true;
+            return;
+          }
+
+          detailsNode.classList.toggle(liveSearchHiddenClass, !hasVisibleMatch);
+          detailsNode.open = hasVisibleMatch;
+        });
+      };
+
+      const applyFilter = () => {
+        const normalizedTerm = normalizeSearchValue(input.value || '');
+        const targets = getTargets();
+        const contexts = targets.map((target) => {
+          const haystack = resolveTargetSearchText(target);
+          const suggestion = inferTargetSuggestion(target);
+          return {
+            target,
+            haystackNormalized: normalizeSearchValue(haystack),
+            suggestion,
+            suggestionNormalized: normalizeSearchValue(suggestion),
+          };
+        });
+
+        const hasExactSuggestionMatch = normalizedTerm !== ''
+          && contexts.some((context) => context.suggestionNormalized === normalizedTerm);
+
+        contexts.forEach((context) => {
+          const matches = !normalizedTerm
+            || (hasExactSuggestionMatch
+              ? context.suggestionNormalized === normalizedTerm
+              : context.haystackNormalized.includes(normalizedTerm));
+
+          context.target.classList.toggle(liveSearchHiddenClass, !matches);
+        });
+
+        updateSuggestions(contexts, normalizedTerm);
+        syncDetailsVisibility(contexts, normalizedTerm);
       };
 
       input.addEventListener('input', applyFilter);
@@ -1065,35 +1263,141 @@
   };
 
   const setupWizardFilters = () => {
+    const normalizeTerm = (value) => {
+      let normalized = String(value ?? '')
+        .toLowerCase()
+        .replace(/[_\-./\\]+/g, ' ')
+        .trim();
+
+      try {
+        normalized = normalized.replace(/[^\p{L}\p{N}\s]+/gu, ' ');
+      } catch (error) {
+        normalized = normalized.replace(/[^a-z0-9\s]+/g, ' ');
+      }
+
+      return normalized.replace(/\s+/g, ' ').trim();
+    };
+
+    const ensureInputDatalist = (input) => {
+      if (!input) {
+        return null;
+      }
+
+      const existingListId = input.getAttribute('list');
+      if (existingListId) {
+        return document.getElementById(existingListId);
+      }
+
+      const generatedListId = `wizard-search-list-${Math.random().toString(36).slice(2, 10)}`;
+      const datalist = document.createElement('datalist');
+      datalist.id = generatedListId;
+      document.body.appendChild(datalist);
+      input.setAttribute('list', generatedListId);
+      return datalist;
+    };
+
+    const updateDatalistOptions = (datalist, values, term, limit = 10) => {
+      if (!datalist) {
+        return;
+      }
+
+      const termNormalized = normalizeTerm(term);
+      const seen = new Set();
+      const filtered = values.filter((value) => {
+        const compact = String(value ?? '').replace(/\s+/g, ' ').trim();
+        if (!compact) {
+          return false;
+        }
+
+        const normalized = normalizeTerm(compact);
+        if (!normalized || seen.has(normalized)) {
+          return false;
+        }
+
+        if (termNormalized && !normalized.includes(termNormalized)) {
+          return false;
+        }
+
+        seen.add(normalized);
+        return true;
+      });
+
+      datalist.innerHTML = filtered
+        .slice(0, limit)
+        .map((value) => {
+          const escaped = String(value)
+            .replace(/&/g, '&amp;')
+            .replace(/"/g, '&quot;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+          return `<option value="${escaped}"></option>`;
+        })
+        .join('');
+    };
+
     const userSearch = document.querySelector('[data-user-search]');
     const userRows = Array.from(document.querySelectorAll('[data-user-row]'));
     if (userSearch && userRows.length) {
-      userSearch.addEventListener('input', () => {
-        const term = userSearch.value.trim().toLowerCase();
+      const userSearchDatalist = ensureInputDatalist(userSearch);
+      const applyUserFilter = () => {
+        const termRaw = userSearch.value || '';
+        const term = normalizeTerm(termRaw);
+        const hasExactNameMatch = term !== '' && userRows.some((row) => {
+          return normalizeTerm(row.dataset.userName || '') === term;
+        });
+
         userRows.forEach((row) => {
-          const name = (row.dataset.userName || '').toLowerCase();
-          const email = (row.dataset.userEmail || '').toLowerCase();
-          const match = !term || name.includes(term) || email.includes(term);
+          const name = normalizeTerm(row.dataset.userName || '');
+          const email = normalizeTerm(row.dataset.userEmail || '');
+          const match = !term
+            || (hasExactNameMatch
+              ? name === term
+              : name.includes(term) || email.includes(term));
           row.classList.toggle('hidden', !match);
         });
-      });
+
+        updateDatalistOptions(
+          userSearchDatalist,
+          userRows.map((row) => row.dataset.userName || row.dataset.userEmail || ''),
+          termRaw
+        );
+      };
+
+      userSearch.addEventListener('input', applyUserFilter);
+      userSearch.addEventListener('search', applyUserFilter);
+      applyUserFilter();
     }
 
     const deviceFilter = document.querySelector('[data-device-filter]');
     const deviceSearch = document.querySelector('[data-device-search]');
     const deviceCards = Array.from(document.querySelectorAll('[data-device-card]'));
     if ((deviceFilter || deviceSearch) && deviceCards.length) {
+      const deviceSearchDatalist = ensureInputDatalist(deviceSearch);
       const applyDeviceFilter = () => {
         const type = (deviceFilter?.value || 'all').toUpperCase();
-        const term = (deviceSearch?.value || '').trim().toLowerCase();
+        const termRaw = deviceSearch?.value || '';
+        const term = normalizeTerm(termRaw);
+        const hasExactNameMatch = term !== '' && deviceCards.some((card) => {
+          return normalizeTerm(card.dataset.deviceName || '') === term;
+        });
+
         deviceCards.forEach((card) => {
           const cardType = (card.dataset.deviceType || '').toUpperCase();
-          const name = (card.dataset.deviceName || '').toLowerCase();
-          const serial = (card.dataset.deviceSerial || '').toLowerCase();
+          const name = normalizeTerm(card.dataset.deviceName || '');
+          const serial = normalizeTerm(card.dataset.deviceSerial || '');
           const matchesType = type === 'ALL' || !type || cardType === type;
-          const matchesTerm = !term || name.includes(term) || serial.includes(term);
+          const matchesTerm = !term
+            || (hasExactNameMatch
+              ? name === term
+              : name.includes(term) || serial.includes(term));
           card.classList.toggle('hidden', !(matchesType && matchesTerm));
         });
+
+        updateDatalistOptions(
+          deviceSearchDatalist,
+          deviceCards.map((card) => card.dataset.deviceName || card.dataset.deviceSerial || ''),
+          termRaw
+        );
       };
 
       if (deviceFilter) {
@@ -1101,7 +1405,10 @@
       }
       if (deviceSearch) {
         deviceSearch.addEventListener('input', applyDeviceFilter);
+        deviceSearch.addEventListener('search', applyDeviceFilter);
       }
+
+      applyDeviceFilter();
     }
   };
 

@@ -117,7 +117,7 @@ Export
 </div>
 <div class="relative">
 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-lg">search</span>
-<input class="pl-10 pr-4 py-2 bg-white dark:bg-gray-800 border border-[#cfd7e7] dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/50" name="search" placeholder="Search devices" type="text" value="{{ $filters['search'] ?? '' }}"/>
+<input class="pl-10 pr-4 py-2 bg-white dark:bg-gray-800 border border-[#cfd7e7] dark:border-gray-700 rounded-lg text-sm focus:ring-2 focus:ring-primary/50" name="search" placeholder="Search devices" type="text" value="{{ $filters['search'] ?? '' }}" data-live-search data-live-search-target="[data-device-table-row]"/>
 </div>
 <button class="text-sm font-semibold text-primary" type="submit">Apply filters</button>
 <a class="text-sm font-semibold text-slate-500 hover:text-primary" href="{{ route('devices.index') }}">Clear all filters</a>
@@ -740,7 +740,7 @@ $statusClass = match ($status) {
 };
 $isSelected = isset($selectedDevice) && $selectedDevice && $selectedDevice->id === $device->id;
 @endphp
-<tr class="hover:bg-gray-50 dark:hover:bg-gray-800/40 cursor-pointer {{ $isSelected ? 'bg-primary/5' : '' }}" data-device-link="{{ route('devices.index', ['device' => $device->id]) }}" data-device-row data-device-id="{{ $device->id }}" data-device-table-row tabindex="0" aria-label="View {{ $device->name }} details">
+<tr class="hover:bg-gray-50 dark:hover:bg-gray-800/40 cursor-pointer {{ $isSelected ? 'bg-primary/5' : '' }}" data-device-link="{{ route('devices.index', ['device' => $device->id]) }}" data-device-row data-device-id="{{ $device->id }}" data-device-table-row data-live-search-suggest-text="{{ $device->name }}" data-live-search-text="{{ trim((string) ($device->name . ' ' . $device->id . ' ' . ($device->type ?? '') . ' ' . ($device->status ?? '') . ' ' . ($device->assignedUser?->name ?? '') . ' ' . ($device->ip_address ?? '') . ' ' . ($device->location ?? ''))) }}" tabindex="0" aria-label="View {{ $device->name }} details">
 <td class="px-6 py-4">
 <div class="flex items-center gap-3">
 <span class="material-symbols-outlined {{ $status === 'online' ? 'text-primary' : 'text-gray-400' }}">hub</span>
