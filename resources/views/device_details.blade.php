@@ -48,10 +48,10 @@
 <button class="flex h-10 w-10 items-center justify-center rounded-lg border border-[#e7ebf3] bg-white text-gray-500 hover:bg-gray-50 dark:border-gray-800 dark:bg-background-dark dark:hover:bg-gray-800" type="button" data-sidebar-toggle aria-label="Toggle sidebar">
 <span class="material-symbols-outlined">menu</span>
 </button>
-<div class="relative w-full max-w-md">
+<form class="relative w-full max-w-md" method="GET" action="<?php echo e(route('devices.details')); ?>">
 <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-xl">search</span>
-<input class="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-primary/20" placeholder="Search devices by name, ID or location..." type="text" data-live-search data-live-search-target="[data-device-row]" data-live-search-open-details="true"/>
-</div>
+<input class="w-full bg-gray-50 dark:bg-gray-900 border-none rounded-lg pl-10 pr-4 py-2 text-sm focus:ring-2 focus:ring-primary/20" placeholder="Search devices by name, ID or location..." type="search" name="search" value="<?php echo e($searchTerm ?? ''); ?>" autocomplete="off" data-live-search data-live-search-target="[data-device-row]" data-live-search-open-details="true" data-live-search-suggest-endpoint="<?php echo e(route('devices.suggest')); ?>" data-live-search-suggest-min-length="1"/>
+</form>
 </div>
 <div class="flex items-center gap-4">
 <div class="relative">
@@ -80,6 +80,8 @@ All device metrics and access details for <?php echo e($totalDevices ?? 0); ?> d
 <div class="bg-white dark:bg-gray-900 border border-[#cfd7e7] dark:border-gray-800 rounded-xl overflow-hidden shadow-sm p-4 space-y-4">
 <?php
 $devicesPage = collect($devices);
+$searchTermNormalized = trim((string) ($searchTerm ?? request()->query('search', '')));
+$searchActive = $searchTermNormalized !== '';
 
 $deviceGroups = [
     'router_board' => collect(),
@@ -129,7 +131,7 @@ foreach ($devicesPage as $device) {
 
 $serverTotal = $deviceGroups['servers_standalone']->count() + $deviceGroups['servers_virtual']->count();
 
-$sectionPerPage = 10;
+$sectionPerPage = max(1, (int) $devicesPage->count());
 $sectionPageKeys = [
     'router_board' => 'router_page',
     'switches' => 'switches_page',
@@ -172,7 +174,7 @@ $activeOpenGroup = trim((string) request()->query('open_group', ''));
 if (!in_array($activeOpenGroup, $validOpenGroups, true)) {
     $activeOpenGroup = '';
 }
-if ($activeOpenGroup === '') {
+if (!$searchActive && $activeOpenGroup === '') {
     foreach ($sectionPageKeys as $sectionKey => $pageKey) {
         if ((int) request()->query($pageKey, 1) > 1) {
             $activeOpenGroup = $sectionKey;
@@ -183,10 +185,29 @@ if ($activeOpenGroup === '') {
 $openAttr = static function (bool $isOpen): string {
     return $isOpen ? ' open' : '';
 };
-$serversOpen = in_array($activeOpenGroup, ['servers_standalone', 'servers_virtual'], true);
+$routerOpen = $searchActive ? $deviceGroups['router_board']->count() > 0 : $activeOpenGroup === 'router_board';
+$switchesOpen = $searchActive ? $deviceGroups['switches']->count() > 0 : $activeOpenGroup === 'switches';
+$fiberOpen = $searchActive ? $deviceGroups['fiber_optic']->count() > 0 : $activeOpenGroup === 'fiber_optic';
+$wirelessOpen = $searchActive ? $deviceGroups['wireless']->count() > 0 : $activeOpenGroup === 'wireless';
+$serversOpen = $searchActive
+    ? $serverTotal > 0
+    : in_array($activeOpenGroup, ['servers_standalone', 'servers_virtual'], true);
+$standaloneServersOpen = $searchActive
+    ? $deviceGroups['servers_standalone']->count() > 0
+    : $activeOpenGroup === 'servers_standalone';
+$virtualServersOpen = $searchActive
+    ? $deviceGroups['servers_virtual']->count() > 0
+    : $activeOpenGroup === 'servers_virtual';
+$otherOpen = $searchActive ? $deviceGroups['other']->count() > 0 : $activeOpenGroup === 'other';
 ?>
 
-<details class="group border border-[#d9e2f2] dark:border-gray-800 rounded-lg overflow-hidden"<?php echo $openAttr($activeOpenGroup === 'router_board'); ?>>
+<?php if($searchActive && $devicesPage->count() === 0): ?>
+<div class="rounded-lg border border-dashed border-[#cfd7e7] dark:border-gray-700 px-4 py-6 text-sm text-gray-500 dark:text-gray-300">
+No devices matched "<?php echo e($searchTermNormalized); ?>".
+</div>
+<?php endif; ?>
+
+<details class="group border border-[#d9e2f2] dark:border-gray-800 rounded-lg overflow-hidden"<?php echo $openAttr($routerOpen); ?>>
 <summary class="flex items-center justify-between px-4 py-3 cursor-pointer bg-slate-50/80 dark:bg-gray-800/60">
 <div class="flex items-center gap-2">
 <span class="material-symbols-outlined text-[18px] text-primary">router</span>
@@ -201,7 +222,7 @@ $serversOpen = in_array($activeOpenGroup, ['servers_standalone', 'servers_virtua
 </div>
 </details>
 
-<details class="group border border-[#d9e2f2] dark:border-gray-800 rounded-lg overflow-hidden"<?php echo $openAttr($activeOpenGroup === 'switches'); ?>>
+<details class="group border border-[#d9e2f2] dark:border-gray-800 rounded-lg overflow-hidden"<?php echo $openAttr($switchesOpen); ?>>
 <summary class="flex items-center justify-between px-4 py-3 cursor-pointer bg-slate-50/80 dark:bg-gray-800/60">
 <div class="flex items-center gap-2">
 <span class="material-symbols-outlined text-[18px] text-primary">hub</span>
@@ -216,7 +237,7 @@ $serversOpen = in_array($activeOpenGroup, ['servers_standalone', 'servers_virtua
 </div>
 </details>
 
-<details class="group border border-[#d9e2f2] dark:border-gray-800 rounded-lg overflow-hidden"<?php echo $openAttr($activeOpenGroup === 'fiber_optic'); ?>>
+<details class="group border border-[#d9e2f2] dark:border-gray-800 rounded-lg overflow-hidden"<?php echo $openAttr($fiberOpen); ?>>
 <summary class="flex items-center justify-between px-4 py-3 cursor-pointer bg-slate-50/80 dark:bg-gray-800/60">
 <div class="flex items-center gap-2">
 <span class="material-symbols-outlined text-[18px] text-primary">settings_input_hdmi</span>
@@ -231,7 +252,7 @@ $serversOpen = in_array($activeOpenGroup, ['servers_standalone', 'servers_virtua
 </div>
 </details>
 
-<details class="group border border-[#d9e2f2] dark:border-gray-800 rounded-lg overflow-hidden"<?php echo $openAttr($activeOpenGroup === 'wireless'); ?>>
+<details class="group border border-[#d9e2f2] dark:border-gray-800 rounded-lg overflow-hidden"<?php echo $openAttr($wirelessOpen); ?>>
 <summary class="flex items-center justify-between px-4 py-3 cursor-pointer bg-slate-50/80 dark:bg-gray-800/60">
 <div class="flex items-center gap-2">
 <span class="material-symbols-outlined text-[18px] text-primary">wifi</span>
@@ -256,7 +277,7 @@ $serversOpen = in_array($activeOpenGroup, ['servers_standalone', 'servers_virtua
 <span class="material-symbols-outlined text-[16px] text-slate-500 transition-transform duration-200 group-open:rotate-180">expand_more</span>
 </summary>
 <div class="p-3 border-t border-[#e7ebf3] dark:border-gray-800 space-y-3">
-<details class="group border border-[#e3e9f6] dark:border-gray-800 rounded-lg overflow-hidden"<?php echo $openAttr($activeOpenGroup === 'servers_standalone'); ?>>
+<details class="group border border-[#e3e9f6] dark:border-gray-800 rounded-lg overflow-hidden"<?php echo $openAttr($standaloneServersOpen); ?>>
 <summary class="flex items-center justify-between px-3 py-2.5 cursor-pointer bg-white dark:bg-gray-900">
 <div class="flex items-center gap-2">
 <span class="text-xs font-semibold text-slate-700 dark:text-gray-200">Stand Alone Server</span>
@@ -270,7 +291,7 @@ $serversOpen = in_array($activeOpenGroup, ['servers_standalone', 'servers_virtua
 </div>
 </details>
 
-<details class="group border border-[#e3e9f6] dark:border-gray-800 rounded-lg overflow-hidden"<?php echo $openAttr($activeOpenGroup === 'servers_virtual'); ?>>
+<details class="group border border-[#e3e9f6] dark:border-gray-800 rounded-lg overflow-hidden"<?php echo $openAttr($virtualServersOpen); ?>>
 <summary class="flex items-center justify-between px-3 py-2.5 cursor-pointer bg-white dark:bg-gray-900">
 <div class="flex items-center gap-2">
 <span class="text-xs font-semibold text-slate-700 dark:text-gray-200">Virtual Server</span>
@@ -287,7 +308,7 @@ $serversOpen = in_array($activeOpenGroup, ['servers_standalone', 'servers_virtua
 </details>
 
 <?php if($deviceGroups['other']->count() > 0): ?>
-<details class="group border border-[#d9e2f2] dark:border-gray-800 rounded-lg overflow-hidden"<?php echo $openAttr($activeOpenGroup === 'other'); ?>>
+<details class="group border border-[#d9e2f2] dark:border-gray-800 rounded-lg overflow-hidden"<?php echo $openAttr($otherOpen); ?>>
 <summary class="flex items-center justify-between px-4 py-3 cursor-pointer bg-slate-50/80 dark:bg-gray-800/60">
 <div class="flex items-center gap-2">
 <span class="material-symbols-outlined text-[18px] text-primary">inventory_2</span>

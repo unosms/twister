@@ -1129,9 +1129,19 @@
       const suggestionLimit = Number.isFinite(suggestionLimitRaw)
         ? Math.max(1, Math.min(50, suggestionLimitRaw))
         : 12;
+      const suggestionMinLengthRaw = Number.parseInt(input.dataset.liveSearchSuggestMinLength || '', 10);
+      const suggestionMinLength = Number.isFinite(suggestionMinLengthRaw)
+        ? Math.max(1, Math.min(10, suggestionMinLengthRaw))
+        : 1;
+      const suggestionEndpoint = (input.dataset.liveSearchSuggestEndpoint || '').trim();
       const shouldAutoManageDetails = (input.dataset.liveSearchOpenDetails || 'false') === 'true';
       const detailsInitialState = new WeakMap();
       let datalist = null;
+      let remoteSuggestions = [];
+      let remoteFetchTimer = null;
+      let remoteFetchRequestId = 0;
+      let latestContexts = [];
+      let latestNormalizedTerm = '';
 
       if (suggestionsEnabled) {
         const existingListId = input.getAttribute('list');
@@ -1148,8 +1158,38 @@
         }
       }
 
+      const clearSuggestionList = () => {
+        if (datalist) {
+          datalist.innerHTML = '';
+        }
+      };
+
+      const addSuggestionValue = (value, normalizedTerm, seen, values) => {
+        const compactValue = compactSearchValue(value, 120);
+        const suggestionNormalized = normalizeSearchValue(compactValue);
+        if (!compactValue || !suggestionNormalized) {
+          return;
+        }
+
+        if (normalizedTerm && !suggestionNormalized.includes(normalizedTerm)) {
+          return;
+        }
+
+        if (seen.has(suggestionNormalized)) {
+          return;
+        }
+
+        seen.add(suggestionNormalized);
+        values.push(compactValue);
+      };
+
       const updateSuggestions = (contexts, normalizedTerm) => {
         if (!datalist) {
+          return;
+        }
+
+        if (!normalizedTerm || normalizedTerm.length < suggestionMinLength) {
+          clearSuggestionList();
           return;
         }
 
@@ -1178,11 +1218,74 @@
           values.push(suggestion);
         });
 
+        remoteSuggestions.forEach((suggestion) => {
+          addSuggestionValue(suggestion, normalizedTerm, seen, values);
+        });
+
         values.sort((left, right) => left.localeCompare(right, undefined, { sensitivity: 'base' }));
         datalist.innerHTML = values
           .slice(0, suggestionLimit)
           .map((value) => `<option value="${escapeOptionValue(value)}"></option>`)
           .join('');
+      };
+
+      const scheduleRemoteSuggestionsFetch = (rawTerm, normalizedTerm) => {
+        if (!datalist || !suggestionEndpoint) {
+          return;
+        }
+
+        if (!normalizedTerm || normalizedTerm.length < suggestionMinLength) {
+          remoteSuggestions = [];
+          remoteFetchRequestId += 1;
+          if (remoteFetchTimer) {
+            window.clearTimeout(remoteFetchTimer);
+            remoteFetchTimer = null;
+          }
+          return;
+        }
+
+        const requestId = remoteFetchRequestId + 1;
+        remoteFetchRequestId = requestId;
+
+        if (remoteFetchTimer) {
+          window.clearTimeout(remoteFetchTimer);
+        }
+
+        remoteFetchTimer = window.setTimeout(async () => {
+          try {
+            const endpointUrl = new URL(suggestionEndpoint, window.location.origin);
+            endpointUrl.searchParams.set('term', rawTerm);
+            endpointUrl.searchParams.set('limit', String(suggestionLimit));
+
+            const response = await fetch(endpointUrl.toString(), {
+              headers: { Accept: 'application/json' },
+              credentials: 'same-origin',
+            });
+
+            if (!response.ok) {
+              throw new Error(`Suggestion request failed with status ${response.status}`);
+            }
+
+            const payload = await response.json();
+            if (requestId !== remoteFetchRequestId) {
+              return;
+            }
+
+            const responseSuggestions = Array.isArray(payload?.suggestions) ? payload.suggestions : [];
+            remoteSuggestions = responseSuggestions
+              .map((value) => compactSearchValue(value, 120))
+              .filter((value) => value !== '');
+          } catch (error) {
+            if (requestId !== remoteFetchRequestId) {
+              return;
+            }
+            remoteSuggestions = [];
+          } finally {
+            if (requestId === remoteFetchRequestId) {
+              updateSuggestions(latestContexts, latestNormalizedTerm);
+            }
+          }
+        }, 140);
       };
 
       const syncDetailsVisibility = (contexts, normalizedTerm) => {
@@ -1232,6 +1335,9 @@
           };
         });
 
+        latestContexts = contexts;
+        latestNormalizedTerm = normalizedTerm;
+
         const hasExactSuggestionMatch = normalizedTerm !== ''
           && contexts.some((context) => context.suggestionNormalized === normalizedTerm);
 
@@ -1246,6 +1352,7 @@
 
         updateSuggestions(contexts, normalizedTerm);
         syncDetailsVisibility(contexts, normalizedTerm);
+        scheduleRemoteSuggestionsFetch(input.value || '', normalizedTerm);
       };
 
       input.addEventListener('input', applyFilter);
@@ -1302,6 +1409,11 @@
       }
 
       const termNormalized = normalizeTerm(term);
+      if (!termNormalized) {
+        datalist.innerHTML = '';
+        return;
+      }
+
       const seen = new Set();
       const filtered = values.filter((value) => {
         const compact = String(value ?? '').replace(/\s+/g, ' ').trim();

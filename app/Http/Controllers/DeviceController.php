@@ -215,7 +215,31 @@ class DeviceController extends Controller
 
     public function details(Request $request)
     {
-        $devices = Device::orderByDesc('id')->get();
+        $searchRawInput = $request->query('search', '');
+        if (is_array($searchRawInput)) {
+            $searchRawInput = $searchRawInput[0] ?? '';
+        }
+
+        $searchTerm = trim((string) $searchRawInput);
+        $searchLike = '%' . addcslashes($searchTerm, '\\%_') . '%';
+
+        $devicesQuery = Device::query()->orderByDesc('id');
+        if ($searchTerm !== '') {
+            $devicesQuery->where(function ($sub) use ($searchLike, $searchTerm) {
+                $sub->where('name', 'like', $searchLike)
+                    ->orWhere('serial_number', 'like', $searchLike)
+                    ->orWhere('ip_address', 'like', $searchLike)
+                    ->orWhere('location', 'like', $searchLike)
+                    ->orWhere('model', 'like', $searchLike)
+                    ->orWhere('type', 'like', $searchLike);
+
+                if (ctype_digit($searchTerm)) {
+                    $sub->orWhere('id', (int) $searchTerm);
+                }
+            });
+        }
+
+        $devices = $devicesQuery->get();
         $totalDevices = Device::count();
         $activeDevices = Device::where('status', 'online')->count();
         $authUser = User::find($request->session()->get('auth.user_id'));
@@ -225,7 +249,62 @@ class DeviceController extends Controller
             'totalDevices' => $totalDevices,
             'activeDevices' => $activeDevices,
             'authUser' => $authUser,
+            'searchTerm' => $searchTerm,
         ]);
+    }
+
+    public function suggest(Request $request)
+    {
+        $termRawInput = $request->query('term', '');
+        if (is_array($termRawInput)) {
+            $termRawInput = $termRawInput[0] ?? '';
+        }
+
+        $term = trim((string) $termRawInput);
+        $limitRaw = (int) $request->query('limit', 12);
+        $limit = max(1, min(50, $limitRaw));
+        if ($term === '') {
+            return response()->json(['suggestions' => []]);
+        }
+
+        $searchLike = '%' . addcslashes($term, '\\%_') . '%';
+
+        $devices = Device::query()
+            ->select(['id', 'name', 'location', 'serial_number', 'ip_address'])
+            ->where(function ($query) use ($searchLike, $term) {
+                $query->where('name', 'like', $searchLike)
+                    ->orWhere('location', 'like', $searchLike)
+                    ->orWhere('serial_number', 'like', $searchLike)
+                    ->orWhere('ip_address', 'like', $searchLike);
+
+                if (ctype_digit($term)) {
+                    $query->orWhere('id', (int) $term);
+                }
+            })
+            ->orderByRaw('LOWER(COALESCE(name, \'\')) ASC')
+            ->orderBy('id')
+            ->limit($limit * 4)
+            ->get();
+
+        $seen = [];
+        $suggestions = [];
+        foreach ($devices as $device) {
+            $name = trim((string) ($device->name ?? ''));
+            $label = $name !== '' ? $name : ('Device #' . (int) $device->id);
+            $normalized = Str::lower($label);
+            if ($normalized === '' || isset($seen[$normalized])) {
+                continue;
+            }
+
+            $seen[$normalized] = true;
+            $suggestions[] = $label;
+
+            if (count($suggestions) >= $limit) {
+                break;
+            }
+        }
+
+        return response()->json(['suggestions' => $suggestions]);
     }
 
     public function updateBackupFolderPermissions(Request $request)

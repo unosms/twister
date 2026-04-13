@@ -47,6 +47,7 @@ Route::middleware(['admin.auth', 'audit.log'])->group(function () {
     Route::get('/devices', [DeviceController::class, 'index'])->name('devices.index');
     Route::get('/devices/create', [DeviceController::class, 'create'])->name('devices.create');
     Route::get('/devices/details', [DeviceController::class, 'details'])->name('devices.details');
+    Route::get('/devices/suggest', [DeviceController::class, 'suggest'])->name('devices.suggest');
     Route::get('/devices/events', [DeviceController::class, 'eventsIndex'])->name('devices.events.index');
     Route::post('/devices/events/notes', [DeviceController::class, 'storeEventNote'])->name('devices.events.notes.store');
     Route::get('/devices/status-snapshot', [DeviceController::class, 'statusSnapshot'])->name('devices.statusSnapshot');
