@@ -28,7 +28,7 @@
         <span class="material-symbols-outlined">settings_remote</span>
     </div>
     <div class="flex flex-col" data-sidebar-brand-text>
-        <h1 class="text-sm font-bold leading-none">Device Control</h1>
+        <h1 class="text-sm font-bold leading-none">Twister Device Control</h1>
         <p class="mt-1 text-[10px] uppercase tracking-widest text-slate-500">Admin Portal</p>
     </div>
 </div>
@@ -79,3 +79,4 @@
         <span class="text-sm" data-sidebar-label>Settings</span>
     </a>
 </nav>
+

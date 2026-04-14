@@ -3,7 +3,7 @@
 <html class="light" lang="en"><head>
 <meta charset="utf-8"/><meta name="csrf-token" content="{{ csrf_token() }}"/><meta name="app-base" content="{{ url('/') }}"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Command Builder &amp; Permissions - Device Control Manager</title>
+<title>Command Builder &amp; Permissions - Twister Device Control</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&amp;display=swap" rel="stylesheet"/>
@@ -41,7 +41,7 @@
 <div class="bg-primary text-white p-1.5 rounded-lg">
 <span class="material-symbols-outlined block">settings_remote</span>
 </div>
-<h2 class="text-lg font-bold tracking-tight">Device Control Manager</h2>
+<h2 class="text-lg font-bold tracking-tight">Twister Device Control</h2>
 </div>
 <nav class="hidden md:flex items-center gap-6">
 <a class="text-sm font-medium text-slate-600 dark:text-slate-400 hover:text-primary dark:hover:text-primary" href="{{ route('dashboard') }}">Dashboard</a>
@@ -99,7 +99,7 @@
 <div class="w-full max-w-[280px] bg-white dark:bg-slate-900 rounded-2xl shadow-xl border border-slate-200 dark:border-slate-800 p-6 space-y-6">
 <div class="flex items-center justify-between">
 <span class="material-symbols-outlined text-primary bg-primary/10 p-2 rounded-lg">lightbulb</span>
-<span class="text-xs font-semibold text-slate-400">リビングルーム</span>
+<span class="text-xs font-semibold text-slate-400">ãƒªãƒ“ãƒ³ã‚°ãƒ«ãƒ¼ãƒ </span>
 </div>
 <div>
 <h4 class="font-bold text-lg leading-tight">Living Room Main Light</h4>
@@ -362,6 +362,7 @@ Permissions Help
 </div>
 </main>
 </body></html>
+
 
 
 

@@ -3,7 +3,7 @@
 <html class="light" lang="en"><head>
 <meta charset="utf-8"/><meta name="csrf-token" content="{{ csrf_token() }}"/><meta name="app-base" content="{{ url('/') }}"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Admin Login - 2FA Verification | Device Control Manager</title>
+<title>Admin Login - 2FA Verification | Twister Device Control</title>
 <!-- Tailwind CSS -->
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <!-- Google Fonts: Inter -->
@@ -46,7 +46,7 @@
 <path d="M44 4H30.6666V17.3334H17.3334V30.6666H4V44H44V4Z" fill="currentColor"></path>
 </svg>
 </div>
-<h2 class="text-lg font-bold leading-tight tracking-[-0.015em]">Device Control Manager</h2>
+<h2 class="text-lg font-bold leading-tight tracking-[-0.015em]">Twister Device Control</h2>
 </div>
 <div class="hidden md:flex gap-4 items-center">
 <span class="text-sm font-medium text-slate-500 dark:text-slate-400">Environment: Production</span>
@@ -129,7 +129,7 @@
 </main>
 <!-- Page Footer -->
 <footer class="p-6 text-center text-slate-500 text-sm">
-<p>© 2024 Device Control Manager. All rights reserved.</p>
+<p>© 2024 Twister Device Control. All rights reserved.</p>
 <div class="flex justify-center gap-4 mt-2">
 <a class="hover:text-primary" href="#">Help Center</a>
 <a class="hover:text-primary" href="#">Privacy Policy</a>
@@ -137,5 +137,6 @@
 </div>
 </footer>
 </body></html>
+
 
 

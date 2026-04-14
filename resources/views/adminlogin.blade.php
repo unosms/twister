@@ -5,7 +5,7 @@
 <meta name="csrf-token" content="{{ csrf_token() }}"/>
 <meta name="app-base" content="{{ url('/') }}"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Account Login - Device Control Manager</title>
+<title>Account Login - Twister Device Control</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
@@ -78,7 +78,7 @@
                         <path d="M44 4H30.6666V17.3334H17.3334V30.6666H4V44H44V4Z" fill="currentColor"></path>
                     </svg>
                 </div>
-                <span class="text-2xl font-bold tracking-tight">Device Control Manager</span>
+                <span class="text-2xl font-bold tracking-tight">Twister Device Control</span>
             </div>
 
             <h1 class="text-5xl font-black leading-tight">Access your account and get straight to operations.</h1>
@@ -101,7 +101,7 @@
                 </div>
             </div>
 
-            <p class="mt-14 text-xs text-white/60">Copyright 2026 Device Control Manager</p>
+            <p class="mt-14 text-xs text-white/60">Copyright 2026 Twister Device Control</p>
         </div>
     </section>
 
@@ -113,7 +113,7 @@
                         <path d="M44 4H30.6666V17.3334H17.3334V30.6666H4V44H44V4Z" fill="currentColor"></path>
                     </svg>
                 </div>
-                <span class="text-xl font-bold tracking-tight text-[#0d121b] dark:text-white">Device Control Manager</span>
+                <span class="text-xl font-bold tracking-tight text-[#0d121b] dark:text-white">Twister Device Control</span>
             </div>
 
             <div class="login-card rounded-2xl p-6 sm:p-8">
@@ -222,3 +222,4 @@
 </div>
 </body>
 </html>
+

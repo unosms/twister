@@ -5,7 +5,7 @@
 <meta name="csrf-token" content="{{ csrf_token() }}"/>
 <meta name="app-base" content="{{ url('/') }}"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>System Settings | Device Control Manager</title>
+<title>System Settings | Twister Device Control</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
@@ -1117,3 +1117,4 @@ document.addEventListener('DOMContentLoaded', function () {
 </script>
 </body>
 </html>
+

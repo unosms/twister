@@ -5,7 +5,7 @@
 <meta name="csrf-token" content="{{ csrf_token() }}"/>
 <meta name="app-base" content="{{ url('/') }}"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>User Portal | Device Control Manager</title>
+<title>User Portal | Twister Device Control</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
@@ -124,7 +124,7 @@ $commandTemplates = $commandTemplates ?? collect();
 <span class="material-symbols-outlined">settings_remote</span>
 </div>
 <div class="min-w-0">
-<p class="text-sm font-black tracking-tight">Device Control Manager</p>
+<p class="text-sm font-black tracking-tight">Twister Device Control</p>
 <p class="text-xs text-slate-500">User operations portal</p>
 </div>
 </div>
@@ -616,7 +616,7 @@ No devices match the current search and status filters on this page.
 <footer class="border-t border-slate-200 bg-white/85 px-4 py-6 dark:border-slate-800 dark:bg-background-dark/85 sm:px-6 lg:px-8">
 <div class="mx-auto flex max-w-7xl flex-col gap-4 md:flex-row md:items-center md:justify-between">
 <div>
-<p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Device Control Manager</p>
+<p class="text-sm font-semibold text-slate-700 dark:text-slate-200">Twister Device Control</p>
 <p class="mt-1 text-xs text-slate-500">Operational visibility for assigned devices and approved command access.</p>
 </div>
 <div class="flex flex-wrap items-center gap-4 text-sm text-slate-500">
@@ -632,3 +632,4 @@ Logout
 </div>
 </body>
 </html>
+

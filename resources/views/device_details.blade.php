@@ -3,7 +3,7 @@
 <html class="light" lang="en"><head>
 <meta charset="utf-8"/><meta name="csrf-token" content="<?php echo e(csrf_token()); ?>"/><meta name="app-base" content="<?php echo e(url('/')); ?>"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>Devices List | Device Control Manager</title>
+<title>Devices List | Twister Device Control</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@100..700,0..1&display=swap" rel="stylesheet"/>
@@ -334,6 +334,7 @@ No devices matched "<?php echo e($searchTermNormalized); ?>".
 
 
 <?php /**PATH C:\xampp\htdocs\Laravel\resources\views/device_details.blade.php ENDPATH**/ ?>
+
 
 
 

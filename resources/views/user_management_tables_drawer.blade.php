@@ -3,7 +3,7 @@
 <html class="light" lang="en"><head>
 <meta charset="utf-8"/><meta name="csrf-token" content="<?php echo e(csrf_token()); ?>"/><meta name="app-base" content="<?php echo e(url('/')); ?>"/>
 <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-<title>User Management - Device Control Manager</title>
+<title>User Management - Twister Device Control</title>
 <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&amp;display=swap" rel="stylesheet"/>
 <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
@@ -54,7 +54,7 @@
 <path d="M44 4H30.6666V17.3334H17.3334V30.6666H4V44H44V4Z"></path>
 </svg>
 </div>
-<h2 class="text-[#0d121b] dark:text-white text-lg font-bold leading-tight tracking-[-0.015em]">Device Control Manager</h2>
+<h2 class="text-[#0d121b] dark:text-white text-lg font-bold leading-tight tracking-[-0.015em]">Twister Device Control</h2>
 </div>
 <label class="flex flex-col min-w-40 !h-10 max-w-64">
 <div class="flex w-full flex-1 items-stretch rounded-lg h-full bg-[#e7ebf3] dark:bg-gray-800">
@@ -1370,6 +1370,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
 
 <?php /**PATH C:\xampp\htdocs\Laravel\resources\views\user_management_tables_drawer.blade.php ENDPATH**/ ?>
+
 
 
 
