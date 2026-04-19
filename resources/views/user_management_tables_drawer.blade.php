@@ -341,6 +341,13 @@ $telegramDeviceInterfacesMap = old('telegram_device_interfaces', $user->telegram
 if (!is_array($telegramDeviceInterfacesMap)) {
     $telegramDeviceInterfacesMap = [];
 }
+$persistedTelegramCredentials = \Illuminate\Support\Facades\DB::table('users')
+    ->where('id', $user->id)
+    ->first(['telegram_chat_id', 'telegram_bot_token', 'telegram_enabled']);
+$persistedTelegramChatId = trim((string) ($persistedTelegramCredentials->telegram_chat_id ?? $user->telegram_chat_id ?? ''));
+$persistedTelegramBotToken = trim((string) ($persistedTelegramCredentials->telegram_bot_token ?? $user->telegram_bot_token ?? ''));
+$telegramChatIdFieldValue = old('telegram_chat_id', $persistedTelegramChatId);
+$telegramBotTokenFieldValue = old('telegram_bot_token', $persistedTelegramBotToken);
 
 $severityOptions = $telegramSeverityOptions ?? ['info', 'average', 'high', 'disaster'];
 $severityOptions = array_values(array_unique(array_map(
@@ -395,7 +402,10 @@ $showCustomCommandFields = $customCommandType === 'custom';
 $assignedDeviceCount = count($assignedDeviceIds);
 $commandDeviceCount = count($selectedPermissionDeviceIds);
 $commandTemplateCount = count($selectedCommandTemplateIds);
-$telegramEnabled = (bool) old('telegram_enabled', (bool) ($user->telegram_enabled ?? false));
+$telegramEnabled = (bool) old(
+    'telegram_enabled',
+    (bool) ($persistedTelegramCredentials->telegram_enabled ?? $user->telegram_enabled ?? false)
+);
 $canViewAssignedDeviceGraphs = (bool) old(
     'can_view_assigned_device_graphs',
     (bool) ($user->can_view_assigned_device_graphs ?? false)
@@ -1100,12 +1110,12 @@ Telegram Setup Help
 </div>
 <div class="flex flex-col gap-2">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Telegram Chat ID</label>
-<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="telegram_chat_id" type="text" value="<?php echo e(old('telegram_chat_id', $user->telegram_chat_id)); ?>" placeholder="e.g. 123456789, -1001234567890"/>
+<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="telegram_chat_id" type="text" value="<?php echo e($telegramChatIdFieldValue); ?>" placeholder="e.g. 123456789, -1001234567890"/>
 </div>
 
 <div class="flex flex-col gap-2 md:col-span-2">
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Telegram Bot Token (optional)</label>
-<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="telegram_bot_token" type="text" value="<?php echo e(old('telegram_bot_token', $user->telegram_bot_token)); ?>" placeholder="123456:ABC..."/>
+<input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="telegram_bot_token" type="text" value="<?php echo e($telegramBotTokenFieldValue); ?>" placeholder="123456:ABC..."/>
 <p class="text-xs text-gray-400">Leave blank to use the global TELEGRAM_BOT_TOKEN.</p>
 </div>
 
