@@ -21,6 +21,7 @@ use Illuminate\Validation\Rule;
 class UserController extends Controller
 {
     private const TELEGRAM_SEVERITY_OPTIONS_FALLBACK = ['info', 'average', 'high', 'disaster'];
+    private const INTERFACE_SCOPE_MAX_LENGTH = 65535;
 
     private const TELEGRAM_SEVERITY_VALIDATION_OPTIONS = [
         'info',
@@ -648,7 +649,7 @@ class UserController extends Controller
             'event_device_interfaces.*' => [
                 'nullable',
                 'string',
-                'max:500',
+                'max:' . self::INTERFACE_SCOPE_MAX_LENGTH,
                 function (string $attribute, mixed $value, \Closure $fail) use ($selectedEventDeviceLookup): void {
                     if (!$this->attributeTargetsSelectedDevice($attribute, 'event_device_interfaces', $selectedEventDeviceLookup)) {
                         return;
@@ -664,7 +665,7 @@ class UserController extends Controller
             'graph_device_interfaces.*' => [
                 'nullable',
                 'string',
-                'max:500',
+                'max:' . self::INTERFACE_SCOPE_MAX_LENGTH,
                 function (string $attribute, mixed $value, \Closure $fail) use ($selectedGraphDeviceLookup): void {
                     if (!$this->attributeTargetsSelectedDevice($attribute, 'graph_device_interfaces', $selectedGraphDeviceLookup)) {
                         return;

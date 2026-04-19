@@ -2513,14 +2513,10 @@
           const deviceId = String(item.dataset.deviceId || '');
           const visible = selectedIds.has(deviceId);
           item.classList.toggle('hidden', !visible);
-          const hiddenInput = item.querySelector('input[data-event-interface-hidden]');
-          if (hiddenInput) {
-            hiddenInput.disabled = !visible;
-          }
           item
-            .querySelectorAll('input[type="checkbox"][data-event-interface-option]')
-            .forEach((option) => {
-              option.disabled = !visible;
+            .querySelectorAll('input[name^="device_permission_command_template_ids["]')
+            .forEach((input) => {
+              input.disabled = !visible;
             });
           if (visible) {
             visibleCount += 1;
@@ -2660,12 +2656,12 @@
           const deviceId = String(item.dataset.deviceId || '');
           const visible = selectedIds.has(deviceId);
           item.classList.toggle('hidden', !visible);
-          const hiddenInput = item.querySelector('input[data-graph-interface-hidden]');
+          const hiddenInput = item.querySelector('input[data-event-interface-hidden]');
           if (hiddenInput) {
             hiddenInput.disabled = !visible;
           }
           item
-            .querySelectorAll('input[type="checkbox"][data-graph-interface-option]')
+            .querySelectorAll('input[type="checkbox"][data-event-interface-option]')
             .forEach((option) => {
               option.disabled = !visible;
             });
@@ -2807,6 +2803,15 @@
           const deviceId = String(item.dataset.deviceId || '');
           const visible = selectedIds.has(deviceId);
           item.classList.toggle('hidden', !visible);
+          const hiddenInput = item.querySelector('input[data-graph-interface-hidden]');
+          if (hiddenInput) {
+            hiddenInput.disabled = !visible;
+          }
+          item
+            .querySelectorAll('input[type="checkbox"][data-graph-interface-option]')
+            .forEach((option) => {
+              option.disabled = !visible;
+            });
           if (visible) {
             visibleCount += 1;
           }
