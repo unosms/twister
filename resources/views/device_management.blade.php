@@ -727,6 +727,11 @@ Device Registration Help
 @php
 $meta = $device->metadata ?? [];
 $monitoringDisabled = (bool) data_get($meta, 'monitoring_disabled', false);
+$ciscoModel = trim((string) (data_get($meta, 'cisco.switch_model') ?? $device->model ?? ''));
+$ciscoModel = $ciscoModel !== '' ? $ciscoModel : 'Other';
+$ciscoModelUpper = strtoupper($ciscoModel);
+$knownCiscoModels = ['NEXUS', '4948', '3560', 'OTHER'];
+$ciscoModelIsCustom = !in_array($ciscoModelUpper, $knownCiscoModels, true);
 $mimosaModel = strtoupper((string) (data_get($meta, 'mimosa_model') ?? $device->model ?? 'C5C'));
 if (!in_array($mimosaModel, ['C5C', 'C5X', 'B11'], true)) {
     $mimosaModel = 'C5C';
@@ -846,7 +851,19 @@ $isSelected = isset($selectedDevice) && $selectedDevice && $selectedDevice->id =
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">SNMP Port</label>
 <input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="snmp_port" type="number" min="1" max="65535" value="{{ data_get($device->metadata, 'snmp_port') ?? data_get($device->metadata, 'server.snmp_port') ?? data_get($device->metadata, 'mikrotik.snmp_port') ?? '' }}"/>
 </div>
-<div class="contents" data-device-edit-cisco-fields data-device-edit-cisco-model="{{ data_get($device->metadata, 'cisco.switch_model') ?? $device->model ?? '' }}">
+<div class="contents" data-device-edit-cisco-fields data-device-edit-cisco-model="{{ $ciscoModel }}">
+<div class="flex flex-col gap-2">
+<label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Switch Model</label>
+<select class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="switch_model" data-device-edit-cisco-model data-device-edit-cisco-required>
+@if ($ciscoModelIsCustom)
+<option value="{{ $ciscoModel }}" selected>{{ $ciscoModel }} (Current)</option>
+@endif
+<option value="Nexus" @selected(strcasecmp($ciscoModel, 'Nexus') === 0)>Nexus</option>
+<option value="4948" @selected(strcasecmp($ciscoModel, '4948') === 0)>4948</option>
+<option value="3560" @selected(strcasecmp($ciscoModel, '3560') === 0)>3560</option>
+<option value="Other" @selected(strcasecmp($ciscoModel, 'Other') === 0)>Other</option>
+</select>
+</div>
 <div class="flex flex-col gap-2" data-device-edit-cisco-username-field>
 <label class="text-sm font-semibold text-gray-600 dark:text-gray-300">Cisco Username</label>
 <input class="rounded-lg border-[#cfd7e7] dark:border-gray-700 dark:bg-gray-800 dark:text-white focus:border-primary focus:ring-primary h-11" name="cisco_username" type="text" value="{{ data_get($device->metadata, 'cisco.username') ?? '' }}"/>

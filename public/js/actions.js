@@ -3514,7 +3514,11 @@
       const snmpCommunityField = form.querySelector('[data-device-edit-snmp-community-field]');
       const snmpPortField = form.querySelector('[data-device-edit-snmp-port-field]');
       const ciscoUsernameFields = Array.from(form.querySelectorAll('[data-device-edit-cisco-username-field]'));
-      const ciscoModel = String(ciscoFields?.dataset.deviceEditCiscoModel || '');
+      const ciscoModelInput = ciscoFields
+        ? ciscoFields.querySelector('[data-device-edit-cisco-model]')
+        : null;
+      const readCiscoModel = () =>
+        String(ciscoModelInput?.value || ciscoFields?.dataset.deviceEditCiscoModel || '');
 
       const normalizeFolderName = (value) =>
         String(value || '')
@@ -3582,7 +3586,7 @@
       };
 
       const toggleCiscoUsername = (ciscoVisible) => {
-        const showUsername = ciscoVisible && ciscoModelUsesUsername(ciscoModel);
+        const showUsername = ciscoVisible && ciscoModelUsesUsername(readCiscoModel());
 
         ciscoUsernameFields.forEach((group) => {
           group.classList.toggle('hidden', !showUsername);
@@ -3602,7 +3606,7 @@
         const showSnmpPort = isCisco || isServer || isMimosa;
         const showCommonName = isOlt || isMikrotik;
 
-        toggleGroup(ciscoFields, isCisco);
+        toggleGroup(ciscoFields, isCisco, 'data-device-edit-cisco-required');
         toggleGroup(mimosaFields, isMimosa, 'data-device-edit-mimosa-required');
         toggleGroup(serverFields, isServer, 'data-device-edit-server-required');
         toggleGroup(oltFields, isOlt, 'data-device-edit-olt-required');
@@ -3645,6 +3649,12 @@
         serverTypeSelect.addEventListener('change', () => {
           const isServer = (typeSelect.value || '').toUpperCase() === 'SERVER';
           toggleServerStandalone(isServer);
+        });
+      }
+      if (ciscoModelInput) {
+        ciscoModelInput.addEventListener('change', () => {
+          const isCisco = (typeSelect.value || '').toUpperCase() === 'CISCO';
+          toggleCiscoUsername(isCisco);
         });
       }
       if (serverServiceSelect) {

@@ -1409,6 +1409,7 @@ class DeviceController extends Controller
             'type' => ['required', 'string', 'max:50'],
             'ip_address' => ['nullable', 'string', 'max:255', 'required_if:type,SERVER'],
             'mimosa_model' => ['nullable', 'string', 'required_if:type,MIMOSA', Rule::in(self::MIMOSA_MODEL_OPTIONS)],
+            'switch_model' => ['nullable', 'string', 'max:255'],
             'cisco_username' => ['nullable', 'string', 'max:255'],
             'cisco_password' => ['nullable', 'string', 'max:255'],
             'enable_password' => ['nullable', 'string', 'max:255'],
@@ -1498,7 +1499,13 @@ class DeviceController extends Controller
         if ($type === 'CISCO') {
             $cisco = data_get($meta, 'cisco', []);
             $cisco['ip_address'] = $ipAddress ?? ($cisco['ip_address'] ?? null);
-            $ciscoModel = $this->normalizeOptionalString($cisco['switch_model'] ?? $updatedModel);
+            $ciscoModel = $this->normalizeOptionalString($data['switch_model'] ?? null)
+                ?? $this->normalizeOptionalString($cisco['switch_model'] ?? $updatedModel);
+            if ($ciscoModel !== null) {
+                $cisco['switch_model'] = $ciscoModel;
+            } else {
+                unset($cisco['switch_model']);
+            }
             if ($this->ciscoModelUsesUsername($ciscoModel)) {
                 $cisco['username'] = $this->normalizeOptionalString($data['cisco_username'] ?? null) ?? ($cisco['username'] ?? null);
             } else {
@@ -1523,7 +1530,7 @@ class DeviceController extends Controller
                 $cisco['enable_password'] = encrypt($ciscoEnablePassword);
             }
             $meta['cisco'] = $cisco;
-            $updatedModel = $this->normalizeOptionalString($cisco['switch_model'] ?? null) ?? $updatedModel;
+            $updatedModel = $ciscoModel ?? $updatedModel;
         } else {
             unset($meta['cisco']);
         }
